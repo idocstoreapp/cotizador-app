@@ -5,7 +5,8 @@ import { useState } from 'react';
 import { useCotizacionStore } from '../store/cotizacionStore';
 import CotizacionCart from './ui/CotizacionCart';
 import AgregarItemManual from './ui/AgregarItemManual';
-import { abrirPDF } from '../utils/generarPDF';
+import { downloadQuotePDF } from '../utils/pdf';
+import { convertirItemsAPDF } from '../utils/convertirItemsAPDF';
 import { crearCotizacion } from '../services/cotizaciones.service';
 import { obtenerUsuarioActual } from '../services/auth.service';
 import { convertirItemsACotizacionInput } from '../utils/convertirCotizacionStore';
@@ -58,23 +59,30 @@ export default function CotizacionPage() {
       const numero = cotizacionGuardada.numero;
       const fecha = new Date(cotizacionGuardada.created_at).toLocaleDateString('es-ES');
 
-      // Generar PDF
-      abrirPDF({
+      // Convertir items al formato del PDF profesional
+      const datosPDF = convertirItemsAPDF(
+        items,
+        datosCliente,
         numero,
         fecha,
-        items,
         subtotal,
         descuento,
         iva,
-        total,
-        cliente: datosCliente
-      });
+        total
+      );
+
+      // Generar PDF profesional usando el nuevo sistema
+      try {
+        await downloadQuotePDF(datosPDF);
+        alert(`✅ Cotización ${numero} guardada y PDF generado exitosamente`);
+      } catch (pdfError: any) {
+        console.error('Error al generar PDF:', pdfError);
+        alert(`⚠️ Cotización ${numero} guardada, pero hubo un error al generar el PDF: ${pdfError.message}`);
+      }
 
       // Limpiar el carrito después de guardar
       useCotizacionStore.getState().limpiarCotizacion();
       setDatosCliente({ nombre: '', telefono: '', email: '', direccion: '' });
-
-      alert(`✅ Cotización ${numero} guardada exitosamente con estado: PENDIENTE`);
     } catch (error: any) {
       console.error('Error al guardar cotización:', error);
       alert('Error al guardar la cotización: ' + (error.message || 'Error desconocido'));
