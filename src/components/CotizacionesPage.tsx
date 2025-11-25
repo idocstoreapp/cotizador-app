@@ -14,25 +14,51 @@ import type { Cotizacion } from '../types/database';
 
 export default function CotizacionesPage() {
   const { usuario, esAdmin: esAdminContexto } = useUser();
+  const [intentos, setIntentos] = useState(0);
   
   // Debug: Log del estado del usuario
   console.log('🔍 CotizacionesPage render:', {
     tieneUsuario: !!usuario,
     email: usuario?.email,
     role: usuario?.role,
-    id: usuario?.id
+    id: usuario?.id,
+    intentos
   });
   
-  // Si no hay usuario, mostrar loading
-  // El Layout debería garantizar que hay usuario, pero por seguridad verificamos
+  // Esperar a que el usuario esté disponible (máximo 5 intentos)
+  useEffect(() => {
+    if (!usuario && intentos < 5) {
+      const timeout = setTimeout(() => {
+        setIntentos(prev => prev + 1);
+      }, 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [usuario, intentos]);
+  
+  // Si no hay usuario después de varios intentos, mostrar error
   if (!usuario) {
-    console.log('⏳ CotizacionesPage: Esperando usuario...');
+    if (intentos >= 5) {
+      return (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <p className="text-red-600 font-semibold mb-2">Error al cargar usuario</p>
+            <p className="text-gray-600 text-sm mb-4">No se pudo obtener la información del usuario</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            >
+              Recargar página
+            </button>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-2"></div>
-          <p className="text-gray-600 text-sm">Cargando usuario...</p>
-          <p className="text-xs text-gray-400 mt-2">Esperando que el contexto se actualice...</p>
+          <p className="text-gray-600 text-sm">Cargando...</p>
         </div>
       </div>
     );
