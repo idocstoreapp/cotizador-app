@@ -7,6 +7,28 @@ import React from 'react';
 interface QuoteItem {
   concepto: string;
   precio: number;
+  // Detalles opcionales para mostrar desglose
+  detalles?: {
+    materiales?: Array<{
+      nombre: string;
+      cantidad: number;
+      unidad: string;
+      precio_unitario: number;
+      subtotal: number;
+    }>;
+    servicios?: Array<{
+      nombre: string;
+      horas: number;
+      precio_por_hora: number;
+      subtotal: number;
+    }>;
+    gastos_extras?: Array<{
+      concepto: string;
+      monto: number;
+    }>;
+    margen_ganancia?: number;
+    subtotal_antes_margen?: number;
+  };
 }
 
 interface QuotePDFProps {
@@ -264,6 +286,71 @@ export default function QuotePDF({
           color: #6b2c3e;
         }
 
+        /* Detalles de items */
+        .item-details {
+          margin-top: 20px;
+          margin-bottom: 30px;
+        }
+
+        .item-detail-section {
+          background: rgba(255, 255, 255, 0.95);
+          margin: 0 40px 20px;
+          padding: 20px;
+          border-radius: 8px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .item-detail-title {
+          font-size: 16px;
+          font-weight: bold;
+          color: #333;
+          margin-bottom: 15px;
+          padding-bottom: 8px;
+          border-bottom: 2px solid #d4a574;
+        }
+
+        .detail-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 12px;
+        }
+
+        .detail-table th {
+          background: #f5f5f0;
+          padding: 8px;
+          text-align: left;
+          font-weight: 600;
+          color: #333;
+          border-bottom: 1px solid #d4a574;
+        }
+
+        .detail-table td {
+          padding: 8px;
+          border-bottom: 1px solid #e0e0e0;
+          color: #666;
+        }
+
+        .detail-table td:last-child {
+          text-align: right;
+          font-weight: 500;
+        }
+
+        .detail-subtotal {
+          font-weight: 600;
+          color: #333;
+          background: #f9f9f9;
+        }
+
+        .detail-section-title {
+          font-size: 13px;
+          font-weight: 600;
+          color: #8b6f47;
+          margin-top: 15px;
+          margin-bottom: 8px;
+          padding-left: 5px;
+          border-left: 3px solid #d4a574;
+        }
+
         /* Footer */
         .quote-footer {
           position: absolute;
@@ -371,6 +458,142 @@ export default function QuotePDF({
           )}
         </div>
       </div>
+
+      {/* Item details */}
+      {items.some(item => item.detalles) && (
+        <div className="item-details">
+          {items.map((item, index) => {
+            if (!item.detalles) return null;
+            
+            const { materiales, servicios, gastos_extras, margen_ganancia, subtotal_antes_margen } = item.detalles;
+            
+            return (
+              <div key={index} className="item-detail-section">
+                <div className="item-detail-title">{item.concepto}</div>
+                
+                {/* Materiales */}
+                {materiales && materiales.length > 0 && (
+                  <>
+                    <div className="detail-section-title">Materiales</div>
+                    <table className="detail-table">
+                      <thead>
+                        <tr>
+                          <th>Material</th>
+                          <th>Cantidad</th>
+                          <th>Unidad</th>
+                          <th>Precio Unit.</th>
+                          <th>Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {materiales.map((mat, idx) => (
+                          <tr key={idx}>
+                            <td>{mat.nombre}</td>
+                            <td>{mat.cantidad}</td>
+                            <td>{mat.unidad}</td>
+                            <td>${mat.precio_unitario.toLocaleString('es-CO')}</td>
+                            <td>${mat.subtotal.toLocaleString('es-CO')}</td>
+                          </tr>
+                        ))}
+                        <tr className="detail-subtotal">
+                          <td colSpan={4}>Subtotal Materiales</td>
+                          <td>${materiales.reduce((sum, m) => sum + m.subtotal, 0).toLocaleString('es-CO')}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </>
+                )}
+                
+                {/* Servicios */}
+                {servicios && servicios.length > 0 && (
+                  <>
+                    <div className="detail-section-title">Servicios / Mano de Obra</div>
+                    <table className="detail-table">
+                      <thead>
+                        <tr>
+                          <th>Servicio</th>
+                          <th>Horas</th>
+                          <th>Precio/Hora</th>
+                          <th>Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {servicios.map((serv, idx) => (
+                          <tr key={idx}>
+                            <td>{serv.nombre}</td>
+                            <td>{serv.horas}</td>
+                            <td>${serv.precio_por_hora.toLocaleString('es-CO')}</td>
+                            <td>${serv.subtotal.toLocaleString('es-CO')}</td>
+                          </tr>
+                        ))}
+                        <tr className="detail-subtotal">
+                          <td colSpan={3}>Subtotal Servicios</td>
+                          <td>${servicios.reduce((sum, s) => sum + s.subtotal, 0).toLocaleString('es-CO')}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </>
+                )}
+                
+                {/* Gastos Extras */}
+                {gastos_extras && gastos_extras.length > 0 && (
+                  <>
+                    <div className="detail-section-title">Gastos Extras</div>
+                    <table className="detail-table">
+                      <thead>
+                        <tr>
+                          <th>Concepto</th>
+                          <th>Monto</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {gastos_extras.map((gasto, idx) => (
+                          <tr key={idx}>
+                            <td>{gasto.concepto}</td>
+                            <td>${gasto.monto.toLocaleString('es-CO')}</td>
+                          </tr>
+                        ))}
+                        <tr className="detail-subtotal">
+                          <td>Subtotal Gastos Extras</td>
+                          <td>${gastos_extras.reduce((sum, g) => sum + g.monto, 0).toLocaleString('es-CO')}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </>
+                )}
+                
+                {/* Subtotal antes de margen */}
+                {subtotal_antes_margen !== undefined && (
+                  <div style={{ marginTop: '15px', paddingTop: '10px', borderTop: '1px solid #e0e0e0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 600, color: '#333' }}>
+                      <span>Subtotal (antes de margen)</span>
+                      <span>${subtotal_antes_margen.toLocaleString('es-CO')}</span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Margen de ganancia */}
+                {margen_ganancia !== undefined && subtotal_antes_margen !== undefined && (
+                  <div style={{ marginTop: '8px', fontSize: '13px', color: '#666' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Margen de Ganancia ({margen_ganancia.toFixed(1)}%)</span>
+                      <span>${((subtotal_antes_margen * margen_ganancia) / 100).toLocaleString('es-CO')}</span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Total del item */}
+                <div style={{ marginTop: '15px', paddingTop: '10px', borderTop: '2px solid #d4a574' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 'bold', color: '#6b2c3e' }}>
+                    <span>Total {item.concepto}</span>
+                    <span>${item.precio.toLocaleString('es-CO')}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Economic summary */}
       <div className="economic-summary">

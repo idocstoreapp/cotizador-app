@@ -8,34 +8,77 @@ import type { Cotizacion } from '../types/database';
  */
 export function convertirCotizacionAPDF(cotizacion: Cotizacion) {
   // Construir items del PDF desde materiales y servicios
-  const items: Array<{ concepto: string; precio: number }> = [];
+  const items: Array<{ concepto: string; precio: number; detalles?: any }> = [];
 
-  // Agregar materiales
-  if (cotizacion.materiales && Array.isArray(cotizacion.materiales)) {
-    cotizacion.materiales.forEach((material: any) => {
-      const nombreMaterial = material.material?.nombre || material.nombre || 'Material';
-      const cantidad = material.cantidad || 1;
-      const precioUnitario = material.precio_unitario || 0;
-      const subtotal = cantidad * precioUnitario;
+  // Agrupar materiales y servicios en un solo item con detalles
+  const materiales = cotizacion.materiales && Array.isArray(cotizacion.materiales) 
+    ? cotizacion.materiales.map((material: any) => {
+        const nombreMaterial = material.material?.nombre || material.nombre || 'Material';
+        const cantidad = material.cantidad || 1;
+        const precioUnitario = material.precio_unitario || 0;
+        const subtotal = cantidad * precioUnitario;
+        
+        return {
+          nombre: nombreMaterial,
+          cantidad,
+          unidad: material.unidad || 'unidad',
+          precio_unitario: precioUnitario,
+          subtotal
+        };
+      })
+    : [];
 
+  const servicios = cotizacion.servicios && Array.isArray(cotizacion.servicios)
+    ? cotizacion.servicios.map((servicio: any) => {
+        const nombreServicio = servicio.servicio?.nombre || servicio.nombre || 'Servicio';
+        const horas = servicio.horas || 0;
+        const precioPorHora = servicio.precio_por_hora || 0;
+        const subtotal = horas * precioPorHora;
+        
+        return {
+          nombre: nombreServicio,
+          horas,
+          precio_por_hora: precioPorHora,
+          subtotal
+        };
+      })
+    : [];
+
+  // Crear un item principal con todos los detalles
+  if (materiales.length > 0 || servicios.length > 0) {
+    const detalles: any = {};
+    
+    if (materiales.length > 0) {
+      detalles.materiales = materiales;
+    }
+    
+    if (servicios.length > 0) {
+      detalles.servicios = servicios;
+    }
+    
+    if (cotizacion.margen_ganancia !== undefined) {
+      detalles.margen_ganancia = cotizacion.margen_ganancia;
+      detalles.subtotal_antes_margen = cotizacion.subtotal;
+    }
+
+    items.push({
+      concepto: 'Cotización Completa',
+      precio: cotizacion.total,
+      detalles
+    });
+  } else {
+    // Fallback: agregar items individuales sin detalles
+    materiales.forEach((mat: any) => {
       items.push({
-        concepto: `${nombreMaterial}${cantidad > 1 ? ` x${cantidad}` : ''}`,
-        precio: subtotal
+        concepto: `${mat.nombre}${mat.cantidad > 1 ? ` x${mat.cantidad}` : ''}`,
+        precio: mat.subtotal
       });
     });
-  }
 
-  // Agregar servicios
-  if (cotizacion.servicios && Array.isArray(cotizacion.servicios)) {
-    cotizacion.servicios.forEach((servicio: any) => {
-      const nombreServicio = servicio.servicio?.nombre || servicio.nombre || 'Servicio';
-      const horas = servicio.horas || 0;
-      const precioPorHora = servicio.precio_por_hora || 0;
-      const subtotal = horas * precioPorHora;
-
+    servicios.forEach((serv: any) => {
       items.push({
-        concepto: `${nombreServicio}${horas > 0 ? ` (${horas}h)` : ''}`,
-        precio: subtotal
+        concepto: `${serv.nombre}${serv.horas > 0 ? ` (${serv.horas}h)` : ''}`,
+        precio: serv.subtotal
       });
     });
   }

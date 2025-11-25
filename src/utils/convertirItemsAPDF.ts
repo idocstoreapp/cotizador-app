@@ -68,27 +68,41 @@ export function convertirItemsAPDF(
   const itemsPDF = items.map(item => {
     let concepto = '';
     let precio = item.precio_total;
+    let detalles: any = undefined;
 
     if (item.tipo === 'catalogo') {
       concepto = item.mueble?.nombre || 'Mueble del catálogo';
       
       // Agregar detalles de opciones si existen
-      const detalles: string[] = [];
-      if (item.opciones.color) detalles.push(`Color: ${item.opciones.color}`);
-      if (item.opciones.material) detalles.push(`Material: ${item.opciones.material}`);
-      if (item.opciones.material_puertas) detalles.push(`Puertas: ${item.opciones.material_puertas}`);
-      if (item.opciones.tipo_topes) detalles.push(`Topes: ${item.opciones.tipo_topes}`);
+      const detallesTexto: string[] = [];
+      if (item.opciones.color) detallesTexto.push(`Color: ${item.opciones.color}`);
+      if (item.opciones.material) detallesTexto.push(`Material: ${item.opciones.material}`);
+      if (item.opciones.material_puertas) detallesTexto.push(`Puertas: ${item.opciones.material_puertas}`);
+      if (item.opciones.tipo_topes) detallesTexto.push(`Topes: ${item.opciones.tipo_topes}`);
       
       if (item.medidas) {
-        detalles.push(`${item.medidas.ancho || ''}×${item.medidas.alto || ''}×${item.medidas.profundidad || ''} cm`);
+        detallesTexto.push(`${item.medidas.ancho || ''}×${item.medidas.alto || ''}×${item.medidas.profundidad || ''} cm`);
       }
 
-      if (detalles.length > 0) {
-        concepto += ` (${detalles.join(', ')})`;
+      if (detallesTexto.length > 0) {
+        concepto += ` (${detallesTexto.join(', ')})`;
       }
 
       if (item.cantidad > 1) {
         concepto += ` x${item.cantidad}`;
+      }
+
+      // Agregar detalles si hay materiales o servicios
+      if (item.materiales && item.materiales.length > 0) {
+        detalles = {
+          materiales: item.materiales.map(mat => ({
+            nombre: mat.material_nombre || 'Material',
+            cantidad: mat.cantidad,
+            unidad: mat.unidad,
+            precio_unitario: mat.precio_unitario || 0,
+            subtotal: (mat.precio_unitario || 0) * mat.cantidad
+          }))
+        };
       }
     } else {
       // Item manual
@@ -102,9 +116,49 @@ export function convertirItemsAPDF(
       if (item.cantidad > 1) {
         concepto += ` x${item.cantidad}`;
       }
+
+      // Agregar detalles completos para items manuales
+      detalles = {};
+      
+      // Materiales
+      if (item.materiales && item.materiales.length > 0) {
+        detalles.materiales = item.materiales.map(mat => ({
+          nombre: mat.material_nombre || 'Material',
+          cantidad: mat.cantidad,
+          unidad: mat.unidad,
+          precio_unitario: mat.precio_unitario || 0,
+          subtotal: (mat.precio_unitario || 0) * mat.cantidad
+        }));
+      }
+
+      // Servicios
+      if (item.servicios && item.servicios.length > 0) {
+        detalles.servicios = item.servicios.map(serv => ({
+          nombre: serv.servicio_nombre || 'Servicio',
+          horas: serv.horas,
+          precio_por_hora: serv.precio_por_hora,
+          subtotal: serv.horas * serv.precio_por_hora
+        }));
+      }
+
+      // Gastos extras
+      if (item.gastos_extras && item.gastos_extras.length > 0) {
+        detalles.gastos_extras = item.gastos_extras;
+      }
+
+      // Margen de ganancia y subtotal antes de margen
+      if (item.margen_ganancia !== undefined) {
+        detalles.margen_ganancia = item.margen_ganancia;
+        
+        // Calcular subtotal antes de margen
+        const subtotalMateriales = (detalles.materiales || []).reduce((sum: number, m: any) => sum + m.subtotal, 0);
+        const subtotalServicios = (detalles.servicios || []).reduce((sum: number, s: any) => sum + s.subtotal, 0);
+        const subtotalGastos = (detalles.gastos_extras || []).reduce((sum: number, g: any) => sum + g.monto, 0);
+        detalles.subtotal_antes_margen = subtotalMateriales + subtotalServicios + subtotalGastos;
+      }
     }
 
-    return { concepto, precio };
+    return { concepto, precio, detalles };
   });
 
   // Agregar subtotales y totales si hay descuento o IVA
