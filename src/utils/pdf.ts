@@ -27,12 +27,13 @@ interface QuotePDFData {
  */
 export async function downloadQuotePDF(data: QuotePDFData): Promise<void> {
   try {
-    // Llamar al endpoint API
+    // Llamar al endpoint API con credenciales para enviar cookies
     const response = await fetch('/api/generate-quote-pdf', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
+      credentials: 'include', // Incluir cookies en la petición
       body: JSON.stringify(data)
     });
 
@@ -78,6 +79,7 @@ export async function openQuotePDF(data: QuotePDFData): Promise<void> {
       headers: {
         'Content-Type': 'application/json'
       },
+      credentials: 'include', // Incluir cookies en la petición
       body: JSON.stringify(data)
     });
 

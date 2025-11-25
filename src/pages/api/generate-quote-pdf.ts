@@ -5,16 +5,60 @@
 import type { APIRoute } from 'astro';
 import puppeteer from 'puppeteer';
 import { renderQuoteToHTML } from '../../utils/renderQuoteToHTML';
-import { obtenerUsuarioActual } from '../../services/auth.service';
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from '../../types/database';
+
+// Crear cliente de Supabase para el servidor con cookies del request
+function getSupabaseClient(request: Request) {
+  const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+  
+  // Obtener cookies del request
+  const cookies = request.headers.get('cookie') || '';
+  
+  // Crear cliente con cookies
+  const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false
+    },
+    global: {
+      headers: {
+        cookie: cookies
+      }
+    }
+  });
+  
+  return supabase;
+}
 
 export const POST: APIRoute = async ({ request }) => {
   let browser;
   
   try {
-    // Verificar autenticación
-    const usuario = await obtenerUsuarioActual();
-    if (!usuario) {
+    // Crear cliente de Supabase con cookies del request
+    const supabase = getSupabaseClient(request);
+    
+    // Verificar autenticación desde las cookies
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError || !session || !session.user) {
       return new Response(JSON.stringify({ error: 'No autenticado' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // Obtener perfil del usuario
+    const { data: perfil, error: perfilError } = await supabase
+      .from('perfiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .single();
+    
+    if (perfilError || !perfil) {
+      return new Response(JSON.stringify({ error: 'No se pudo obtener el perfil del usuario' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       });
