@@ -1,8 +1,9 @@
 /**
  * Página de listado de cotizaciones
  * Muestra todas las cotizaciones (admin) o solo las del usuario (técnico)
+ * Layout ya verifica la autenticación antes de renderizar este componente
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { obtenerCotizaciones, cambiarEstadoCotizacion } from '../services/cotizaciones.service';
 import { obtenerUsuarios } from '../services/usuarios.service';
@@ -13,29 +14,36 @@ import type { Cotizacion } from '../types/database';
 
 export default function CotizacionesPage() {
   const { usuario, esAdmin: esAdminContexto } = useUser();
+  const [esperandoUsuario, setEsperandoUsuario] = useState(!usuario);
   
-  // Debug: Log del usuario recibido del contexto
-  console.log('🔍 CotizacionesPage - Usuario del contexto:', {
-    tieneUsuario: !!usuario,
-    email: usuario?.email,
-    role: usuario?.role,
-    esAdmin: esAdminContexto
-  });
+  // Si el usuario no está disponible inmediatamente, esperar un momento
+  // (solo en caso de problemas de timing del contexto)
+  useEffect(() => {
+    if (usuario && esperandoUsuario) {
+      setEsperandoUsuario(false);
+    }
+    // Timeout de seguridad: si después de 2 segundos no hay usuario, algo está mal
+    const timeout = setTimeout(() => {
+      if (!usuario) {
+        console.error('⚠️ CotizacionesPage: Usuario no disponible después de 2 segundos');
+        setEsperandoUsuario(false);
+      }
+    }, 2000);
+    
+    return () => clearTimeout(timeout);
+  }, [usuario, esperandoUsuario]);
   
-  // Si no hay usuario, mostrar mensaje de carga (Layout manejará la redirección)
-  if (!usuario) {
-    console.log('⚠️ CotizacionesPage - No hay usuario, mostrando loader');
+  // Si aún estamos esperando el usuario (solo en caso de timing)
+  if (esperandoUsuario || !usuario) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Verificando autenticación...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-2"></div>
+          <p className="text-gray-600 text-sm">Cargando...</p>
         </div>
       </div>
     );
   }
-  
-  console.log('✓ CotizacionesPage - Usuario encontrado, renderizando contenido');
 
   const esAdmin = esAdminContexto;
   const queryClient = useQueryClient();
