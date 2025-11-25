@@ -224,15 +224,16 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
     const material = materiales.find(m => m.id === materialSeleccionado);
     if (!material) return;
 
-    const nuevoMaterial: MaterialMueble = {
+    const nuevoMaterial: MaterialMueble & { material_tipo?: string } = {
       material_id: material.id,
       material_nombre: material.nombre,
+      material_tipo: material.tipo, // Guardar también el tipo
       cantidad: parseFloat(cantidadMaterial) || 1,
       unidad: material.unidad,
       precio_unitario: material.costo_unitario
     };
 
-    setMaterialesSeleccionados([...materialesSeleccionados, nuevoMaterial]);
+    setMaterialesSeleccionados([...materialesSeleccionados, nuevoMaterial as MaterialMueble]);
     setMaterialSeleccionado('');
     setCantidadMaterial('1');
   };
@@ -533,9 +534,20 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
                   <tbody className="divide-y divide-gray-200">
                     {materialesSeleccionados.map((mat, index) => {
                       const totalMaterial = mat.cantidad * (mat.precio_unitario || 0);
+                      // Buscar el material completo para obtener el tipo si no está guardado
+                      const materialCompleto = materiales.find(m => m.id === mat.material_id);
+                      const tipoMaterial = (mat as any).material_tipo || materialCompleto?.tipo || '';
+                      const nombreCompleto = tipoMaterial 
+                        ? `${mat.material_nombre || 'Sin nombre'} (${tipoMaterial})`
+                        : mat.material_nombre || 'Sin nombre';
                       return (
                         <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-3 py-2 text-xs">{mat.material_nombre}</td>
+                          <td className="px-3 py-2 text-xs">
+                            <div className="font-medium">{mat.material_nombre || 'Sin nombre'}</div>
+                            {tipoMaterial && (
+                              <div className="text-gray-500 text-xs">{tipoMaterial}</div>
+                            )}
+                          </td>
                           <td className="px-3 py-2 text-center text-xs">{mat.unidad}</td>
                           <td className="px-3 py-2 text-center">
                             <input
