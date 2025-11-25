@@ -8,14 +8,12 @@ import { obtenerCotizaciones, cambiarEstadoCotizacion } from '../services/cotiza
 import { obtenerUsuarios } from '../services/usuarios.service';
 import { downloadQuotePDF } from '../utils/pdf';
 import { convertirCotizacionAPDF } from '../utils/convertirCotizacionAPDF';
-import type { UserProfile } from '../types/database';
+import { useUser } from '../contexts/UserContext';
 import type { Cotizacion } from '../types/database';
 
-interface CotizacionesPageProps {
-  usuario: UserProfile | null;
-}
-
-export default function CotizacionesPage({ usuario }: CotizacionesPageProps) {
+export default function CotizacionesPage() {
+  const { usuario, esAdmin: esAdminContexto } = useUser();
+  
   // Si no hay usuario, mostrar mensaje de carga (Layout manejará la redirección)
   if (!usuario) {
     return (
@@ -28,7 +26,7 @@ export default function CotizacionesPage({ usuario }: CotizacionesPageProps) {
     );
   }
 
-  const esAdmin = usuario.role === 'admin';
+  const esAdmin = esAdminContexto;
   const queryClient = useQueryClient();
   const [cotizacionSeleccionada, setCotizacionSeleccionada] = useState<Cotizacion | null>(null);
   const [empleadosSeleccionados, setEmpleadosSeleccionados] = useState<string[]>([]);
