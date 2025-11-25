@@ -200,18 +200,37 @@ export default function CotizacionesPage() {
           </div>
         </div>
 
-        {/* Filtros y búsqueda (opcional para futuro) */}
+        {/* Tabla de cotizaciones */}
         {cotizaciones.length === 0 ? (
-          <div className="bg-white shadow rounded-lg p-12 text-center">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No hay cotizaciones</h3>
-            <p className="mt-1 text-sm text-gray-500">
+          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+            <div className="text-gray-400 mb-4">
+              <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <p className="text-gray-500 text-lg mb-2">No hay cotizaciones disponibles</p>
+            <p className="text-gray-400 text-sm mb-4">
               {esAdmin 
                 ? 'Aún no se han creado cotizaciones en el sistema' 
                 : 'Aún no has creado ninguna cotización'}
             </p>
+            <a
+              href="/cotizacion"
+              className="inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              Crear Nueva Cotización
+            </a>
+            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-left max-w-2xl mx-auto">
+              <p className="text-sm font-semibold text-yellow-800 mb-2">💡 Información de Debug:</p>
+              <ul className="text-xs text-yellow-700 space-y-1">
+                <li>• Usuario ID: {usuario.id}</li>
+                <li>• Rol: {usuario.role}</li>
+                <li>• Es Admin: {esAdmin ? 'Sí' : 'No'}</li>
+                <li>• Query Key: ['cotizaciones', {esAdmin ? "'all'" : `'${usuario.id}'`}]</li>
+                <li>• Estado de carga: {isLoading ? 'Cargando...' : 'Completado'}</li>
+                <li>• Error: {errorCotizaciones ? (errorCotizaciones instanceof Error ? errorCotizaciones.message : 'Error desconocido') : 'Ninguno'}</li>
+              </ul>
+            </div>
           </div>
         ) : (
           <div className="bg-white shadow rounded-lg overflow-hidden">
