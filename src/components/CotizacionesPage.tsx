@@ -167,6 +167,9 @@ export default function CotizacionesPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando cotizaciones...</p>
+          <p className="text-xs text-gray-500 mt-2">
+            {esAdmin ? 'Buscando todas las cotizaciones...' : `Buscando cotizaciones de ${usuario.email}...`}
+          </p>
         </div>
       </div>
     );
@@ -186,13 +189,15 @@ export default function CotizacionesPage() {
                 ? 'Gestiona todas las cotizaciones del sistema' 
                 : 'Revisa y gestiona tus cotizaciones'}
             </p>
+            {/* Debug info */}
+            <p className="text-xs text-gray-400 mt-1">
+              Usuario: {usuario.email} | Rol: {usuario.role} | {esAdmin ? 'Viendo todas' : 'Viendo solo mías'}
+            </p>
           </div>
-          {cotizaciones.length > 0 && (
-            <div className="text-right">
-              <div className="text-sm text-gray-500">Total de cotizaciones</div>
-              <div className="text-2xl font-bold text-indigo-600">{cotizaciones.length}</div>
-            </div>
-          )}
+          <div className="text-right">
+            <div className="text-sm text-gray-500">Total de cotizaciones</div>
+            <div className="text-2xl font-bold text-indigo-600">{cotizaciones.length}</div>
+          </div>
         </div>
 
         {/* Filtros y búsqueda (opcional para futuro) */}
