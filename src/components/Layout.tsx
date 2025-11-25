@@ -306,13 +306,15 @@ export default function Layout({ children, currentPath }: LayoutProps) {
             { path: '/dashboard', label: 'Dashboard', icon: '📊' },
             { path: '/catalogo', label: 'Catálogo', icon: '📚' },
             { path: '/cotizacion', label: 'Cotización', icon: '📝' },
+            { path: '/cotizaciones', label: 'Historial', icon: '📋' },
             { path: '/vendedores', label: 'Vendedores', icon: '👥' },
             { path: '/taller', label: 'Taller', icon: '🔧' }
           ]
     : [
         { path: '/dashboard', label: 'Dashboard', icon: '📊' },
         { path: '/catalogo', label: 'Catálogo', icon: '📚' },
-        { path: '/cotizacion', label: 'Cotización', icon: '📝' }
+        { path: '/cotizacion', label: 'Cotización', icon: '📝' },
+        { path: '/cotizaciones', label: 'Historial', icon: '📋' }
       ];
 
   return (
