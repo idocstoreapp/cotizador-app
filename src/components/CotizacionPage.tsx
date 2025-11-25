@@ -53,7 +53,21 @@ export default function CotizacionPage() {
       );
 
       // Guardar cotización en la base de datos (estado: pendiente)
+      console.log('💾 Guardando cotización...', {
+        usuarioId: usuario.id,
+        itemsCount: items.length,
+        clienteNombre: datosCliente.nombre,
+        materialesCount: cotizacionInput.materiales.length,
+        serviciosCount: cotizacionInput.servicios.length
+      });
+      
       const cotizacionGuardada = await crearCotizacion(cotizacionInput, usuario.id);
+      
+      console.log('✅ Cotización guardada:', {
+        id: cotizacionGuardada.id,
+        numero: cotizacionGuardada.numero,
+        total: cotizacionGuardada.total
+      });
 
       // Generar número de cotización
       const numero = cotizacionGuardada.numero;
@@ -84,8 +98,15 @@ export default function CotizacionPage() {
       useCotizacionStore.getState().limpiarCotizacion();
       setDatosCliente({ nombre: '', telefono: '', email: '', direccion: '' });
     } catch (error: any) {
-      console.error('Error al guardar cotización:', error);
-      alert('Error al guardar la cotización: ' + (error.message || 'Error desconocido'));
+      console.error('❌ Error al guardar cotización:', error);
+      console.error('Detalles del error:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        stack: error.stack
+      });
+      alert('Error al guardar la cotización: ' + (error.message || 'Error desconocido') + '\n\nRevisa la consola para más detalles.');
     }
   };
 
