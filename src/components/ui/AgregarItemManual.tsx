@@ -1074,7 +1074,13 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
             </button>
             {tabActual === 'resumen' ? (
               <button
-                type="submit"
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('🟢 Click en Agregar a Cotización');
+                  handleSubmit(e as any);
+                }}
                 className="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700"
               >
                 Agregar a Cotización
