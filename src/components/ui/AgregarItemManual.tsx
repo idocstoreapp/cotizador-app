@@ -112,6 +112,7 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
   const [alquilerEspacio, setAlquilerEspacio] = useState<number>(0);
   const [cajaChica, setCajaChica] = useState<number>(0);
   const [comentariosCajaChica, setComentariosCajaChica] = useState<string>('');
+  const [gastosExtrasPorcentaje, setGastosExtrasPorcentaje] = useState<number>(0);
 
   // Utilidad
   const [tipoUtilidad, setTipoUtilidad] = useState<'porcentaje' | 'manual'>('porcentaje');
@@ -158,8 +159,14 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
       alquilerEspacio +
       cajaChica;
 
-    // Subtotal (materiales + mano de obra + costos indirectos)
-    const subtotal = costoMateriales + costoManoObra + costosIndirectos;
+    // Subtotal antes de gastos extras (materiales + mano de obra + costos indirectos)
+    const subtotalAntesExtras = costoMateriales + costoManoObra + costosIndirectos;
+
+    // Gastos extras como porcentaje del subtotal
+    const gastosExtrasMonto = subtotalAntesExtras * (gastosExtrasPorcentaje / 100);
+
+    // Subtotal final (incluyendo gastos extras)
+    const subtotal = subtotalAntesExtras + gastosExtrasMonto;
 
     // Aplicar utilidad
     let utilidad = 0;
@@ -179,6 +186,9 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
       costoMateriales,
       costoManoObra,
       costosIndirectos,
+      subtotalAntesExtras,
+      gastosExtrasMonto,
+      gastosExtrasPorcentaje,
       subtotal,
       utilidad,
       precioUnitario,
@@ -194,6 +204,7 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
     herramientas,
     alquilerEspacio,
     cajaChica,
+    gastosExtrasPorcentaje,
     tipoUtilidad,
     porcentajeUtilidad,
     ajusteManual,
@@ -332,6 +343,13 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
         ? `Caja chica: ${comentariosCajaChica}`
         : 'Caja chica';
       gastosExtras.push({ concepto, monto: cajaChica });
+    }
+    // Agregar gastos extras como porcentaje
+    if (gastosExtrasPorcentaje > 0 && calculos.gastosExtrasMonto > 0) {
+      gastosExtras.push({ 
+        concepto: `Gastos Extras (${gastosExtrasPorcentaje}%)`, 
+        monto: calculos.gastosExtrasMonto 
+      });
     }
 
     // Calcular margen de ganancia basado en utilidad
@@ -787,6 +805,32 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
                     placeholder="$ 0"
                   />
                 </div>
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                    Gastos Extras (%)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={gastosExtrasPorcentaje || ''}
+                      onChange={(e) => setGastosExtrasPorcentaje(parseFloat(e.target.value) || 0)}
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      className="w-24 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      placeholder="0"
+                    />
+                    <span className="text-xs text-gray-600">%</span>
+                    {gastosExtrasPorcentaje > 0 && (
+                      <span className="text-xs text-gray-500">
+                        = ${calculos.gastosExtrasMonto.toLocaleString('es-CO', { minimumFractionDigits: 0 })}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Porcentaje que se suma a los costos totales (materiales + mano de obra + costos indirectos)
+                  </p>
+                </div>
                 <div className="mt-4">
                   <label className="block text-xs text-gray-700 mb-1">Otros Comentarios</label>
                   <textarea
@@ -819,9 +863,15 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
                     <span className="text-gray-700">Gastos seleccionados:</span>
                     <span className="font-medium">${calculos.costosIndirectos.toLocaleString('es-CO', { minimumFractionDigits: 0 })}</span>
                   </div>
+                  {calculos.gastosExtrasPorcentaje > 0 && (
+                    <div className="flex justify-between mb-2">
+                      <span className="text-gray-700">Gastos Extras ({calculos.gastosExtrasPorcentaje}%):</span>
+                      <span className="font-medium">${calculos.gastosExtrasMonto.toLocaleString('es-CO', { minimumFractionDigits: 0 })}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-base font-bold">
                     <span>Total Costos Indirectos:</span>
-                    <span>${calculos.costosIndirectos.toLocaleString('es-CO', { minimumFractionDigits: 0 })}</span>
+                    <span>${(calculos.costosIndirectos + calculos.gastosExtrasMonto).toLocaleString('es-CO', { minimumFractionDigits: 0 })}</span>
                   </div>
                 </div>
               </div>
@@ -963,6 +1013,12 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
                   <span className="text-gray-600">Costos indirectos:</span>
                   <span className="font-medium">${calculos.costosIndirectos.toLocaleString('es-CO', { minimumFractionDigits: 0 })}</span>
                 </div>
+                {calculos.gastosExtrasPorcentaje > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Gastos Extras ({calculos.gastosExtrasPorcentaje}%):</span>
+                    <span className="font-medium">${calculos.gastosExtrasMonto.toLocaleString('es-CO', { minimumFractionDigits: 0 })}</span>
+                  </div>
+                )}
                 <div className="flex justify-between pt-2 border-t border-gray-200 font-medium">
                   <span>Costo Total:</span>
                   <span>${calculos.subtotal.toLocaleString('es-CO', { minimumFractionDigits: 0 })}</span>
