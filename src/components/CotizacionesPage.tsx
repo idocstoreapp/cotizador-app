@@ -6,6 +6,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { obtenerCotizaciones, cambiarEstadoCotizacion } from '../services/cotizaciones.service';
 import { obtenerUsuarios } from '../services/usuarios.service';
+import { downloadQuotePDF } from '../utils/pdf';
+import { convertirCotizacionAPDF } from '../utils/convertirCotizacionAPDF';
 import type { UserProfile } from '../types/database';
 import type { Cotizacion } from '../types/database';
 
@@ -46,10 +48,19 @@ export default function CotizacionesPage({ usuario }: CotizacionesPageProps) {
   });
 
   /**
-   * Genera el PDF de una cotización
+   * Genera el PDF profesional de una cotización
    */
-  const generarPDF = (cotizacionId: string) => {
-    window.open(`/api/generar-pdf?id=${cotizacionId}`, '_blank');
+  const generarPDF = async (cotizacion: Cotizacion) => {
+    try {
+      // Convertir cotización al formato del PDF profesional
+      const datosPDF = convertirCotizacionAPDF(cotizacion);
+      
+      // Descargar PDF
+      await downloadQuotePDF(datosPDF);
+    } catch (error: any) {
+      console.error('Error al generar PDF:', error);
+      alert('Error al generar PDF: ' + (error.message || 'Error desconocido'));
+    }
   };
 
   /**
@@ -94,11 +105,41 @@ export default function CotizacionesPage({ usuario }: CotizacionesPageProps) {
   return (
     <>
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">
-          {esAdmin ? 'Todas las Cotizaciones' : 'Mis Cotizaciones'}
-        </h1>
+        {/* Header mejorado */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              {esAdmin ? 'Historial de Cotizaciones' : 'Mis Cotizaciones'}
+            </h1>
+            <p className="text-gray-600 mt-1">
+              {esAdmin 
+                ? 'Gestiona todas las cotizaciones del sistema' 
+                : 'Revisa y gestiona tus cotizaciones'}
+            </p>
+          </div>
+          {cotizaciones.length > 0 && (
+            <div className="text-right">
+              <div className="text-sm text-gray-500">Total de cotizaciones</div>
+              <div className="text-2xl font-bold text-indigo-600">{cotizaciones.length}</div>
+            </div>
+          )}
+        </div>
 
-        <div className="bg-white shadow rounded-lg overflow-hidden">
+        {/* Filtros y búsqueda (opcional para futuro) */}
+        {cotizaciones.length === 0 ? (
+          <div className="bg-white shadow rounded-lg p-12 text-center">
+            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No hay cotizaciones</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              {esAdmin 
+                ? 'Aún no se han creado cotizaciones en el sistema' 
+                : 'Aún no has creado ninguna cotización'}
+            </p>
+          </div>
+        ) : (
+          <div className="bg-white shadow rounded-lg overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -129,21 +170,26 @@ export default function CotizacionesPage({ usuario }: CotizacionesPageProps) {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {cotizaciones.map((cotizacion: Cotizacion) => (
-                <tr key={cotizacion.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {cotizacion.numero}
+                <tr key={cotizacion.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">{cotizacion.numero}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {cotizacion.cliente_nombre}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{cotizacion.cliente_nombre}</div>
+                    {cotizacion.cliente_email && (
+                      <div className="text-xs text-gray-500">{cotizacion.cliente_email}</div>
+                    )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    ${cotizacion.total.toLocaleString()}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-semibold text-gray-900">
+                      ${cotizacion.total.toLocaleString('es-CO')}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <select
                       value={cotizacion.estado}
                       onChange={(e) => handleCambiarEstado(cotizacion, e.target.value)}
-                      className={`text-xs leading-5 font-semibold rounded-full px-2 py-1 ${
+                      className={`text-xs leading-5 font-semibold rounded-full px-3 py-1 border-0 ${
                         cotizacion.estado === 'aceptada' ? 'bg-green-100 text-green-800' :
                         cotizacion.estado === 'rechazada' ? 'bg-red-100 text-red-800' :
                         'bg-yellow-100 text-yellow-800'
@@ -155,18 +201,39 @@ export default function CotizacionesPage({ usuario }: CotizacionesPageProps) {
                     </select>
                   </td>
                   {esAdmin && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {(cotizacion.usuario as any)?.nombre || (cotizacion.usuario as any)?.email || 'N/A'}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {(cotizacion.usuario as any)?.nombre || 'Sin nombre'}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {(cotizacion.usuario as any)?.email || 'N/A'}
+                      </div>
                     </td>
                   )}
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(cotizacion.created_at).toLocaleDateString()}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {new Date(cotizacion.created_at).toLocaleDateString('es-ES', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                      })}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(cotizacion.created_at).toLocaleTimeString('es-ES', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <button
-                      onClick={() => generarPDF(cotizacion.id)}
-                      className="text-indigo-600 hover:text-indigo-900 mr-4"
+                      onClick={() => generarPDF(cotizacion)}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm hover:shadow"
+                      title="Descargar PDF profesional"
                     >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
                       PDF
                     </button>
                   </td>
@@ -175,6 +242,7 @@ export default function CotizacionesPage({ usuario }: CotizacionesPageProps) {
             </tbody>
           </table>
         </div>
+        )}
       </div>
 
       {/* Modal para asignar empleados al aceptar cotización */}
