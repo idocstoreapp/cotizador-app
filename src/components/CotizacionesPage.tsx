@@ -14,8 +14,17 @@ import type { Cotizacion } from '../types/database';
 export default function CotizacionesPage() {
   const { usuario, esAdmin: esAdminContexto } = useUser();
   
+  // Debug: Log del usuario recibido del contexto
+  console.log('🔍 CotizacionesPage - Usuario del contexto:', {
+    tieneUsuario: !!usuario,
+    email: usuario?.email,
+    role: usuario?.role,
+    esAdmin: esAdminContexto
+  });
+  
   // Si no hay usuario, mostrar mensaje de carga (Layout manejará la redirección)
   if (!usuario) {
+    console.log('⚠️ CotizacionesPage - No hay usuario, mostrando loader');
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -25,6 +34,8 @@ export default function CotizacionesPage() {
       </div>
     );
   }
+  
+  console.log('✓ CotizacionesPage - Usuario encontrado, renderizando contenido');
 
   const esAdmin = esAdminContexto;
   const queryClient = useQueryClient();

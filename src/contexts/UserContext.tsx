@@ -22,6 +22,13 @@ export function UserProvider({
   children: ReactNode; 
   usuario: UserProfile | null;
 }) {
+  // Debug: Log cuando el provider se actualiza
+  console.log('🔄 UserProvider actualizado:', {
+    tieneUsuario: !!usuario,
+    email: usuario?.email,
+    role: usuario?.role
+  });
+  
   return (
     <UserContext.Provider value={{
       usuario,
