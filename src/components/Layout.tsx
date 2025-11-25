@@ -449,7 +449,7 @@ export default function Layout({ children, currentPath }: LayoutProps) {
 
         {/* Contenido */}
             <main className="flex-1 p-6 overflow-y-auto">
-              <UserProvider key={usuario.id} usuario={usuario}>
+              <UserProvider usuario={usuario}>
                 {children}
               </UserProvider>
             </main>

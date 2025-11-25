@@ -15,6 +15,14 @@ import type { Cotizacion } from '../types/database';
 export default function CotizacionesPage() {
   const { usuario, esAdmin: esAdminContexto } = useUser();
   
+  // Debug: Log del estado del usuario
+  console.log('🔍 CotizacionesPage render:', {
+    tieneUsuario: !!usuario,
+    email: usuario?.email,
+    role: usuario?.role,
+    id: usuario?.id
+  });
+  
   // Si no hay usuario, mostrar loading
   // El Layout debería garantizar que hay usuario, pero por seguridad verificamos
   if (!usuario) {
@@ -24,6 +32,7 @@ export default function CotizacionesPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-2"></div>
           <p className="text-gray-600 text-sm">Cargando usuario...</p>
+          <p className="text-xs text-gray-400 mt-2">Esperando que el contexto se actualice...</p>
         </div>
       </div>
     );
