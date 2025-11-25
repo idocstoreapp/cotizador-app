@@ -1,4 +1,9 @@
 {
-  "framework": "astro"
+  "framework": "astro",
+  "functions": {
+    "**": {
+      "runtime": "nodejs20.x"
+    }
+  }
 }
 
