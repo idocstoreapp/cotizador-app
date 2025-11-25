@@ -613,7 +613,16 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
                     </div>
                     <div className="flex gap-3 pt-4">
                       <button
-                        type="submit"
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (!nuevoMaterial.nombre || !nuevoMaterial.tipo || nuevoMaterial.costo_unitario <= 0) {
+                            alert('Por favor completa todos los campos requeridos');
+                            return;
+                          }
+                          crearMaterialMutation.mutate(nuevoMaterial);
+                        }}
                         disabled={crearMaterialMutation.isPending}
                         className="flex-1 px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50"
                       >
@@ -621,7 +630,9 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           setMostrarCrearMaterial(false);
                           setNuevoMaterial({ nombre: '', tipo: '', unidad: 'unidad', costo_unitario: 0, proveedor: '' });
                         }}
@@ -630,7 +641,7 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
                         Cancelar
                       </button>
                     </div>
-                  </form>
+                  </div>
                 </div>
               </div>
             )}
