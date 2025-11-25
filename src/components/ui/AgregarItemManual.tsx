@@ -3,8 +3,8 @@
  * Rediseñado con sistema de pestañas y diseño compacto
  */
 import { useState, useMemo, useEffect } from 'react';
-import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { obtenerMateriales } from '../../services/materiales.service';
+import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { obtenerMateriales, crearMaterial } from '../../services/materiales.service';
 import { useCotizacionStore } from '../../store/cotizacionStore';
 import type { MaterialMueble, MedidasMueble } from '../../types/muebles';
 
@@ -72,6 +72,33 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
   const [materialesSeleccionados, setMaterialesSeleccionados] = useState<MaterialMueble[]>([]);
   const [materialSeleccionado, setMaterialSeleccionado] = useState<string>('');
   const [cantidadMaterial, setCantidadMaterial] = useState<string>('1');
+  const [mostrarCrearMaterial, setMostrarCrearMaterial] = useState(false);
+  const [nuevoMaterial, setNuevoMaterial] = useState({
+    nombre: '',
+    tipo: '',
+    unidad: 'unidad',
+    costo_unitario: 0,
+    proveedor: ''
+  });
+  
+  const queryClient = useQueryClient();
+  
+  // Mutación para crear material
+  const crearMaterialMutation = useMutation({
+    mutationFn: crearMaterial,
+    onSuccess: (materialCreado) => {
+      // Invalidar query de materiales para refrescar la lista
+      queryClient.invalidateQueries({ queryKey: ['materiales'] });
+      // Seleccionar el material recién creado
+      setMaterialSeleccionado(materialCreado.id);
+      setMostrarCrearMaterial(false);
+      setNuevoMaterial({ nombre: '', tipo: '', unidad: 'unidad', costo_unitario: 0, proveedor: '' });
+      alert('✅ Material creado exitosamente');
+    },
+    onError: (error: any) => {
+      alert('❌ Error al crear material: ' + (error.message || 'Error desconocido'));
+    }
+  });
 
   // Mano de obra
   const [horasMedidas, setHorasMedidas] = useState<number>(0);
@@ -474,7 +501,139 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
               >
                 Agregar +
               </button>
+              <button
+                type="button"
+                onClick={() => setMostrarCrearMaterial(true)}
+                className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700"
+                title="Crear material nuevo"
+              >
+                + Nuevo
+              </button>
             </div>
+            
+            {/* Modal para crear material nuevo */}
+            {mostrarCrearMaterial && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+                  <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-gray-900">Crear Material Nuevo</h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMostrarCrearMaterial(false);
+                        setNuevoMaterial({ nombre: '', tipo: '', unidad: 'unidad', costo_unitario: 0, proveedor: '' });
+                      }}
+                      className="text-gray-400 hover:text-gray-600 text-2xl"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!nuevoMaterial.nombre || !nuevoMaterial.tipo || nuevoMaterial.costo_unitario <= 0) {
+                        alert('Por favor completa todos los campos requeridos');
+                        return;
+                      }
+                      crearMaterialMutation.mutate(nuevoMaterial);
+                    }}
+                    className="p-6 space-y-4"
+                  >
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Nombre del Material *
+                      </label>
+                      <input
+                        type="text"
+                        value={nuevoMaterial.nombre}
+                        onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, nombre: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Ej: MDF 18mm"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Tipo *
+                      </label>
+                      <input
+                        type="text"
+                        value={nuevoMaterial.tipo}
+                        onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, tipo: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Ej: madera, MDF, hierro, insumos"
+                        required
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Unidad *
+                        </label>
+                        <select
+                          value={nuevoMaterial.unidad}
+                          onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, unidad: e.target.value })}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                          required
+                        >
+                          <option value="unidad">Unidad</option>
+                          <option value="m²">m²</option>
+                          <option value="metro lineal">Metro Lineal</option>
+                          <option value="kg">kg</option>
+                          <option value="litro">Litro</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Precio Unitario *
+                        </label>
+                        <input
+                          type="number"
+                          value={nuevoMaterial.costo_unitario || ''}
+                          onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, costo_unitario: parseFloat(e.target.value) || 0 })}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                          placeholder="0"
+                          min="0"
+                          step="100"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Proveedor (opcional)
+                      </label>
+                      <input
+                        type="text"
+                        value={nuevoMaterial.proveedor}
+                        onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, proveedor: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Nombre del proveedor"
+                      />
+                    </div>
+                    <div className="flex gap-3 pt-4">
+                      <button
+                        type="submit"
+                        disabled={crearMaterialMutation.isPending}
+                        className="flex-1 px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        {crearMaterialMutation.isPending ? 'Creando...' : 'Crear Material'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMostrarCrearMaterial(false);
+                          setNuevoMaterial({ nombre: '', tipo: '', unidad: 'unidad', costo_unitario: 0, proveedor: '' });
+                        }}
+                        className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
 
             {errorMateriales && (
               <div className="p-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">

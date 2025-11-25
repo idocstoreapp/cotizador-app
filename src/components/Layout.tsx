@@ -327,6 +327,7 @@ export default function Layout({ children, currentPath }: LayoutProps) {
             { path: '/catalogo', label: 'Catálogo', icon: '📚' },
             { path: '/cotizacion', label: 'Cotización', icon: '📝' },
             { path: '/cotizaciones', label: 'Historial', icon: '📋' },
+            { path: '/admin/precios', label: 'Precios', icon: '💰' },
             { path: '/vendedores', label: 'Vendedores', icon: '👥' },
             { path: '/taller', label: 'Taller', icon: '🔧' }
           ]
