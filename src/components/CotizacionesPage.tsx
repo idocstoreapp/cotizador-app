@@ -14,36 +14,22 @@ import type { Cotizacion } from '../types/database';
 
 export default function CotizacionesPage() {
   const { usuario, esAdmin: esAdminContexto } = useUser();
-  const [esperandoUsuario, setEsperandoUsuario] = useState(!usuario);
   
-  // Si el usuario no está disponible inmediatamente, esperar un momento
-  // (solo en caso de problemas de timing del contexto)
-  useEffect(() => {
-    if (usuario && esperandoUsuario) {
-      setEsperandoUsuario(false);
-    }
-    // Timeout de seguridad: si después de 2 segundos no hay usuario, algo está mal
-    const timeout = setTimeout(() => {
-      if (!usuario) {
-        console.error('⚠️ CotizacionesPage: Usuario no disponible después de 2 segundos');
-        setEsperandoUsuario(false);
-      }
-    }, 2000);
-    
-    return () => clearTimeout(timeout);
-  }, [usuario, esperandoUsuario]);
-  
-  // Si aún estamos esperando el usuario (solo en caso de timing)
-  if (esperandoUsuario || !usuario) {
+  // Si no hay usuario, mostrar loading
+  // El Layout debería garantizar que hay usuario, pero por seguridad verificamos
+  if (!usuario) {
+    console.log('⏳ CotizacionesPage: Esperando usuario...');
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-2"></div>
-          <p className="text-gray-600 text-sm">Cargando...</p>
+          <p className="text-gray-600 text-sm">Cargando usuario...</p>
         </div>
       </div>
     );
   }
+  
+  console.log('✅ CotizacionesPage: Usuario disponible:', usuario.email, usuario.role);
 
   const esAdmin = esAdminContexto;
   const queryClient = useQueryClient();
