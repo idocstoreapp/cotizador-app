@@ -169,7 +169,11 @@ export default function Layout({ children, currentPath }: LayoutProps) {
         if (currentPath && currentPath !== '/' && currentPath !== '/index') {
           setTimeout(() => {
             if (mounted) {
-              window.location.href = '/';
+              // Guardar la URL de destino para redirigir después del login
+              const currentUrl = window.location.pathname;
+              localStorage.setItem('redirectAfterLogin', currentUrl);
+              // Redirigir al login con el parámetro redirect
+              window.location.href = `/?redirect=${encodeURIComponent(currentUrl)}`;
             }
           }, 500);
         }

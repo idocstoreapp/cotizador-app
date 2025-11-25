@@ -93,8 +93,17 @@ export default function LoginSimple({ onLoginSuccess }: LoginSimpleProps) {
           const { data: { session: finalCheck } } = await supabase.auth.getSession();
           if (finalCheck) {
             console.log('✓ Verificación final exitosa, redirigiendo...');
+            
+            // Obtener URL de destino desde query params o localStorage
+            const urlParams = new URLSearchParams(window.location.search);
+            const redirectTo = urlParams.get('redirect') || localStorage.getItem('redirectAfterLogin') || '/dashboard';
+            
+            // Limpiar el redirect del localStorage
+            localStorage.removeItem('redirectAfterLogin');
+            
+            console.log('Redirigiendo a:', redirectTo);
             // Usar replace para evitar que el botón "atrás" vuelva al login
-            window.location.replace('/dashboard');
+            window.location.replace(redirectTo);
           } else {
             console.error('✗ La sesión se perdió en la verificación final');
             setError('Error: La sesión no se mantuvo. Intenta nuevamente.');

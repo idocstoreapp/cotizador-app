@@ -12,10 +12,22 @@ import type { UserProfile } from '../types/database';
 import type { Cotizacion } from '../types/database';
 
 interface CotizacionesPageProps {
-  usuario: UserProfile;
+  usuario: UserProfile | null;
 }
 
 export default function CotizacionesPage({ usuario }: CotizacionesPageProps) {
+  // Si no hay usuario, mostrar mensaje de carga (Layout manejará la redirección)
+  if (!usuario) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Verificando autenticación...</p>
+        </div>
+      </div>
+    );
+  }
+
   const esAdmin = usuario.role === 'admin';
   const queryClient = useQueryClient();
   const [cotizacionSeleccionada, setCotizacionSeleccionada] = useState<Cotizacion | null>(null);
