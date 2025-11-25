@@ -65,8 +65,10 @@ export default function CotizacionesPage() {
         throw error;
       }
     },
-    retry: 1,
-    retryDelay: 1000
+    enabled: !!usuario, // Solo ejecutar si hay usuario
+    retry: 2,
+    retryDelay: 1000,
+    staleTime: 30000 // 30 segundos
   });
 
   // Obtener usuarios/empleados (solo para admin)
