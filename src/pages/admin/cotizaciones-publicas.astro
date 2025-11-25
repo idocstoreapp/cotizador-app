@@ -1,0 +1,37 @@
+---
+/**
+ * Página de administración para ver cotizaciones públicas
+ * Solo accesible para administradores
+ */
+import Layout from '../../components/Layout';
+import QueryProvider from '../../components/QueryProvider';
+import CotizacionesPublicasPage from '../../components/admin/CotizacionesPublicasPage';
+import { obtenerUsuarioActual } from '../../services/auth.service';
+
+// Verificar autenticación y rol de admin
+const usuario = await obtenerUsuarioActual();
+if (!usuario) {
+  return Astro.redirect('/');
+}
+if (usuario.role !== 'admin') {
+  return Astro.redirect('/dashboard');
+}
+---
+
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Cotizaciones Públicas - Admin</title>
+  </head>
+  <body>
+    <Layout client:load currentPath="/admin/cotizaciones-publicas">
+      <QueryProvider client:load>
+        <CotizacionesPublicasPage client:load />
+      </QueryProvider>
+    </Layout>
+  </body>
+</html>
+

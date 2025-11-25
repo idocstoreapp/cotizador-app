@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test de Login - Supabase</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <h1>Test de Login Directo</h1>
+  <div>
+    <input type="email" id="email" placeholder="Email" value="admin@test.com">
+    <input type="password" id="password" placeholder="Password" value="admin123456">
+    <button onclick="testLogin()">Probar Login</button>
+  </div>
+  <div id="resultado"></div>
+
+  <script>
+    const SUPABASE_URL = 'https://tnlkdtslqgoezfecvcbj.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRubGtkdHNscWdvZXpmZWN2Y2JqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMzNzg5OTcsImV4cCI6MjA3ODk1NDk5N30.fBJhRkJg-Q4LuuQMoJWZXe56StEvFo-aIAUlWmULBsY';
+    
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function testLogin() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const resultado = document.getElementById('resultado');
+      
+      resultado.innerHTML = 'Probando login...';
+      
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email,
+          password: password
+        });
+
+        if (error) {
+          resultado.innerHTML = `
+            <h3 style="color: red;">Error:</h3>
+            <p>${error.message}</p>
+            <p><strong>Código:</strong> ${error.status}</p>
+          `;
+        } else {
+          resultado.innerHTML = `
+            <h3 style="color: green;">✓ Login Exitoso!</h3>
+            <p><strong>Usuario:</strong> ${data.user.email}</p>
+            <p><strong>ID:</strong> ${data.user.id}</p>
+            <p><strong>Email confirmado:</strong> ${data.user.email_confirmed_at ? 'Sí' : 'No'}</p>
+          `;
+        }
+      } catch (err) {
+        resultado.innerHTML = `
+          <h3 style="color: red;">Error de conexión:</h3>
+          <p>${err.message}</p>
+        `;
+      }
+    }
+  </script>
+</body>
+</html>
+
+

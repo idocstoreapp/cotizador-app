@@ -1,0 +1,41 @@
+---
+/**
+ * Página de cotización (carrito)
+ */
+import Layout from '../components/Layout';
+import QueryProvider from '../components/QueryProvider';
+import CotizacionPage from '../components/CotizacionPage';
+import { obtenerUsuarioActual } from '../services/auth.service';
+
+// Verificar autenticación
+// En modo servidor, la sesión puede no estar disponible inmediatamente
+// Permitir acceso y verificar en el cliente
+let usuario = null;
+try {
+  usuario = await obtenerUsuarioActual();
+} catch (error) {
+  // Si hay error, continuar - la verificación se hará en el cliente
+  console.error('Error al verificar usuario en cotizacion (servidor):', error);
+}
+
+// No redirigir automáticamente - dejar que el componente Layout maneje la autenticación
+---
+
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Cotización - Mueblería Cotizador</title>
+  </head>
+  <body>
+    <Layout client:load currentPath="/cotizacion">
+      <QueryProvider client:load>
+        <CotizacionPage client:load />
+      </QueryProvider>
+    </Layout>
+  </body>
+</html>
+
+

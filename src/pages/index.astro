@@ -1,0 +1,21 @@
+---
+/**
+ * Página principal - Login/Registro
+ * NO redirigir en el servidor - dejar que el cliente maneje la autenticación
+ * Esto evita problemas de sincronización de sesión
+ */
+import AuthWrapper from '../components/AuthWrapper';
+---
+
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Mueblería Cotizador - Login</title>
+  </head>
+  <body>
+    <AuthWrapper client:load />
+  </body>
+</html>

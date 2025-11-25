@@ -1,0 +1,31 @@
+---
+import Layout from '../../components/Layout';
+import QueryProvider from '../../components/QueryProvider';
+import GestionarCatalogo from '../../components/admin/GestionarCatalogo';
+import { obtenerUsuarioActual } from '../../services/auth.service';
+
+let usuario = null;
+try {
+  usuario = await obtenerUsuarioActual();
+} catch (error) {
+  console.error('Error al verificar usuario en admin/catalogo (servidor):', error);
+}
+---
+
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Gestión de Catálogo - Admin</title>
+  </head>
+  <body>
+    <Layout client:load currentPath="/catalogo">
+      <QueryProvider client:load>
+        <GestionarCatalogo client:load />
+      </QueryProvider>
+    </Layout>
+  </body>
+</html>
+

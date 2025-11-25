@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ejemplos de Integración - Catálogo de Cocinas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .ejemplo {
+            background: white;
+            padding: 30px;
+            margin: 30px 0;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .ejemplo h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .codigo {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Ejemplos de Integración - Catálogo de Cocinas</h1>
+    
+    <!-- EJEMPLO 1: Botón Simple -->
+    <div class="ejemplo">
+        <h2>Ejemplo 1: Botón Simple</h2>
+        <p>El más básico y fácil de implementar.</p>
+        
+        <a href="https://tu-dominio-cotizador.com/cocinas-publico" 
+           target="_blank"
+           style="display: inline-block; 
+                  padding: 12px 24px; 
+                  background: #4F46E5; 
+                  color: white; 
+                  text-decoration: none; 
+                  border-radius: 8px; 
+                  font-weight: bold;
+                  transition: background 0.3s;">
+            🍳 Cotizar Cocina
+        </a>
+        
+        <div class="codigo">
+&lt;a href="https://tu-dominio-cotizador.com/cocinas-publico" 
+   target="_blank"
+   style="display: inline-block; 
+          padding: 12px 24px; 
+          background: #4F46E5; 
+          color: white; 
+          text-decoration: none; 
+          border-radius: 8px; 
+          font-weight: bold;">
+    🍳 Cotizar Cocina
+&lt;/a&gt;
+        </div>
+    </div>
+
+    <!-- EJEMPLO 2: Banner Completo -->
+    <div class="ejemplo">
+        <h2>Ejemplo 2: Banner Completo</h2>
+        <p>Banner destacado con descripción y botón.</p>
+        
+        <section style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 60px 20px;
+                        text-align: center;
+                        border-radius: 12px;">
+            <h2 style="margin: 0 0 15px 0; font-size: 2em;">Diseña tu Cocina Ideal</h2>
+            <p style="font-size: 1.2em; margin-bottom: 30px; opacity: 0.9;">
+                Explora nuestro catálogo y cotiza tu cocina personalizada con materiales y acabados de alta calidad
+            </p>
+            <a href="https://tu-dominio-cotizador.com/cocinas-publico" 
+               target="_blank"
+               style="display: inline-block;
+                      padding: 15px 30px;
+                      background: white;
+                      color: #667eea;
+                      text-decoration: none;
+                      border-radius: 8px;
+                      font-weight: bold;
+                      font-size: 1.1em;
+                      transition: transform 0.2s;">
+                Ver Catálogo de Cocinas →
+            </a>
+        </section>
+        
+        <div class="codigo">
+&lt;section style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 60px 20px;
+                text-align: center;">
+    &lt;h2&gt;Diseña tu Cocina Ideal&lt;/h2&gt;
+    &lt;p&gt;Explora nuestro catálogo y cotiza tu cocina personalizada&lt;/p&gt;
+    &lt;a href="https://tu-dominio-cotizador.com/cocinas-publico" 
+       target="_blank"
+       style="display: inline-block;
+              padding: 15px 30px;
+              background: white;
+              color: #667eea;
+              text-decoration: none;
+              border-radius: 8px;
+              font-weight: bold;"&gt;
+        Ver Catálogo de Cocinas →
+    &lt;/a&gt;
+&lt;/section&gt;
+        </div>
+    </div>
+
+    <!-- EJEMPLO 3: Card Moderno -->
+    <div class="ejemplo">
+        <h2>Ejemplo 3: Card Moderno</h2>
+        <p>Card con imagen y descripción.</p>
+        
+        <div style="max-width: 400px; 
+                    background: white; 
+                    border-radius: 12px; 
+                    overflow: hidden; 
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    transition: transform 0.3s;">
+            <div style="height: 200px; 
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 4em;">
+                🍳
+            </div>
+            <div style="padding: 30px;">
+                <h3 style="margin: 0 0 10px 0; color: #333;">Cotiza tu Cocina</h3>
+                <p style="color: #666; margin-bottom: 20px;">
+                    Personaliza tu cocina con diferentes materiales, acabados y opciones.
+                </p>
+                <a href="https://tu-dominio-cotizador.com/cocinas-publico" 
+                   target="_blank"
+                   style="display: inline-block;
+                          padding: 12px 24px;
+                          background: #4F46E5;
+                          color: white;
+                          text-decoration: none;
+                          border-radius: 8px;
+                          font-weight: bold;
+                          width: 100%;
+                          text-align: center;
+                          box-sizing: border-box;">
+                    Comenzar Cotización
+                </a>
+            </div>
+        </div>
+        
+        <div class="codigo">
+&lt;div style="max-width: 400px; 
+            background: white; 
+            border-radius: 12px; 
+            overflow: hidden; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);"&gt;
+    &lt;div style="height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"&gt;
+        &lt;!-- Imagen o icono --&gt;
+    &lt;/div&gt;
+    &lt;div style="padding: 30px;"&gt;
+        &lt;h3&gt;Cotiza tu Cocina&lt;/h3&gt;
+        &lt;p&gt;Personaliza tu cocina con diferentes materiales y acabados.&lt;/p&gt;
+        &lt;a href="https://tu-dominio-cotizador.com/cocinas-publico" 
+           target="_blank"
+           style="display: block;
+                  padding: 12px 24px;
+                  background: #4F46E5;
+                  color: white;
+                  text-decoration: none;
+                  border-radius: 8px;
+                  text-align: center;"&gt;
+            Comenzar Cotización
+        &lt;/a&gt;
+    &lt;/div&gt;
+&lt;/div&gt;
+        </div>
+    </div>
+
+    <!-- EJEMPLO 4: Iframe Embebido -->
+    <div class="ejemplo">
+        <h2>Ejemplo 4: Iframe Embebido</h2>
+        <p>Muestra el catálogo dentro de tu página.</p>
+        
+        <div style="width: 100%; 
+                    max-width: 1200px; 
+                    margin: 0 auto;
+                    border-radius: 12px;
+                    overflow: hidden;
+                    box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+            <iframe 
+                src="https://tu-dominio-cotizador.com/cocinas-publico" 
+                width="100%" 
+                height="800px" 
+                frameborder="0"
+                style="border: none;">
+            </iframe>
+        </div>
+        
+        <div class="codigo">
+&lt;div style="width: 100%; max-width: 1200px; margin: 0 auto;"&gt;
+    &lt;iframe 
+        src="https://tu-dominio-cotizador.com/cocinas-publico" 
+        width="100%" 
+        height="800px" 
+        frameborder="0"&gt;
+    &lt;/iframe&gt;
+&lt;/div&gt;
+        </div>
+    </div>
+
+    <!-- EJEMPLO 5: Botón Flotante -->
+    <div class="ejemplo">
+        <h2>Ejemplo 5: Botón Flotante</h2>
+        <p>Botón que siempre está visible en la esquina.</p>
+        
+        <div style="position: fixed; 
+                    bottom: 20px; 
+                    right: 20px; 
+                    z-index: 1000;">
+            <a href="https://tu-dominio-cotizador.com/cocinas-publico" 
+               target="_blank"
+               style="display: flex;
+                      align-items: center;
+                      gap: 10px;
+                      padding: 15px 20px;
+                      background: #4F46E5;
+                      color: white;
+                      text-decoration: none;
+                      border-radius: 50px;
+                      font-weight: bold;
+                      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+                      transition: transform 0.2s;">
+                <span style="font-size: 1.5em;">🍳</span>
+                <span>Cotizar Cocina</span>
+            </a>
+        </div>
+        
+        <div class="codigo">
+&lt;div style="position: fixed; bottom: 20px; right: 20px; z-index: 1000;"&gt;
+    &lt;a href="https://tu-dominio-cotizador.com/cocinas-publico" 
+       target="_blank"
+       style="display: flex;
+              align-items: center;
+              gap: 10px;
+              padding: 15px 20px;
+              background: #4F46E5;
+              color: white;
+              text-decoration: none;
+              border-radius: 50px;
+              font-weight: bold;
+              box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);"&gt;
+        &lt;span&gt;🍳&lt;/span&gt;
+        &lt;span&gt;Cotizar Cocina&lt;/span&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+        </div>
+    </div>
+
+    <div style="margin-top: 50px; padding: 20px; background: #e0f2fe; border-radius: 8px;">
+        <h3>📝 Notas Importantes:</h3>
+        <ul>
+            <li><strong>Reemplaza la URL</strong>: Cambia <code>https://tu-dominio-cotizador.com/cocinas-publico</code> por tu URL real</li>
+            <li><strong>target="_blank"</strong>: Abre en nueva pestaña (recomendado)</li>
+            <li><strong>Responsive</strong>: Todos los ejemplos son responsive</li>
+            <li><strong>Personaliza colores</strong>: Cambia los colores (#4F46E5, etc.) por los de tu marca</li>
+        </ul>
+    </div>
+</body>
+</html>
+
