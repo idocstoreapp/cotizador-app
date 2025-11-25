@@ -1,0 +1,155 @@
+# 🎯 PROMPT PARA CURSOR - Integrar Catálogo de Muebles
+
+## 📋 Copia y Pega Este Prompt en Cursor:
+
+```
+Necesito integrar el catálogo de muebles en mi página web Astro. El catálogo está disponible en:
+
+URL: https://cotizador-app-two.vercel.app/muebles-publico
+
+Requisitos:
+1. Crear un componente React en src/components/CatalogoMueblesEmbebido.tsx
+2. El componente debe mostrar el catálogo usando un iframe
+3. Props configurables:
+   - urlCotizador (string, opcional, default: https://cotizador-app-two.vercel.app/muebles-publico)
+   - altura (string, opcional, default: "800px")
+   - className (string, opcional)
+
+4. El iframe debe:
+   - Ser responsive (width: 100%)
+   - Tener la altura configurable
+   - Tener frameBorder="0"
+   - Tener allowFullScreen
+   - Tener un título descriptivo: "Catálogo de Muebles"
+
+5. Diseño del contenedor:
+   - Contenedor con bordes redondeados (rounded-xl)
+   - Sombra suave (shadow-lg)
+   - Overflow hidden para bordes limpios
+   - Responsive
+
+6. El componente debe funcionar con Astro usando client:load
+
+Ejemplo de uso en Astro:
+```astro
+---
+import CatalogoMueblesEmbebido from '../components/CatalogoMueblesEmbebido';
+---
+
+<CatalogoMueblesEmbebido 
+  client:load
+  urlCotizador="https://cotizador-app-two.vercel.app/muebles-publico"
+  altura="900px"
+/>
+```
+
+Crea el componente completo con TypeScript types. Si uso Tailwind CSS, usa Tailwind. Si no, CSS inline.
+```
+
+---
+
+## 🚀 Versión Simple:
+
+```
+Crea un componente React que muestre un iframe con el catálogo de muebles.
+
+URL: https://cotizador-app-two.vercel.app/muebles-publico
+
+El componente debe:
+- Recibir props para url y altura
+- Mostrar iframe responsive
+- Tener diseño moderno
+- Funcionar con Astro usando client:load
+
+Dame el código completo con TypeScript.
+```
+
+---
+
+## 📦 Opciones de Integración:
+
+### Opción 1: Iframe Embebido (Recomendado)
+```astro
+---
+import CatalogoMueblesEmbebido from '../components/CatalogoMueblesEmbebido';
+---
+
+<CatalogoMueblesEmbebido 
+  client:load
+  urlCotizador="https://cotizador-app-two.vercel.app/muebles-publico"
+  altura="900px"
+/>
+```
+
+### Opción 2: Botón que abre en nueva pestaña
+```astro
+---
+import CotizadorMuebles from '../components/CotizadorMuebles';
+---
+
+<CotizadorMuebles 
+  client:load
+  urlCotizador="https://cotizador-app-two.vercel.app/muebles-publico"
+  estilo="boton"
+/>
+```
+
+### Opción 3: Banner con enlace
+```astro
+---
+import CotizadorMuebles from '../components/CotizadorMuebles';
+---
+
+<CotizadorMuebles 
+  client:load
+  urlCotizador="https://cotizador-app-two.vercel.app/muebles-publico"
+  estilo="banner"
+  titulo="Diseña tu Mueble Ideal"
+  descripcion="Explora nuestro catálogo y cotiza tu mueble personalizado"
+/>
+```
+
+### Opción 4: Card con enlace
+```astro
+---
+import CotizadorMuebles from '../components/CotizadorMuebles';
+---
+
+<CotizadorMuebles 
+  client:load
+  urlCotizador="https://cotizador-app-two.vercel.app/muebles-publico"
+  estilo="card"
+/>
+```
+
+### Opción 5: Botón flotante
+```astro
+---
+import CotizadorMuebles from '../components/CotizadorMuebles';
+---
+
+<CotizadorMuebles 
+  client:load
+  urlCotizador="https://cotizador-app-two.vercel.app/muebles-publico"
+  estilo="flotante"
+/>
+```
+
+---
+
+## 🔗 URLs Disponibles:
+
+- **Catálogo de Muebles**: https://cotizador-app-two.vercel.app/muebles-publico
+- **Iframe directo**: Usa la URL en un iframe con altura mínima de 800px
+
+---
+
+## ✅ Checklist de Integración:
+
+- [ ] Componente creado en `src/components/CatalogoMueblesEmbebido.tsx`
+- [ ] Props configuradas correctamente
+- [ ] Iframe responsive
+- [ ] Funciona con `client:load` en Astro
+- [ ] Diseño moderno y limpio
+- [ ] URL correcta configurada
+

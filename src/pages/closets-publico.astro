@@ -1,0 +1,25 @@
+---
+/**
+ * Página pública de catálogo de closets
+ * No requiere autenticación - acceso público
+ */
+import QueryProvider from '../components/QueryProvider';
+import CatalogoClosetsPublico from '../components/public/CatalogoClosetsPublico';
+---
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Catálogo de Closets - Cotizador</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  </head>
+  <body>
+    <QueryProvider client:load>
+      <CatalogoClosetsPublico client:load />
+    </QueryProvider>
+  </body>
+</html>
+
