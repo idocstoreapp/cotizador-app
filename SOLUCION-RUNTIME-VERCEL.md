@@ -11,24 +11,30 @@ Error: The following Serverless Functions contain an invalid "runtime":
 
 Se actualizó la configuración para usar Node.js 20.x:
 
-### 1. `astro.config.mjs`
+### 1. `package.json` - Agregar `engines`
+```json
+{
+  "engines": {
+    "node": "20.x"
+  }
+}
+```
+
+### 2. `astro.config.mjs` - Configurar adapter
 ```js
 adapter: vercel({
   runtime: 'nodejs20.x'
 })
 ```
 
-### 2. `vercel.json`
+### 3. `vercel.json` - Simplificado (sin runtime)
 ```json
 {
-  "framework": "astro",
-  "functions": {
-    "**": {
-      "runtime": "nodejs20.x"
-    }
-  }
+  "framework": "astro"
 }
 ```
+
+**⚠️ IMPORTANTE**: NO especifiques el runtime en `vercel.json` usando el formato `functions`. Usa `engines` en `package.json` en su lugar.
 
 ## 📋 Pasos para Aplicar
 
