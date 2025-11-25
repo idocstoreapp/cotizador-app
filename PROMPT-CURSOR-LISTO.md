@@ -1,6 +1,6 @@
-# 🎯 PROMPT FINAL PARA CURSOR - Astro + React
+# 🎯 PROMPT LISTO PARA COPIAR Y PEGAR EN CURSOR
 
-## Copia y Pega Este Prompt en Cursor:
+## 📋 Copia Todo Este Texto y Pégalo en Cursor:
 
 ```
 Necesito crear un componente React reutilizable en mi proyecto Astro para integrar un catálogo de cocinas desde otra aplicación.
@@ -11,7 +11,7 @@ Requisitos del componente:
 1. Nombre: CotizadorCocinas.tsx
 2. Ubicación: src/components/CotizadorCocinas.tsx
 3. Props configurables:
-   - urlCotizador (string, opcional, default: URL del catálogo)
+   - urlCotizador (string, opcional, default: https://cotizador-app-two.vercel.app/cocinas-publico)
    - titulo (string, opcional, default: "Diseña tu Cocina Ideal")
    - descripcion (string, opcional)
    - estilo ('boton' | 'banner' | 'card' | 'flotante', opcional, default: 'banner')
@@ -56,12 +56,12 @@ Crea el componente completo, funcional y listo para usar. Incluye TypeScript typ
 
 ---
 
-## 🚀 Versión Ultra Simple:
+## 🚀 Versión Ultra Simple (Si Prefieres):
 
 ```
 Crea un componente React en src/components/CotizadorCocinas.tsx que muestre un botón o banner para redirigir a un catálogo de cocinas.
 
-URL: https://tu-dominio-cotizador.com/cocinas-publico
+URL: https://cotizador-app-two.vercel.app/cocinas-publico
 
 El componente debe:
 - Tener props para personalizar (url, título, estilo)
@@ -77,30 +77,10 @@ Dame el código completo.
 
 ---
 
-## 📋 Checklist de Integración
+## ✅ Después de Pegar el Prompt:
 
-Después de que Cursor cree el componente:
-
-1. ✅ Verifica que el componente esté en `src/components/CotizadorCocinas.tsx`
-2. ✅ Reemplaza la URL por defecto con tu URL real del cotizador
-3. ✅ Prueba en una página Astro:
-   ```astro
-   ---
-   import CotizadorCocinas from '../components/CotizadorCocinas';
-   ---
-   
-   <CotizadorCocinas client:load estilo="banner" />
-   ```
-4. ✅ Verifica que funcione correctamente
-5. ✅ Personaliza colores y textos según tu marca
-
----
-
-## 🎨 Personalización Rápida
-
-Si quieres cambiar colores, edita estos valores en el componente:
-
-- **Color principal**: `#4F46E5` (indigo) → Cambia por tu color
-- **Gradiente banner**: `#667eea` a `#764ba2` → Cambia por tus colores
-- **Texto**: Personaliza los textos por defecto
+1. Cursor generará el componente automáticamente
+2. Verifica que esté en `src/components/CotizadorCocinas.tsx`
+3. Úsalo en cualquier página Astro con `client:load`
+4. ¡Listo! 🎉
 
