@@ -56,3 +56,4 @@ Una vez que tengas las 4 URLs, edita el archivo `actualizar-closet-variantes-aut
 - Ajusta las rutas si las imágenes están en subcarpetas
 
 
+

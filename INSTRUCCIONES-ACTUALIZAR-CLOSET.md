@@ -128,3 +128,4 @@ Deberías ver:
 - Al seleccionar un color, la imagen principal cambiará automáticamente
 
 
+
