@@ -180,13 +180,15 @@ export default function Layout({ children, currentPath }: LayoutProps) {
       }
     });
 
-    // También intentar obtener sesión inicial (pero no bloquear)
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // También intentar obtener sesión inicial INMEDIATAMENTE (no bloquear)
+    // Esto es crítico para que el usuario se cargue rápido
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (!mounted) return;
       
+      console.log('🔍 getSession() inicial:', { tieneSession: !!session, error, email: session?.user?.email });
+      
       if (session?.user) {
-        // Si hay sesión, onAuthStateChange ya la manejará
-        // Pero podemos crear perfil temporal inmediatamente
+        // Si hay sesión, crear perfil temporal inmediatamente
         const perfilTemporal: UserProfile = {
           id: session.user.id,
           email: session.user.email || '',
@@ -194,29 +196,40 @@ export default function Layout({ children, currentPath }: LayoutProps) {
           role: 'tecnico',
           created_at: new Date().toISOString()
         };
+        console.log('✓ Usuario temporal creado desde getSession():', perfilTemporal.email);
         setUsuario(perfilTemporal);
         setLoading(false);
         setVerificandoSesion(false);
 
-        // Consultar perfil real
+        // Consultar perfil real en background
         supabase
           .from('perfiles')
           .select('*')
           .eq('id', session.user.id)
           .single()
-          .then(({ data: perfil }) => {
+          .then(({ data: perfil, error: perfilError }) => {
             if (!mounted) return;
-            if (perfil) {
+            
+            if (perfil && !perfilError) {
+              console.log('✓ Perfil real cargado desde getSession():', perfil.email, perfil.role);
               setUsuario(perfil as UserProfile);
+            } else {
+              console.warn('⚠️ No se pudo cargar perfil real desde getSession(), usando temporal:', perfilError);
             }
           })
-          .catch(() => {});
+          .catch((err) => {
+            console.error('Error al cargar perfil desde getSession():', err);
+            // Mantener perfil temporal si falla
+          });
       } else {
+        // No hay sesión
+        console.log('✗ No hay sesión activa en getSession() inicial');
         setUsuario(null);
         setLoading(false);
         setVerificandoSesion(false);
       }
-    }).catch(() => {
+    }).catch((err) => {
+      console.error('❌ Error en getSession() inicial:', err);
       if (mounted) {
         setUsuario(null);
         setLoading(false);
@@ -278,7 +291,7 @@ export default function Layout({ children, currentPath }: LayoutProps) {
     }
     
     // Si estamos en una ruta protegida y ya verificamos, mostrar mensaje
-    if (!verificandoSesion) {
+    if (!verificandoSesion && !loading) {
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <div className="text-center">
@@ -291,7 +304,15 @@ export default function Layout({ children, currentPath }: LayoutProps) {
       );
     }
     
-    // Aún verificando
+    // Aún verificando o cargando - mostrar loading
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Verificando autenticación...</p>
+        </div>
+      </div>
+    );
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
