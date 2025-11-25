@@ -146,10 +146,10 @@ export default function QuotePDF({
 
         .quote-title {
           text-align: center;
-          font-size: 28px;
+          font-size: 24px;
           font-weight: bold;
           color: #333;
-          margin: 20px 40px;
+          margin: 15px 40px;
           letter-spacing: 1px;
         }
 
@@ -158,28 +158,20 @@ export default function QuotePDF({
           position: relative;
           z-index: 10;
           padding: 0 40px;
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 30px;
-          margin-bottom: 30px;
-        }
-
-        .left-section {
-          display: flex;
-          flex-direction: column;
-          gap: 25px;
+          margin-bottom: 20px;
         }
 
         .info-section {
           background: rgba(255, 255, 255, 0.9);
-          padding: 20px;
+          padding: 15px 20px;
           border-radius: 8px;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+          margin-bottom: 15px;
         }
 
         .info-row {
-          margin-bottom: 12px;
-          font-size: 14px;
+          margin-bottom: 8px;
+          font-size: 13px;
         }
 
         .info-label {
@@ -201,53 +193,23 @@ export default function QuotePDF({
           border-bottom: 2px solid #d4a574;
         }
 
-        .project-details {
-          background: rgba(255, 255, 255, 0.9);
-          padding: 20px;
-          border-radius: 8px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        }
-
-        .detail-item {
-          margin-bottom: 10px;
-          font-size: 14px;
-          color: #666;
-        }
-
-        .detail-item strong {
-          color: #333;
-        }
-
-        /* Image section */
-        .image-section {
-          position: relative;
-          z-index: 5;
-        }
-
-        .project-image {
-          width: 100%;
-          height: 400px;
-          object-fit: cover;
-          border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
 
         /* Economic summary */
         .economic-summary {
           position: relative;
           z-index: 10;
           background: rgba(255, 255, 255, 0.95);
-          margin: 0 40px 30px;
-          padding: 25px;
+          margin: 0 40px 20px;
+          padding: 20px;
           border-radius: 8px;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
 
         .summary-title {
-          font-size: 18px;
+          font-size: 16px;
           font-weight: bold;
           color: #333;
-          margin-bottom: 20px;
+          margin-bottom: 15px;
           text-align: center;
         }
 
@@ -257,8 +219,8 @@ export default function QuotePDF({
         }
 
         .summary-table td {
-          padding: 12px;
-          font-size: 14px;
+          padding: 8px;
+          font-size: 12px;
           border-bottom: 1px solid #e0e0e0;
         }
 
@@ -275,14 +237,14 @@ export default function QuotePDF({
 
         .summary-table tr:last-child td {
           border-bottom: none;
-          padding-top: 15px;
-          font-size: 20px;
+          padding-top: 10px;
+          font-size: 18px;
           font-weight: bold;
           color: #6b2c3e;
         }
 
         .summary-table tr:last-child td:first-child {
-          font-size: 20px;
+          font-size: 18px;
           color: #6b2c3e;
         }
 
@@ -294,40 +256,42 @@ export default function QuotePDF({
 
         .item-detail-section {
           background: rgba(255, 255, 255, 0.95);
-          margin: 0 40px 20px;
-          padding: 20px;
+          margin: 0 40px 15px;
+          padding: 15px;
           border-radius: 8px;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
 
         .item-detail-title {
-          font-size: 16px;
+          font-size: 14px;
           font-weight: bold;
           color: #333;
-          margin-bottom: 15px;
-          padding-bottom: 8px;
+          margin-bottom: 10px;
+          padding-bottom: 6px;
           border-bottom: 2px solid #d4a574;
         }
 
         .detail-table {
           width: 100%;
           border-collapse: collapse;
-          font-size: 12px;
+          font-size: 10px;
         }
 
         .detail-table th {
           background: #f5f5f0;
-          padding: 8px;
+          padding: 6px;
           text-align: left;
           font-weight: 600;
           color: #333;
           border-bottom: 1px solid #d4a574;
+          font-size: 10px;
         }
 
         .detail-table td {
-          padding: 8px;
+          padding: 5px;
           border-bottom: 1px solid #e0e0e0;
           color: #666;
+          font-size: 10px;
         }
 
         .detail-table td:last-child {
@@ -342,11 +306,11 @@ export default function QuotePDF({
         }
 
         .detail-section-title {
-          font-size: 13px;
+          font-size: 11px;
           font-weight: 600;
           color: #8b6f47;
-          margin-top: 15px;
-          margin-bottom: 8px;
+          margin-top: 10px;
+          margin-bottom: 6px;
           padding-left: 5px;
           border-left: 3px solid #d4a574;
         }
@@ -359,18 +323,18 @@ export default function QuotePDF({
           right: 0;
           background: #2c2c2c;
           color: white;
-          padding: 20px 40px;
+          padding: 15px 40px;
           text-align: center;
           z-index: 10;
         }
 
         .footer-text {
-          font-size: 14px;
-          margin-bottom: 8px;
+          font-size: 12px;
+          margin-bottom: 6px;
         }
 
         .footer-links {
-          font-size: 12px;
+          font-size: 11px;
           color: #d4a574;
         }
 
@@ -410,52 +374,20 @@ export default function QuotePDF({
 
       {/* Main content */}
       <div className="quote-content">
-        {/* Left section */}
-        <div className="left-section">
-          {/* Client info */}
-          <div className="info-section">
-            <div className="info-row">
-              <span className="info-label">Cliente:</span>
-              <span className="info-value">{clientName}</span>
-            </div>
-            <div className="info-row">
-              <span className="info-label">Fecha:</span>
-              <span className="info-value">{date}</span>
-            </div>
-            <div className="info-row">
-              <span className="info-label">Nº Cotización:</span>
-              <span className="info-value">{quoteNumber}</span>
-            </div>
+        {/* Client info */}
+        <div className="info-section">
+          <div className="info-row">
+            <span className="info-label">Cliente:</span>
+            <span className="info-value">{clientName}</span>
           </div>
-
-          {/* Project details */}
-          <div className="project-details">
-            <div className="section-title">Detalles del Proyecto</div>
-            <div className="detail-item">
-              <strong>• Modelo:</strong> {model}
-            </div>
-            <div className="detail-item">
-              <strong>• Dimensiones:</strong> {dimensions}
-            </div>
+          <div className="info-row">
+            <span className="info-label">Fecha:</span>
+            <span className="info-value">{date}</span>
           </div>
-        </div>
-
-        {/* Image section */}
-        <div className="image-section">
-          {image ? (
-            <img src={image} alt="Proyecto de cocina" className="project-image" />
-          ) : (
-            <div className="project-image" style={{ 
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '18px'
-            }}>
-              Imagen del Proyecto
-            </div>
-          )}
+          <div className="info-row">
+            <span className="info-label">Nº Cotización:</span>
+            <span className="info-value">{quoteNumber}</span>
+          </div>
         </div>
       </div>
 
@@ -564,8 +496,8 @@ export default function QuotePDF({
                 
                 {/* Subtotal antes de margen */}
                 {subtotal_antes_margen !== undefined && (
-                  <div style={{ marginTop: '15px', paddingTop: '10px', borderTop: '1px solid #e0e0e0' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 600, color: '#333' }}>
+                  <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #e0e0e0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 600, color: '#333' }}>
                       <span>Subtotal (antes de margen)</span>
                       <span>${subtotal_antes_margen.toLocaleString('es-CO')}</span>
                     </div>
@@ -574,7 +506,7 @@ export default function QuotePDF({
                 
                 {/* Margen de ganancia */}
                 {margen_ganancia !== undefined && subtotal_antes_margen !== undefined && (
-                  <div style={{ marginTop: '8px', fontSize: '13px', color: '#666' }}>
+                  <div style={{ marginTop: '6px', fontSize: '10px', color: '#666' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span>Margen de Ganancia ({margen_ganancia.toFixed(1)}%)</span>
                       <span>${((subtotal_antes_margen * margen_ganancia) / 100).toLocaleString('es-CO')}</span>
@@ -583,8 +515,8 @@ export default function QuotePDF({
                 )}
                 
                 {/* Total del item */}
-                <div style={{ marginTop: '15px', paddingTop: '10px', borderTop: '2px solid #d4a574' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 'bold', color: '#6b2c3e' }}>
+                <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '2px solid #d4a574' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 'bold', color: '#6b2c3e' }}>
                     <span>Total {item.concepto}</span>
                     <span>${item.precio.toLocaleString('es-CO')}</span>
                   </div>
