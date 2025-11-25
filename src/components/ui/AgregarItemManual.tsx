@@ -510,141 +510,6 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
                 + Nuevo
               </button>
             </div>
-            
-            {/* Modal para crear material nuevo */}
-            {mostrarCrearMaterial && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
-                  <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-gray-900">Crear Material Nuevo</h3>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMostrarCrearMaterial(false);
-                        setNuevoMaterial({ nombre: '', tipo: '', unidad: 'unidad', costo_unitario: 0, proveedor: '' });
-                      }}
-                      className="text-gray-400 hover:text-gray-600 text-2xl"
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (!nuevoMaterial.nombre || !nuevoMaterial.tipo || nuevoMaterial.costo_unitario <= 0) {
-                        alert('Por favor completa todos los campos requeridos');
-                        return;
-                      }
-                      crearMaterialMutation.mutate(nuevoMaterial);
-                    }}
-                    className="p-6 space-y-4"
-                  >
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Nombre del Material *
-                      </label>
-                      <input
-                        type="text"
-                        value={nuevoMaterial.nombre}
-                        onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, nombre: e.target.value })}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Ej: MDF 18mm"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Tipo *
-                      </label>
-                      <input
-                        type="text"
-                        value={nuevoMaterial.tipo}
-                        onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, tipo: e.target.value })}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Ej: madera, MDF, hierro, insumos"
-                        required
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Unidad *
-                        </label>
-                        <select
-                          value={nuevoMaterial.unidad}
-                          onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, unidad: e.target.value })}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                          required
-                        >
-                          <option value="unidad">Unidad</option>
-                          <option value="m²">m²</option>
-                          <option value="metro lineal">Metro Lineal</option>
-                          <option value="kg">kg</option>
-                          <option value="litro">Litro</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Precio Unitario *
-                        </label>
-                        <input
-                          type="number"
-                          value={nuevoMaterial.costo_unitario || ''}
-                          onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, costo_unitario: parseFloat(e.target.value) || 0 })}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                          placeholder="0"
-                          min="0"
-                          step="100"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Proveedor (opcional)
-                      </label>
-                      <input
-                        type="text"
-                        value={nuevoMaterial.proveedor}
-                        onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, proveedor: e.target.value })}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Nombre del proveedor"
-                      />
-                    </div>
-                    <div className="flex gap-3 pt-4">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (!nuevoMaterial.nombre || !nuevoMaterial.tipo || nuevoMaterial.costo_unitario <= 0) {
-                            alert('Por favor completa todos los campos requeridos');
-                            return;
-                          }
-                          crearMaterialMutation.mutate(nuevoMaterial);
-                        }}
-                        disabled={crearMaterialMutation.isPending}
-                        className="flex-1 px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                      >
-                        {crearMaterialMutation.isPending ? 'Creando...' : 'Crear Material'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setMostrarCrearMaterial(false);
-                          setNuevoMaterial({ nombre: '', tipo: '', unidad: 'unidad', costo_unitario: 0, proveedor: '' });
-                        }}
-                        className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {errorMateriales && (
               <div className="p-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">
@@ -1220,6 +1085,144 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
             {renderTabContent()}
           </div>
         </form>
+
+        {/* Modal para crear material nuevo - Fuera del formulario para evitar conflictos */}
+        {mostrarCrearMaterial && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setMostrarCrearMaterial(false);
+                setNuevoMaterial({ nombre: '', tipo: '', unidad: 'unidad', costo_unitario: 0, proveedor: '' });
+              }
+            }}
+          >
+            <div 
+              className="bg-white rounded-xl shadow-xl max-w-md w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <h3 className="text-lg font-bold text-gray-900">Crear Material Nuevo</h3>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setMostrarCrearMaterial(false);
+                    setNuevoMaterial({ nombre: '', tipo: '', unidad: 'unidad', costo_unitario: 0, proveedor: '' });
+                  }}
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre del Material *
+                  </label>
+                  <input
+                    type="text"
+                    value={nuevoMaterial.nombre}
+                    onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, nombre: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Ej: MDF 18mm"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tipo *
+                  </label>
+                  <input
+                    type="text"
+                    value={nuevoMaterial.tipo}
+                    onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, tipo: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Ej: madera, MDF, hierro, insumos"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Unidad *
+                    </label>
+                    <select
+                      value={nuevoMaterial.unidad}
+                      onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, unidad: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      required
+                    >
+                      <option value="unidad">Unidad</option>
+                      <option value="m²">m²</option>
+                      <option value="metro lineal">Metro Lineal</option>
+                      <option value="kg">kg</option>
+                      <option value="litro">Litro</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Precio Unitario *
+                    </label>
+                    <input
+                      type="number"
+                      value={nuevoMaterial.costo_unitario || ''}
+                      onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, costo_unitario: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      placeholder="0"
+                      min="0"
+                      step="100"
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Proveedor (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={nuevoMaterial.proveedor}
+                    onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, proveedor: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Nombre del proveedor"
+                  />
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (!nuevoMaterial.nombre || !nuevoMaterial.tipo || nuevoMaterial.costo_unitario <= 0) {
+                        alert('Por favor completa todos los campos requeridos');
+                        return;
+                      }
+                      crearMaterialMutation.mutate(nuevoMaterial);
+                    }}
+                    disabled={crearMaterialMutation.isPending}
+                    className="flex-1 px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {crearMaterialMutation.isPending ? 'Creando...' : 'Crear Material'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setMostrarCrearMaterial(false);
+                      setNuevoMaterial({ nombre: '', tipo: '', unidad: 'unidad', costo_unitario: 0, proveedor: '' });
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Footer con navegación */}
         <div className="border-t border-gray-200 px-6 py-4 flex items-center justify-between bg-gray-50">
