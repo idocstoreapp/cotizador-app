@@ -117,8 +117,9 @@ export const POST: APIRoute = async ({ request }) => {
     
     // Configurar Chromium para Vercel
     if (chromiumInstance) {
-      chromiumInstance.setGraphicsMode(false); // Deshabilitar gráficos para serverless
-      console.log('🔧 Configurando Chromium para Vercel/serverless');
+      // Nota: @sparticuz/chromium ya viene optimizado para serverless
+      // No necesita configuración adicional de setGraphicsMode
+      console.log('🔧 Usando Chromium optimizado para Vercel/serverless');
     }
     
     // Configuración de Puppeteer optimizada para Vercel
