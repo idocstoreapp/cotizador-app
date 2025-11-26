@@ -7,22 +7,21 @@ import type { APIRoute } from 'astro';
 import { renderQuoteToHTML } from '../../utils/renderQuoteToHTML';
 import { supabase } from '../../utils/supabase';
 
-// Importar Puppeteer según el entorno
-let puppeteer: any;
-let chromium: any;
-
-// En desarrollo, usar puppeteer completo
-// En producción/Vercel, usar puppeteer-core con @sparticuz/chromium
-const isVercelEnv = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
-const isProduction = process.env.NODE_ENV === 'production';
-
-if (isVercelEnv || isProduction) {
-  // En producción/Vercel, usar puppeteer-core con chromium optimizado
-  puppeteer = await import('puppeteer-core');
-  chromium = await import('@sparticuz/chromium');
-} else {
-  // En desarrollo, usar puppeteer completo
-  puppeteer = await import('puppeteer');
+// Importar dinámicamente según el entorno
+async function getPuppeteer() {
+  const isVercelEnv = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  if (isVercelEnv || isProduction) {
+    // En producción/Vercel, usar puppeteer-core con chromium optimizado
+    const puppeteer = await import('puppeteer-core');
+    const chromium = await import('@sparticuz/chromium');
+    return { puppeteer: puppeteer.default, chromium: chromium.default };
+  } else {
+    // En desarrollo, usar puppeteer completo
+    const puppeteer = await import('puppeteer');
+    return { puppeteer: puppeteer.default, chromium: null };
+  }
 }
 
 export const POST: APIRoute = async ({ request }) => {
