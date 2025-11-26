@@ -4,10 +4,26 @@
  * Usa @sparticuz/chromium para compatibilidad con Vercel/serverless
  */
 import type { APIRoute } from 'astro';
-import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
 import { renderQuoteToHTML } from '../../utils/renderQuoteToHTML';
 import { supabase } from '../../utils/supabase';
+
+// Importar Puppeteer según el entorno
+let puppeteer: any;
+let chromium: any;
+
+// En desarrollo, usar puppeteer completo
+// En producción/Vercel, usar puppeteer-core con @sparticuz/chromium
+const isVercelEnv = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (isVercelEnv || isProduction) {
+  // En producción/Vercel, usar puppeteer-core con chromium optimizado
+  puppeteer = await import('puppeteer-core');
+  chromium = await import('@sparticuz/chromium');
+} else {
+  // En desarrollo, usar puppeteer completo
+  puppeteer = await import('puppeteer');
+}
 
 export const POST: APIRoute = async ({ request }) => {
   let browser;
@@ -85,6 +101,9 @@ export const POST: APIRoute = async ({ request }) => {
     console.log('✅ HTML renderizado, longitud:', html.length);
     console.log('🚀 Iniciando Puppeteer...');
     
+    // Obtener Puppeteer según el entorno
+    const { puppeteer: puppeteerInstance, chromium: chromiumInstance } = await getPuppeteer();
+    
     // Detectar si estamos en Vercel/producción
     const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
     const isProduction = process.env.NODE_ENV === 'production';
@@ -93,20 +112,21 @@ export const POST: APIRoute = async ({ request }) => {
       isProduction,
       VERCEL: process.env.VERCEL,
       VERCEL_ENV: process.env.VERCEL_ENV,
-      NODE_ENV: process.env.NODE_ENV
+      NODE_ENV: process.env.NODE_ENV,
+      usandoChromium: !!chromiumInstance
     });
     
     // Configurar Chromium para Vercel
-    if (isVercel || isProduction) {
-      chromium.setGraphicsMode(false); // Deshabilitar gráficos para serverless
+    if (chromiumInstance) {
+      chromiumInstance.setGraphicsMode(false); // Deshabilitar gráficos para serverless
       console.log('🔧 Configurando Chromium para Vercel/serverless');
     }
     
     // Configuración de Puppeteer optimizada para Vercel
     const puppeteerOptions: any = {
       headless: true,
-      args: isVercel || isProduction 
-        ? chromium.args 
+      args: chromiumInstance
+        ? chromiumInstance.args 
         : [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -118,11 +138,13 @@ export const POST: APIRoute = async ({ request }) => {
             '--disable-web-security',
             '--disable-features=IsolateOrigins,site-per-process'
           ],
-      defaultViewport: chromium.defaultViewport,
-      executablePath: isVercel || isProduction 
-        ? await chromium.executablePath() 
-        : undefined, // En desarrollo, usar el Chromium de Puppeteer
     };
+    
+    // Agregar configuración específica para Vercel
+    if (chromiumInstance) {
+      puppeteerOptions.defaultViewport = chromiumInstance.defaultViewport;
+      puppeteerOptions.executablePath = await chromiumInstance.executablePath();
+    }
     
     console.log('📋 Opciones de Puppeteer:', {
       executablePath: puppeteerOptions.executablePath ? 'Configurado' : 'Por defecto',
@@ -130,7 +152,7 @@ export const POST: APIRoute = async ({ request }) => {
     });
     
     try {
-      browser = await puppeteer.launch(puppeteerOptions);
+      browser = await puppeteerInstance.launch(puppeteerOptions);
       console.log('✅ Puppeteer iniciado correctamente');
     } catch (launchError: any) {
       console.error('❌ Error al iniciar Puppeteer:', launchError);
@@ -141,10 +163,10 @@ export const POST: APIRoute = async ({ request }) => {
       });
       
       // Si falla en producción, intentar con configuración de desarrollo como fallback
-      if ((isVercel || isProduction) && launchError.message.includes('executable')) {
+      if (chromiumInstance && launchError.message.includes('executable')) {
         console.log('🔄 Intentando con configuración alternativa...');
         try {
-          browser = await puppeteer.launch({
+          browser = await puppeteerInstance.launch({
             headless: true,
             args: [
               '--no-sandbox',
