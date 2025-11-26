@@ -1,9 +1,11 @@
 /**
  * Endpoint API para generar PDF de cotización profesional usando Puppeteer
  * Convierte el componente React QuotePDF a PDF
+ * Usa @sparticuz/chromium para compatibilidad con Vercel/serverless
  */
 import type { APIRoute } from 'astro';
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 import { renderQuoteToHTML } from '../../utils/renderQuoteToHTML';
 import { supabase } from '../../utils/supabase';
 
@@ -94,39 +96,38 @@ export const POST: APIRoute = async ({ request }) => {
       NODE_ENV: process.env.NODE_ENV
     });
     
+    // Configurar Chromium para Vercel
+    if (isVercel || isProduction) {
+      chromium.setGraphicsMode(false); // Deshabilitar gráficos para serverless
+      console.log('🔧 Configurando Chromium para Vercel/serverless');
+    }
+    
     // Configuración de Puppeteer optimizada para Vercel
     const puppeteerOptions: any = {
       headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu',
-        '--disable-web-security',
-        '--disable-features=IsolateOrigins,site-per-process',
-        '--single-process' // Importante para Vercel
-      ]
+      args: isVercel || isProduction 
+        ? chromium.args 
+        : [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--disable-gpu',
+            '--disable-web-security',
+            '--disable-features=IsolateOrigins,site-per-process'
+          ],
+      defaultViewport: chromium.defaultViewport,
+      executablePath: isVercel || isProduction 
+        ? await chromium.executablePath() 
+        : undefined, // En desarrollo, usar el Chromium de Puppeteer
     };
     
-    // En Vercel/producción, intentar usar Chromium del sistema si está disponible
-    if (isVercel || isProduction) {
-      // Intentar usar el ejecutable de Chromium si está disponible
-      const chromiumPath = process.env.PUPPETEER_EXECUTABLE_PATH || 
-                          process.env.CHROME_PATH ||
-                          '/usr/bin/chromium' ||
-                          '/usr/bin/chromium-browser';
-      
-      if (chromiumPath && chromiumPath !== '/usr/bin/chromium' && chromiumPath !== '/usr/bin/chromium-browser') {
-        puppeteerOptions.executablePath = chromiumPath;
-        console.log('🔧 Usando Chromium personalizado:', chromiumPath);
-      } else {
-        console.log('⚠️ No se encontró Chromium personalizado, usando el de Puppeteer');
-        // Puppeteer debería usar su Chromium incluido
-      }
-    }
+    console.log('📋 Opciones de Puppeteer:', {
+      executablePath: puppeteerOptions.executablePath ? 'Configurado' : 'Por defecto',
+      argsCount: puppeteerOptions.args?.length || 0
+    });
     
     try {
       browser = await puppeteer.launch(puppeteerOptions);
@@ -138,7 +139,28 @@ export const POST: APIRoute = async ({ request }) => {
         stack: launchError.stack,
         name: launchError.name
       });
-      throw new Error(`Error al iniciar Puppeteer: ${launchError.message}`);
+      
+      // Si falla en producción, intentar con configuración de desarrollo como fallback
+      if ((isVercel || isProduction) && launchError.message.includes('executable')) {
+        console.log('🔄 Intentando con configuración alternativa...');
+        try {
+          browser = await puppeteer.launch({
+            headless: true,
+            args: [
+              '--no-sandbox',
+              '--disable-setuid-sandbox',
+              '--disable-dev-shm-usage',
+              '--single-process'
+            ]
+          });
+          console.log('✅ Puppeteer iniciado con configuración alternativa');
+        } catch (fallbackError: any) {
+          console.error('❌ Error también con configuración alternativa:', fallbackError);
+          throw new Error(`Error al iniciar Puppeteer: ${launchError.message}`);
+        }
+      } else {
+        throw new Error(`Error al iniciar Puppeteer: ${launchError.message}`);
+      }
     }
 
     console.log('📄 Creando nueva página...');
