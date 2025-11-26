@@ -153,3 +153,4 @@ import CotizadorClosets from '../components/CotizadorClosets';
 - [ ] Diseño moderno y limpio
 - [ ] URL correcta configurada
 
+gity

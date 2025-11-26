@@ -11,6 +11,8 @@ export const POST: APIRoute = async ({ request }) => {
   let browser;
   
   try {
+    console.log('📄 Iniciando generación de PDF...');
+    
     // Verificar autenticación (similar al otro endpoint)
     // Nota: En el servidor, esto puede no funcionar perfectamente con cookies
     // pero como la cotización ya fue guardada (usuario autenticado), 
@@ -20,11 +22,13 @@ export const POST: APIRoute = async ({ request }) => {
       if (!session) {
         // Si no hay sesión, permitir continuar de todas formas
         // porque la cotización ya fue guardada en la BD (usuario estaba autenticado)
-        console.warn('No se pudo verificar sesión en servidor, pero continuando (cotización ya guardada)');
+        console.warn('⚠️ No se pudo verificar sesión en servidor, pero continuando (cotización ya guardada)');
+      } else {
+        console.log('✅ Sesión verificada correctamente');
       }
     } catch (authError) {
       // Si falla la verificación, continuar de todas formas
-      console.warn('Error al verificar autenticación en servidor:', authError);
+      console.warn('⚠️ Error al verificar autenticación en servidor:', authError);
     }
 
     // Obtener datos del body
@@ -60,6 +64,8 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
+    console.log('🎨 Renderizando HTML...');
+    
     // Renderizar React a HTML
     const html = renderQuoteToHTML({
       clientName,
@@ -74,8 +80,22 @@ export const POST: APIRoute = async ({ request }) => {
       companyLogo
     });
 
-    // Iniciar Puppeteer
-    browser = await puppeteer.launch({
+    console.log('✅ HTML renderizado, longitud:', html.length);
+    console.log('🚀 Iniciando Puppeteer...');
+    
+    // Detectar si estamos en Vercel/producción
+    const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
+    const isProduction = process.env.NODE_ENV === 'production';
+    console.log('🌍 Entorno:', {
+      isVercel,
+      isProduction,
+      VERCEL: process.env.VERCEL,
+      VERCEL_ENV: process.env.VERCEL_ENV,
+      NODE_ENV: process.env.NODE_ENV
+    });
+    
+    // Configuración de Puppeteer optimizada para Vercel
+    const puppeteerOptions: any = {
       headless: true,
       args: [
         '--no-sandbox',
@@ -84,17 +104,55 @@ export const POST: APIRoute = async ({ request }) => {
         '--disable-accelerated-2d-canvas',
         '--no-first-run',
         '--no-zygote',
-        '--disable-gpu'
+        '--disable-gpu',
+        '--disable-web-security',
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--single-process' // Importante para Vercel
       ]
-    });
+    };
+    
+    // En Vercel/producción, intentar usar Chromium del sistema si está disponible
+    if (isVercel || isProduction) {
+      // Intentar usar el ejecutable de Chromium si está disponible
+      const chromiumPath = process.env.PUPPETEER_EXECUTABLE_PATH || 
+                          process.env.CHROME_PATH ||
+                          '/usr/bin/chromium' ||
+                          '/usr/bin/chromium-browser';
+      
+      if (chromiumPath && chromiumPath !== '/usr/bin/chromium' && chromiumPath !== '/usr/bin/chromium-browser') {
+        puppeteerOptions.executablePath = chromiumPath;
+        console.log('🔧 Usando Chromium personalizado:', chromiumPath);
+      } else {
+        console.log('⚠️ No se encontró Chromium personalizado, usando el de Puppeteer');
+        // Puppeteer debería usar su Chromium incluido
+      }
+    }
+    
+    try {
+      browser = await puppeteer.launch(puppeteerOptions);
+      console.log('✅ Puppeteer iniciado correctamente');
+    } catch (launchError: any) {
+      console.error('❌ Error al iniciar Puppeteer:', launchError);
+      console.error('Detalles:', {
+        message: launchError.message,
+        stack: launchError.stack,
+        name: launchError.name
+      });
+      throw new Error(`Error al iniciar Puppeteer: ${launchError.message}`);
+    }
 
+    console.log('📄 Creando nueva página...');
     const page = await browser.newPage();
     
-    // Configurar el contenido HTML
+    console.log('📝 Configurando contenido HTML...');
+    // Configurar el contenido HTML con timeout más corto para Vercel
     await page.setContent(html, {
-      waitUntil: 'networkidle0'
+      waitUntil: 'networkidle0',
+      timeout: 30000 // 30 segundos timeout
     });
+    console.log('✅ Contenido HTML configurado');
 
+    console.log('📄 Generando PDF...');
     // Generar PDF
     const pdf = await page.pdf({
       format: 'A4',
@@ -104,8 +162,10 @@ export const POST: APIRoute = async ({ request }) => {
         right: '0mm',
         bottom: '0mm',
         left: '0mm'
-      }
+      },
+      timeout: 30000 // 30 segundos timeout
     });
+    console.log('✅ PDF generado, tamaño:', pdf.length, 'bytes');
 
     // Cerrar el navegador
     await browser.close();
@@ -122,14 +182,30 @@ export const POST: APIRoute = async ({ request }) => {
   } catch (error: any) {
     // Asegurar que el navegador se cierre en caso de error
     if (browser) {
-      await browser.close();
+      try {
+        await browser.close();
+        console.log('🔒 Navegador cerrado después del error');
+      } catch (closeError) {
+        console.error('⚠️ Error al cerrar navegador:', closeError);
+      }
     }
 
-    console.error('Error al generar PDF:', error);
+    console.error('❌ Error completo al generar PDF:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    });
     
+    // Retornar error detallado para debugging
     return new Response(JSON.stringify({ 
       error: 'Error al generar PDF',
-      message: error.message 
+      message: error.message,
+      name: error.name,
+      // Solo incluir stack en desarrollo
+      ...(process.env.NODE_ENV !== 'production' && { stack: error.stack })
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
