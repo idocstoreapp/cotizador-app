@@ -261,7 +261,7 @@ export default function CotizacionesPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
               {esAdmin ? 'Historial de Cotizaciones' : 'Mis Cotizaciones'}
-            </h1>
+        </h1>
             <p className="text-gray-600 mt-1">
               {esAdmin 
                 ? 'Gestiona todas las cotizaciones del sistema' 
@@ -311,7 +311,7 @@ export default function CotizacionesPage() {
             </div>
           </div>
         ) : (
-          <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="bg-white shadow rounded-lg overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -413,16 +413,16 @@ export default function CotizacionesPage() {
                         </svg>
                         Detalles
                       </button>
-                      <button
+                    <button
                         onClick={() => generarPDF(cotizacion)}
                         className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm hover:shadow"
                         title="Descargar PDF profesional"
-                      >
+                    >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        PDF
-                      </button>
+                      PDF
+                    </button>
                     </div>
                   </td>
                 </tr>

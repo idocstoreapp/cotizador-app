@@ -10,16 +10,43 @@ import { crearCliente, buscarCliente } from './clientes.service';
 import { crearTrabajo } from './trabajos.service';
 
 /**
- * Genera un número único de cotización
- * Formato: COT-YYYYMMDD-XXX
+ * Genera un número único de cotización según la empresa
+ * Formato: PREFIJO-NNNN (ej: CASA-400, KUB-1000)
+ * @param empresa - Empresa que genera la cotización
+ * @returns Número de cotización único
  */
-function generarNumeroCotizacion(): string {
-  const fecha = new Date();
-  const año = fecha.getFullYear();
-  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-  const dia = String(fecha.getDate()).padStart(2, '0');
-  const random = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
-  return `COT-${año}${mes}${dia}-${random}`;
+async function generarNumeroCotizacion(empresa: 'casablanca' | 'kubica'): Promise<string> {
+  const { EMPRESAS } = await import('../types/empresas');
+  const empresaInfo = EMPRESAS[empresa];
+  
+  // Obtener el último número de cotización de esta empresa
+  const { data: ultimaCotizacion, error } = await supabase
+    .from('cotizaciones')
+    .select('numero')
+    .eq('empresa', empresa)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+    console.error('Error al obtener última cotización:', error);
+  }
+
+  let siguienteNumero = empresaInfo.numeroInicial;
+
+  if (ultimaCotizacion?.numero) {
+    // Extraer el número de la última cotización
+    // Formato esperado: PREFIJO-NNNN
+    const partes = ultimaCotizacion.numero.split('-');
+    if (partes.length >= 2) {
+      const ultimoNumero = parseInt(partes[partes.length - 1], 10);
+      if (!isNaN(ultimoNumero)) {
+        siguienteNumero = ultimoNumero + 1;
+      }
+    }
+  }
+
+  return `${empresaInfo.prefijoNumero}-${siguienteNumero}`;
 }
 
 /**
@@ -114,20 +141,60 @@ export async function obtenerCotizacionPorId(id: string): Promise<Cotizacion | n
 export async function crearCotizacion(
   cotizacion: CotizacionInput,
   usuarioId: string,
-  items?: any[] // Items completos con toda su información
+  items?: any[], // Items completos con toda su información
+  subtotalDesdeItems?: number, // Subtotal calculado desde items
+  descuento?: number, // Descuento aplicado
+  ivaDesdeItems?: number, // IVA calculado desde items
+  totalDesdeItems?: number, // Total calculado desde items
+  empresa?: 'casablanca' | 'kubica' // Empresa que genera la cotización
 ): Promise<Cotizacion> {
-  // Calcular totales
-  const calculos = calcularCotizacionCompleta(
-    cotizacion.materiales,
-    cotizacion.servicios,
-    cotizacion.margen_ganancia
-  );
+  // Si hay items, calcular totales desde los items (más preciso)
+  let subtotal = 0;
+  let subtotalMateriales = 0;
+  let subtotalServicios = 0;
+  let iva = 0;
+  let total = 0;
+  let margenGanancia = cotizacion.margen_ganancia || 30;
+
+  if (items && items.length > 0 && totalDesdeItems !== undefined) {
+    // Usar totales calculados desde items (más preciso)
+    subtotal = subtotalDesdeItems || items.reduce((sum, item) => sum + (item.precio_total || 0), 0);
+    iva = ivaDesdeItems || 0;
+    total = totalDesdeItems;
+    
+    // Calcular subtotales de materiales y servicios para referencia
+    const calculos = calcularCotizacionCompleta(
+      cotizacion.materiales,
+      cotizacion.servicios,
+      margenGanancia
+    );
+    subtotalMateriales = calculos.subtotalMateriales;
+    subtotalServicios = calculos.subtotalServicios;
+  } else {
+    // Fallback: calcular desde materiales y servicios (método antiguo)
+    const calculos = calcularCotizacionCompleta(
+      cotizacion.materiales,
+      cotizacion.servicios,
+      margenGanancia
+    );
+    subtotal = calculos.subtotal;
+    subtotalMateriales = calculos.subtotalMateriales;
+    subtotalServicios = calculos.subtotalServicios;
+    iva = calculos.iva;
+    total = calculos.total;
+  }
+
+  // Generar número de cotización según empresa
+  const numeroCotizacion = empresa 
+    ? await generarNumeroCotizacion(empresa)
+    : `COT-${Date.now()}`; // Fallback si no hay empresa
 
   // Crear la cotización
   const { data, error } = await supabase
     .from('cotizaciones')
     .insert({
-      numero: generarNumeroCotizacion(),
+      numero: numeroCotizacion,
+      empresa: empresa || null,
       cliente_nombre: cotizacion.cliente_nombre,
       cliente_email: cotizacion.cliente_email || null,
       cliente_telefono: cotizacion.cliente_telefono || null,
@@ -135,12 +202,12 @@ export async function crearCotizacion(
       materiales: cotizacion.materiales,
       servicios: cotizacion.servicios,
       items: items || [], // Guardar items completos
-      subtotal_materiales: calculos.subtotalMateriales,
-      subtotal_servicios: calculos.subtotalServicios,
-      subtotal: calculos.subtotal,
-      iva: calculos.iva,
-      margen_ganancia: calculos.margenGanancia,
-      total: calculos.total,
+      subtotal_materiales: subtotalMateriales,
+      subtotal_servicios: subtotalServicios,
+      subtotal: subtotal,
+      iva: iva,
+      margen_ganancia: margenGanancia,
+      total: total,
       estado: 'pendiente',
       usuario_id: usuarioId,
       notas: cotizacion.notas || null,
@@ -168,7 +235,11 @@ export async function actualizarCotizacionConHistorial(
   cotizacion: Partial<CotizacionInput>,
   items?: any[],
   descripcionModificacion?: string,
-  usuarioIdModificacion?: string
+  usuarioIdModificacion?: string,
+  subtotalDesdeItems?: number,
+  descuento?: number,
+  ivaDesdeItems?: number,
+  totalDesdeItems?: number
 ): Promise<Cotizacion> {
   // Obtener cotización actual para comparar
   const cotizacionActual = await obtenerCotizacionPorId(id);
@@ -178,8 +249,32 @@ export async function actualizarCotizacionConHistorial(
 
   const totalAnterior = cotizacionActual.total;
 
+  // Usar totales pasados como parámetros o calcular desde items
+  let subtotalCalc: number | undefined = subtotalDesdeItems;
+  let ivaCalc: number | undefined = ivaDesdeItems;
+  let totalCalc: number | undefined = totalDesdeItems;
+  
+  if (items && items.length > 0 && !totalDesdeItems) {
+    // Calcular desde items si no se pasaron totales
+    subtotalCalc = items.reduce((sum, item) => sum + (item.precio_total || 0), 0);
+    const descuentoValor = descuento || 0;
+    const descuentoMonto = subtotalCalc * (descuentoValor / 100);
+    const subtotalConDescuento = subtotalCalc - descuentoMonto;
+    const ivaPorcentaje = 19;
+    ivaCalc = subtotalConDescuento * (ivaPorcentaje / 100);
+    totalCalc = subtotalConDescuento + ivaCalc;
+  }
+
   // Actualizar la cotización
-  const cotizacionActualizada = await actualizarCotizacion(id, cotizacion, items);
+  const cotizacionActualizada = await actualizarCotizacion(
+    id, 
+    cotizacion, 
+    items,
+    subtotalCalc,
+    descuento,
+    ivaCalc,
+    totalCalc
+  );
 
   // Si hay descripción de modificación y usuario, crear registro en historial
   if (descripcionModificacion && usuarioIdModificacion) {
@@ -227,35 +322,68 @@ export async function actualizarCotizacionConHistorial(
 export async function actualizarCotizacion(
   id: string,
   cotizacion: Partial<CotizacionInput>,
-  items?: any[]
+  items?: any[],
+  subtotalDesdeItems?: number,
+  descuento?: number,
+  ivaDesdeItems?: number,
+  totalDesdeItems?: number
 ): Promise<Cotizacion> {
-  // Si se actualizan materiales o servicios, recalcular
-  let calculos = null;
-  if (cotizacion.materiales || cotizacion.servicios) {
-    // Obtener cotización actual para tener los valores completos
-    const actual = await obtenerCotizacionPorId(id);
-    if (actual) {
-      const materiales = cotizacion.materiales || actual.materiales;
-      const servicios = cotizacion.servicios || actual.servicios;
-      const margen = cotizacion.margen_ganancia ?? actual.margen_ganancia;
-      
-      calculos = calcularCotizacionCompleta(materiales, servicios, margen);
-    }
+  // Obtener cotización actual para tener los valores completos
+  const actual = await obtenerCotizacionPorId(id);
+  if (!actual) {
+    throw new Error('Cotización no encontrada');
+  }
+
+  // Si hay items, calcular totales desde los items (más preciso)
+  let subtotal = 0;
+  let subtotalMateriales = 0;
+  let subtotalServicios = 0;
+  let iva = 0;
+  let total = 0;
+  let margenGanancia = cotizacion.margen_ganancia ?? actual.margen_ganancia ?? 30;
+
+  if (items && items.length > 0 && totalDesdeItems !== undefined) {
+    // Usar totales calculados desde items (más preciso)
+    subtotal = subtotalDesdeItems || items.reduce((sum, item) => sum + (item.precio_total || 0), 0);
+    iva = ivaDesdeItems || 0;
+    total = totalDesdeItems;
+    
+    // Calcular subtotales de materiales y servicios para referencia
+    const materiales = cotizacion.materiales || actual.materiales;
+    const servicios = cotizacion.servicios || actual.servicios;
+    const calculos = calcularCotizacionCompleta(materiales, servicios, margenGanancia);
+    subtotalMateriales = calculos.subtotalMateriales;
+    subtotalServicios = calculos.subtotalServicios;
+  } else if (cotizacion.materiales || cotizacion.servicios) {
+    // Fallback: calcular desde materiales y servicios
+    const materiales = cotizacion.materiales || actual.materiales;
+    const servicios = cotizacion.servicios || actual.servicios;
+    const calculos = calcularCotizacionCompleta(materiales, servicios, margenGanancia);
+    subtotal = calculos.subtotal;
+    subtotalMateriales = calculos.subtotalMateriales;
+    subtotalServicios = calculos.subtotalServicios;
+    iva = calculos.iva;
+    total = calculos.total;
+  } else {
+    // Mantener valores actuales
+    subtotal = actual.subtotal;
+    subtotalMateriales = actual.subtotal_materiales;
+    subtotalServicios = actual.subtotal_servicios;
+    iva = actual.iva;
+    total = actual.total;
   }
 
   const datosActualizacion: any = {
     ...cotizacion,
+    items: items || actual.items, // Asegurarse de guardar los items actualizados
+    subtotal_materiales: subtotalMateriales,
+    subtotal_servicios: subtotalServicios,
+    subtotal: subtotal,
+    iva: iva,
+    margen_ganancia: margenGanancia,
+    total: total,
     updated_at: new Date().toISOString()
   };
-
-  // Si hay cálculos, actualizar los totales
-  if (calculos) {
-    datosActualizacion.subtotal_materiales = calculos.subtotalMateriales;
-    datosActualizacion.subtotal_servicios = calculos.subtotalServicios;
-    datosActualizacion.subtotal = calculos.subtotal;
-    datosActualizacion.iva = calculos.iva;
-    datosActualizacion.total = calculos.total;
-  }
 
   const { data, error } = await supabase
     .from('cotizaciones')
@@ -324,13 +452,21 @@ export async function cambiarEstadoCotizacion(
 
     if (clienteExistente) {
       clienteId = clienteExistente.id;
+      // Actualizar empresa del cliente si no tiene una asignada
+      if (!clienteExistente.empresa && cotizacion.empresa) {
+        await supabase
+          .from('clientes')
+          .update({ empresa: cotizacion.empresa })
+          .eq('id', clienteId);
+      }
     } else {
-      // Crear nuevo cliente
+      // Crear nuevo cliente con la empresa de la cotización
       const nuevoCliente = await crearCliente({
         nombre: cotizacion.cliente_nombre,
         email: cotizacion.cliente_email,
         telefono: cotizacion.cliente_telefono,
-        direccion: cotizacion.cliente_direccion
+        direccion: cotizacion.cliente_direccion,
+        empresa: cotizacion.empresa
       });
       clienteId = nuevoCliente.id;
     }

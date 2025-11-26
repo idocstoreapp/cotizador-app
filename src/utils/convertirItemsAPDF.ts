@@ -3,6 +3,18 @@
  */
 import type { ItemCotizacion } from '../types/muebles';
 
+interface EmpresaInfo {
+  nombre: string;
+  nombreCompleto?: string;
+  logo?: string;
+  rut?: string;
+  direccion?: string;
+  emails?: string[];
+  telefonos?: string[];
+  sitioWeb?: string;
+  descripcion?: string;
+}
+
 interface QuotePDFData {
   clientName: string;
   date: string;
@@ -12,6 +24,9 @@ interface QuotePDFData {
   items: Array<{ concepto: string; precio: number }>;
   total: number;
   image?: string;
+  companyName?: string;
+  companyLogo?: string;
+  empresaInfo?: EmpresaInfo;
 }
 
 interface DatosCliente {
@@ -32,7 +47,10 @@ export function convertirItemsAPDF(
   subtotal: number,
   descuento: number,
   iva: number,
-  total: number
+  total: number,
+  companyName?: string,
+  companyLogo?: string,
+  empresaInfo?: EmpresaInfo
 ): QuotePDFData {
   // Determinar modelo y dimensiones desde los items
   let model = 'Cocina Integral';
@@ -42,10 +60,11 @@ export function convertirItemsAPDF(
   // Buscar el primer item de cocina para obtener modelo e imagen
   const cocinaItem = items.find(item => 
     item.tipo === 'catalogo' && 
+    'mueble' in item && 
     item.mueble?.categoria === 'cocina'
   );
 
-  if (cocinaItem?.mueble) {
+  if (cocinaItem && 'mueble' in cocinaItem && cocinaItem.mueble) {
     model = cocinaItem.mueble.nombre;
     
     // Construir dimensiones desde las medidas
@@ -56,7 +75,7 @@ export function convertirItemsAPDF(
 
     // Obtener imagen del mueble
     image = cocinaItem.mueble.imagen;
-  } else if (items.length > 0 && items[0].tipo === 'catalogo') {
+  } else if (items.length > 0 && items[0].tipo === 'catalogo' && 'mueble' in items[0]) {
     // Si no hay cocina, usar el primer mueble
     model = items[0].mueble?.nombre || 'Proyecto Personalizado';
     if (items[0].mueble?.imagen) {
@@ -165,11 +184,13 @@ export function convertirItemsAPDF(
   if (descuento > 0) {
     itemsPDF.push({
       concepto: 'Subtotal',
-      precio: subtotal
+      precio: subtotal,
+      detalles: undefined
     });
     itemsPDF.push({
       concepto: `Descuento (${descuento}%)`,
-      precio: -(subtotal * (descuento / 100))
+      precio: -(subtotal * (descuento / 100)),
+      detalles: undefined
     });
   }
 
@@ -180,7 +201,8 @@ export function convertirItemsAPDF(
     
     itemsPDF.push({
       concepto: 'IVA (19%)',
-      precio: iva
+      precio: iva,
+      detalles: undefined
     });
   }
 
@@ -192,7 +214,10 @@ export function convertirItemsAPDF(
     dimensions,
     items: itemsPDF,
     total,
-    image
+    image,
+    companyName,
+    companyLogo,
+    empresaInfo
   };
 }
 

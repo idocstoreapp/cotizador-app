@@ -92,10 +92,14 @@ export interface CotizacionServicio {
   precio_por_hora: number; // Precio al momento de la cotización
 }
 
+// Tipo de empresa
+export type EmpresaType = 'casablanca' | 'kubica';
+
 // Cotización completa
 export interface Cotizacion {
   id: string;
   numero: string; // Número único de cotización
+  empresa?: EmpresaType; // Empresa que generó la cotización
   cliente_nombre: string;
   cliente_email?: string;
   cliente_telefono?: string;

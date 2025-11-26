@@ -5,16 +5,20 @@ import { useState } from 'react';
 import { useCotizacionStore } from '../store/cotizacionStore';
 import CotizacionCart from './ui/CotizacionCart';
 import AgregarItemManual from './ui/AgregarItemManual';
+import SeleccionarEmpresaModal from './ui/SeleccionarEmpresaModal';
 import { downloadQuotePDF } from '../utils/pdf';
 import { convertirItemsAPDF } from '../utils/convertirItemsAPDF';
 import { crearCotizacion } from '../services/cotizaciones.service';
 import { obtenerUsuarioActual } from '../services/auth.service';
 import { convertirItemsACotizacionInput } from '../utils/convertirCotizacionStore';
+import { EMPRESAS, type Empresa } from '../types/empresas';
 
 export default function CotizacionPage() {
   const { items, subtotal, descuento, iva, total } = useCotizacionStore();
   const [mostrarAgregarManual, setMostrarAgregarManual] = useState(false);
   const [mostrarFormularioCliente, setMostrarFormularioCliente] = useState(false);
+  const [mostrarSeleccionarEmpresa, setMostrarSeleccionarEmpresa] = useState(false);
+  const [empresaSeleccionada, setEmpresaSeleccionada] = useState<Empresa | null>(null);
   const [datosCliente, setDatosCliente] = useState({
     nombre: '',
     telefono: '',
@@ -25,7 +29,7 @@ export default function CotizacionPage() {
   /**
    * Genera el PDF y guarda la cotización en la base de datos
    */
-  const handleGenerarPDF = async () => {
+  const handleGenerarPDF = async (empresa?: Empresa) => {
     if (items.length === 0) {
       alert('No hay items en la cotización');
       return;
@@ -34,6 +38,12 @@ export default function CotizacionPage() {
     // Si no hay datos del cliente, mostrar formulario
     if (!datosCliente.nombre) {
       setMostrarFormularioCliente(true);
+      return;
+    }
+
+    // Si no hay empresa seleccionada, mostrar modal de selección
+    if (!empresa) {
+      setMostrarSeleccionarEmpresa(true);
       return;
     }
 
@@ -54,15 +64,28 @@ export default function CotizacionPage() {
 
       // Guardar cotización en la base de datos (estado: pendiente)
       // Incluir items completos para guardar toda la información detallada
+      // IMPORTANTE: Pasar los totales calculados desde items para que coincidan
       console.log('💾 Guardando cotización...', {
         usuarioId: usuario.id,
         itemsCount: items.length,
         clienteNombre: datosCliente.nombre,
         materialesCount: cotizacionInput.materiales.length,
-        serviciosCount: cotizacionInput.servicios.length
+        serviciosCount: cotizacionInput.servicios.length,
+        subtotalDesdeItems: subtotal,
+        ivaDesdeItems: iva,
+        totalDesdeItems: total
       });
       
-      const cotizacionGuardada = await crearCotizacion(cotizacionInput, usuario.id, items);
+      const cotizacionGuardada = await crearCotizacion(
+        cotizacionInput, 
+        usuario.id, 
+        items,
+        subtotal, // Subtotal calculado desde items
+        descuento, // Descuento
+        iva, // IVA calculado desde items
+        total, // Total calculado desde items
+        empresa // Empresa seleccionada
+      );
       
       console.log('✅ Cotización guardada:', {
         id: cotizacionGuardada.id,
@@ -74,6 +97,9 @@ export default function CotizacionPage() {
       const numero = cotizacionGuardada.numero;
       const fecha = new Date(cotizacionGuardada.created_at).toLocaleDateString('es-ES');
 
+      // Obtener información de la empresa
+      const empresaInfo = EMPRESAS[empresa];
+
       // Convertir items al formato del PDF profesional
       const datosPDF = convertirItemsAPDF(
         items,
@@ -83,7 +109,20 @@ export default function CotizacionPage() {
         subtotal,
         descuento,
         iva,
-        total
+        total,
+        empresaInfo.nombre,
+        empresaInfo.logo,
+        {
+          nombre: empresaInfo.nombre,
+          nombreCompleto: empresaInfo.nombreCompleto,
+          logo: empresaInfo.logo,
+          rut: empresaInfo.rut,
+          direccion: empresaInfo.direccion,
+          emails: empresaInfo.emails,
+          telefonos: empresaInfo.telefonos,
+          sitioWeb: empresaInfo.sitioWeb,
+          descripcion: empresaInfo.descripcion
+        }
       );
 
       // Generar PDF profesional usando el nuevo sistema
@@ -108,6 +147,7 @@ export default function CotizacionPage() {
       // Limpiar el carrito después de guardar
       useCotizacionStore.getState().limpiarCotizacion();
       setDatosCliente({ nombre: '', telefono: '', email: '', direccion: '' });
+      setEmpresaSeleccionada(null);
     } catch (error: any) {
       console.error('❌ Error al guardar cotización:', error);
       console.error('Detalles del error:', {
@@ -156,6 +196,18 @@ export default function CotizacionPage() {
       {/* Modal para agregar item manual */}
       {mostrarAgregarManual && (
         <AgregarItemManual onClose={() => setMostrarAgregarManual(false)} />
+      )}
+
+      {/* Modal para seleccionar empresa */}
+      {mostrarSeleccionarEmpresa && (
+        <SeleccionarEmpresaModal
+          onSeleccionar={(empresa) => {
+            setEmpresaSeleccionada(empresa);
+            setMostrarSeleccionarEmpresa(false);
+            handleGenerarPDF(empresa);
+          }}
+          onCancelar={() => setMostrarSeleccionarEmpresa(false)}
+        />
       )}
 
       {/* Modal para datos del cliente */}

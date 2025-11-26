@@ -24,7 +24,7 @@ export default function EditarCotizacionModal({
   onClose,
   onSuccess
 }: EditarCotizacionModalProps) {
-  const { items, limpiarCotizacion, calcularTotales } = useCotizacionStore();
+  const { items, subtotal, descuento, iva, total, limpiarCotizacion, calcularTotales } = useCotizacionStore();
   const [mostrarAgregarManual, setMostrarAgregarManual] = useState(false);
   const [descripcionModificacion, setDescripcionModificacion] = useState('');
   const [guardando, setGuardando] = useState(false);
@@ -145,12 +145,17 @@ export default function EditarCotizacionModal({
       );
 
       // Actualizar cotización con historial
+      // Pasar los totales calculados desde items para que coincidan
       await actualizarCotizacionConHistorial(
         cotizacion.id,
         cotizacionInput,
         items,
         descripcionModificacion,
-        usuarioId
+        usuarioId,
+        subtotal,
+        descuento,
+        iva,
+        total
       );
 
       alert('✅ Cotización actualizada exitosamente');

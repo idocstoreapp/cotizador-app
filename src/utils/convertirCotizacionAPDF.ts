@@ -138,6 +138,31 @@ export function convertirCotizacionAPDF(cotizacion: Cotizacion) {
     year: 'numeric'
   });
 
+  // Obtener información de la empresa si está disponible
+  let companyName: string | undefined;
+  let companyLogo: string | undefined;
+  let empresaInfo: any = undefined;
+  
+  if (cotizacion.empresa) {
+    const { EMPRESAS } = require('../types/empresas');
+    const empresa = EMPRESAS[cotizacion.empresa];
+    if (empresa) {
+      companyName = empresa.nombre;
+      companyLogo = empresa.logo;
+      empresaInfo = {
+        nombre: empresa.nombre,
+        nombreCompleto: empresa.nombreCompleto,
+        logo: empresa.logo,
+        rut: empresa.rut,
+        direccion: empresa.direccion,
+        emails: empresa.emails,
+        telefonos: empresa.telefonos,
+        sitioWeb: empresa.sitioWeb,
+        descripcion: empresa.descripcion
+      };
+    }
+  }
+
   return {
     clientName: cotizacion.cliente_nombre,
     date: fecha,
@@ -146,7 +171,10 @@ export function convertirCotizacionAPDF(cotizacion: Cotizacion) {
     dimensions,
     items,
     total: cotizacion.total,
-    image
+    image,
+    companyName,
+    companyLogo,
+    empresaInfo
   };
 }
 

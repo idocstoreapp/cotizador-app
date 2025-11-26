@@ -1,9 +1,9 @@
 /**
  * Página de administración de precios
  * Permite modificar precios de materiales, servicios, muebles y variantes
+ * VERSIÓN SIN REACT QUERY - Carga datos directamente
  */
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useUser } from '../../contexts/UserContext';
 import { obtenerMateriales, actualizarMaterial, crearMaterial, eliminarMaterial } from '../../services/materiales.service';
 import { obtenerServicios, actualizarServicio, crearServicio, eliminarServicio } from '../../services/servicios.service';
@@ -15,15 +15,31 @@ import type { Mueble, OpcionPersonalizada } from '../../types/muebles';
 type TabType = 'materiales' | 'servicios' | 'muebles' | 'variantes' | 'configuracion';
 
 export default function AdminPreciosPage() {
-  // TODOS LOS HOOKS DEBEN ESTAR AL INICIO, ANTES DE CUALQUIER RETURN CONDICIONAL
   const { usuario, esAdmin } = useUser();
-  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [tabActual, setTabActual] = useState<TabType>('materiales');
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [valoresEditando, setValoresEditando] = useState<any>({});
   const [mostrarModalNuevoMaterial, setMostrarModalNuevoMaterial] = useState(false);
   const [mostrarModalNuevoServicio, setMostrarModalNuevoServicio] = useState(false);
+  
+  // Estados para datos
+  const [materiales, setMateriales] = useState<Material[]>([]);
+  const [servicios, setServicios] = useState<Servicio[]>([]);
+  const [muebles, setMuebles] = useState<Mueble[]>([]);
+  const [loadingMateriales, setLoadingMateriales] = useState(true);
+  const [loadingServicios, setLoadingServicios] = useState(true);
+  const [loadingMuebles, setLoadingMuebles] = useState(true);
+  
+  // Estados para operaciones en progreso
+  const [guardandoMaterial, setGuardandoMaterial] = useState(false);
+  const [guardandoServicio, setGuardandoServicio] = useState(false);
+  const [guardandoMueble, setGuardandoMueble] = useState(false);
+  const [creandoMaterial, setCreandoMaterial] = useState(false);
+  const [creandoServicio, setCreandoServicio] = useState(false);
+  const [eliminandoMaterial, setEliminandoMaterial] = useState<string | null>(null);
+  const [eliminandoServicio, setEliminandoServicio] = useState<string | null>(null);
+  
   const [nuevoMaterial, setNuevoMaterial] = useState({
     nombre: '',
     tipo: '',
@@ -55,6 +71,51 @@ export default function AdminPreciosPage() {
     }
   }, []);
 
+  // Cargar datos cuando el usuario esté disponible y sea admin
+  useEffect(() => {
+    const cargarDatos = async () => {
+      if (!usuario || !esAdmin) return;
+
+      try {
+        // Cargar materiales
+        setLoadingMateriales(true);
+        const materialesData = await obtenerMateriales();
+        setMateriales(materialesData);
+      } catch (err: any) {
+        console.error('Error al cargar materiales:', err);
+        setError('Error al cargar materiales: ' + (err.message || 'Error desconocido'));
+      } finally {
+        setLoadingMateriales(false);
+      }
+
+      try {
+        // Cargar servicios
+        setLoadingServicios(true);
+        const serviciosData = await obtenerServicios();
+        setServicios(serviciosData);
+      } catch (err: any) {
+        console.error('Error al cargar servicios:', err);
+        setError('Error al cargar servicios: ' + (err.message || 'Error desconocido'));
+      } finally {
+        setLoadingServicios(false);
+      }
+
+      try {
+        // Cargar muebles
+        setLoadingMuebles(true);
+        const mueblesData = await obtenerMueblesAdmin();
+        setMuebles(mueblesData);
+      } catch (err: any) {
+        console.error('Error al cargar muebles:', err);
+        setError('Error al cargar muebles: ' + (err.message || 'Error desconocido'));
+      } finally {
+        setLoadingMuebles(false);
+      }
+    };
+
+    cargarDatos();
+  }, [usuario, esAdmin]);
+
   // Si no hay usuario, mostrar loading
   if (!usuario) {
     return (
@@ -67,14 +128,13 @@ export default function AdminPreciosPage() {
     );
   }
 
-  // Si hay error en las queries, mostrarlo
-  if (error || errorMateriales || errorServicios || errorMuebles) {
-    const mensajeError = error || errorMateriales?.message || errorServicios?.message || errorMuebles?.message || 'Error desconocido';
+  // Si hay error, mostrarlo
+  if (error) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <p className="text-lg font-semibold text-red-600 mb-2">Error</p>
-          <p className="text-gray-600 mb-4">{mensajeError}</p>
+          <p className="text-gray-600 mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
@@ -98,131 +158,33 @@ export default function AdminPreciosPage() {
     );
   }
 
-  // Obtener datos - SIEMPRE ejecutar estos hooks, pero con enabled condicional
-  const { data: materiales = [], isLoading: loadingMateriales, error: errorMateriales } = useQuery({
-    queryKey: ['materiales'],
-    queryFn: obtenerMateriales,
-    enabled: !!usuario && esAdmin,
-    onError: (err: any) => {
-      console.error('Error al cargar materiales:', err);
-      setError('Error al cargar materiales: ' + (err.message || 'Error desconocido'));
+  // Funciones para actualizar datos
+  const recargarMateriales = async () => {
+    try {
+      const materialesData = await obtenerMateriales();
+      setMateriales(materialesData);
+    } catch (err: any) {
+      console.error('Error al recargar materiales:', err);
     }
-  });
+  };
 
-  const { data: servicios = [], isLoading: loadingServicios, error: errorServicios } = useQuery({
-    queryKey: ['servicios'],
-    queryFn: obtenerServicios,
-    enabled: !!usuario && esAdmin,
-    onError: (err: any) => {
-      console.error('Error al cargar servicios:', err);
-      setError('Error al cargar servicios: ' + (err.message || 'Error desconocido'));
+  const recargarServicios = async () => {
+    try {
+      const serviciosData = await obtenerServicios();
+      setServicios(serviciosData);
+    } catch (err: any) {
+      console.error('Error al recargar servicios:', err);
     }
-  });
+  };
 
-  const { data: muebles = [], isLoading: loadingMuebles, error: errorMuebles } = useQuery({
-    queryKey: ['muebles-admin'],
-    queryFn: obtenerMueblesAdmin,
-    enabled: !!usuario && esAdmin,
-    onError: (err: any) => {
-      console.error('Error al cargar muebles:', err);
-      setError('Error al cargar muebles: ' + (err.message || 'Error desconocido'));
+  const recargarMuebles = async () => {
+    try {
+      const mueblesData = await obtenerMueblesAdmin();
+      setMuebles(mueblesData);
+    } catch (err: any) {
+      console.error('Error al recargar muebles:', err);
     }
-  });
-
-  // Mutaciones
-  const actualizarMaterialMutation = useMutation({
-    mutationFn: ({ id, datos }: { id: string; datos: Partial<Material> }) =>
-      actualizarMaterial(id, datos),
-    onSuccess: () => {
-      if (queryClient) {
-        queryClient.invalidateQueries({ queryKey: ['materiales'] });
-      }
-      setEditandoId(null);
-      setValoresEditando({});
-      alert('✅ Precio actualizado exitosamente');
-    },
-    onError: (error: any) => {
-      console.error('Error al actualizar material:', error);
-      alert('❌ Error al actualizar: ' + (error.message || 'Error desconocido'));
-    }
-  });
-
-  const actualizarServicioMutation = useMutation({
-    mutationFn: ({ id, datos }: { id: string; datos: Partial<Servicio> }) =>
-      actualizarServicio(id, datos),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['servicios'] });
-      setEditandoId(null);
-      setValoresEditando({});
-      alert('✅ Precio actualizado exitosamente');
-    },
-    onError: (error: any) => {
-      alert('❌ Error al actualizar: ' + (error.message || 'Error desconocido'));
-    }
-  });
-
-  const actualizarMuebleMutation = useMutation({
-    mutationFn: ({ id, datos }: { id: string; datos: any }) =>
-      actualizarMuebleAdmin(id, datos),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['muebles-admin'] });
-      setEditandoId(null);
-      setValoresEditando({});
-      alert('✅ Precio actualizado exitosamente');
-    },
-    onError: (error: any) => {
-      alert('❌ Error al actualizar: ' + (error.message || 'Error desconocido'));
-    }
-  });
-
-  // Mutaciones para crear/eliminar
-  const crearMaterialMutation = useMutation({
-    mutationFn: crearMaterial,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['materiales'] });
-      setMostrarModalNuevoMaterial(false);
-      setNuevoMaterial({ nombre: '', tipo: '', unidad: 'unidad', costo_unitario: 0, proveedor: '' });
-      alert('✅ Material creado exitosamente');
-    },
-    onError: (error: any) => {
-      alert('❌ Error al crear material: ' + (error.message || 'Error desconocido'));
-    }
-  });
-
-  const eliminarMaterialMutation = useMutation({
-    mutationFn: eliminarMaterial,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['materiales'] });
-      alert('✅ Material eliminado exitosamente');
-    },
-    onError: (error: any) => {
-      alert('❌ Error al eliminar material: ' + (error.message || 'Error desconocido'));
-    }
-  });
-
-  const crearServicioMutation = useMutation({
-    mutationFn: crearServicio,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['servicios'] });
-      setMostrarModalNuevoServicio(false);
-      setNuevoServicio({ nombre: '', descripcion: '', precio_por_hora: 0, horas_estimadas: 0 });
-      alert('✅ Servicio creado exitosamente');
-    },
-    onError: (error: any) => {
-      alert('❌ Error al crear servicio: ' + (error.message || 'Error desconocido'));
-    }
-  });
-
-  const eliminarServicioMutation = useMutation({
-    mutationFn: eliminarServicio,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['servicios'] });
-      alert('✅ Servicio eliminado exitosamente');
-    },
-    onError: (error: any) => {
-      alert('❌ Error al eliminar servicio: ' + (error.message || 'Error desconocido'));
-    }
-  });
+  };
 
   const tabs = [
     { id: 'materiales' as TabType, label: 'Materiales', icon: '🛒' },
@@ -242,38 +204,68 @@ export default function AdminPreciosPage() {
     setValoresEditando({});
   };
 
-  const guardarMaterial = (id: string) => {
-    actualizarMaterialMutation.mutate({
-      id,
-      datos: {
+  const guardarMaterial = async (id: string) => {
+    try {
+      setGuardandoMaterial(true);
+      await actualizarMaterial(id, {
         costo_unitario: valoresEditando.costo_unitario,
-        nombre: valoresEditando.nombre
-      }
-    });
+        nombre: valoresEditando.nombre,
+        tipo: valoresEditando.tipo,
+        unidad: valoresEditando.unidad,
+        proveedor: valoresEditando.proveedor
+      });
+      await recargarMateriales();
+      setEditandoId(null);
+      setValoresEditando({});
+      alert('✅ Precio actualizado exitosamente');
+    } catch (error: any) {
+      console.error('Error al actualizar material:', error);
+      alert('❌ Error al actualizar: ' + (error.message || 'Error desconocido'));
+    } finally {
+      setGuardandoMaterial(false);
+    }
   };
 
-  const guardarServicio = (id: string) => {
-    actualizarServicioMutation.mutate({
-      id,
-      datos: {
+  const guardarServicio = async (id: string) => {
+    try {
+      setGuardandoServicio(true);
+      await actualizarServicio(id, {
         precio_por_hora: valoresEditando.precio_por_hora,
         nombre: valoresEditando.nombre,
         descripcion: valoresEditando.descripcion,
         horas_estimadas: valoresEditando.horas_estimadas
-      }
-    });
+      });
+      await recargarServicios();
+      setEditandoId(null);
+      setValoresEditando({});
+      alert('✅ Precio actualizado exitosamente');
+    } catch (error: any) {
+      console.error('Error al actualizar servicio:', error);
+      alert('❌ Error al actualizar: ' + (error.message || 'Error desconocido'));
+    } finally {
+      setGuardandoServicio(false);
+    }
   };
 
-  const guardarMueble = (id: string) => {
-    actualizarMuebleMutation.mutate({
-      id,
-      datos: {
+  const guardarMueble = async (id: string) => {
+    try {
+      setGuardandoMueble(true);
+      await actualizarMuebleAdmin(id, {
         precio_base: valoresEditando.precio_base
-      }
-    });
+      });
+      await recargarMuebles();
+      setEditandoId(null);
+      setValoresEditando({});
+      alert('✅ Precio actualizado exitosamente');
+    } catch (error: any) {
+      console.error('Error al actualizar mueble:', error);
+      alert('❌ Error al actualizar: ' + (error.message || 'Error desconocido'));
+    } finally {
+      setGuardandoMueble(false);
+    }
   };
 
-  const guardarVariante = (muebleId: string, tipoVariante: string, nombreVariante: string, nuevosValores: any) => {
+  const guardarVariante = async (muebleId: string, tipoVariante: string, nombreVariante: string, nuevosValores: any) => {
     const mueble = muebles.find(m => m.id === muebleId);
     if (!mueble) return;
 
@@ -303,12 +295,99 @@ export default function AdminPreciosPage() {
       opciones_personalizadas: nuevasOpcionesPersonalizadas
     };
 
-    actualizarMuebleMutation.mutate({
-      id: muebleId,
-      datos: {
+    try {
+      setGuardandoMueble(true);
+      await actualizarMuebleAdmin(muebleId, {
         opciones_disponibles: nuevasOpcionesDisponibles
-      }
-    });
+      });
+      await recargarMuebles();
+      setEditandoId(null);
+      setValoresEditando({});
+      alert('✅ Variante actualizada exitosamente');
+    } catch (error: any) {
+      console.error('Error al actualizar variante:', error);
+      alert('❌ Error al actualizar: ' + (error.message || 'Error desconocido'));
+    } finally {
+      setGuardandoMueble(false);
+    }
+  };
+
+  const handleCrearMaterial = async () => {
+    if (!nuevoMaterial.nombre || !nuevoMaterial.tipo) {
+      alert('Por favor completa todos los campos requeridos');
+      return;
+    }
+
+    try {
+      setCreandoMaterial(true);
+      await crearMaterial(nuevoMaterial);
+      await recargarMateriales();
+      setMostrarModalNuevoMaterial(false);
+      setNuevoMaterial({ nombre: '', tipo: '', unidad: 'unidad', costo_unitario: 0, proveedor: '' });
+      alert('✅ Material creado exitosamente');
+    } catch (error: any) {
+      console.error('Error al crear material:', error);
+      alert('❌ Error al crear material: ' + (error.message || 'Error desconocido'));
+    } finally {
+      setCreandoMaterial(false);
+    }
+  };
+
+  const handleEliminarMaterial = async (id: string, nombre: string) => {
+    if (!confirm(`¿Estás seguro de eliminar el material "${nombre}"?`)) {
+      return;
+    }
+
+    try {
+      setEliminandoMaterial(id);
+      await eliminarMaterial(id);
+      await recargarMateriales();
+      alert('✅ Material eliminado exitosamente');
+    } catch (error: any) {
+      console.error('Error al eliminar material:', error);
+      alert('❌ Error al eliminar material: ' + (error.message || 'Error desconocido'));
+    } finally {
+      setEliminandoMaterial(null);
+    }
+  };
+
+  const handleCrearServicio = async () => {
+    if (!nuevoServicio.nombre || nuevoServicio.precio_por_hora <= 0) {
+      alert('Por favor completa todos los campos requeridos y asegúrate que el precio sea mayor a 0');
+      return;
+    }
+
+    try {
+      setCreandoServicio(true);
+      await crearServicio(nuevoServicio);
+      await recargarServicios();
+      setMostrarModalNuevoServicio(false);
+      setNuevoServicio({ nombre: '', descripcion: '', precio_por_hora: 0, horas_estimadas: 0 });
+      alert('✅ Servicio creado exitosamente');
+    } catch (error: any) {
+      console.error('Error al crear servicio:', error);
+      alert('❌ Error al crear servicio: ' + (error.message || 'Error desconocido'));
+    } finally {
+      setCreandoServicio(false);
+    }
+  };
+
+  const handleEliminarServicio = async (id: string, nombre: string) => {
+    if (!confirm(`¿Estás seguro de eliminar el servicio "${nombre}"?`)) {
+      return;
+    }
+
+    try {
+      setEliminandoServicio(id);
+      await eliminarServicio(id);
+      await recargarServicios();
+      alert('✅ Servicio eliminado exitosamente');
+    } catch (error: any) {
+      console.error('Error al eliminar servicio:', error);
+      alert('❌ Error al eliminar servicio: ' + (error.message || 'Error desconocido'));
+    } finally {
+      setEliminandoServicio(null);
+    }
   };
 
   const renderTabContent = () => {
@@ -414,7 +493,7 @@ export default function AdminPreciosPage() {
                             <div className="flex gap-2 justify-center">
                               <button
                                 onClick={() => guardarMaterial(material.id)}
-                                disabled={actualizarMaterialMutation.isPending}
+                                disabled={guardandoMaterial}
                                 className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
                               >
                                 Guardar
@@ -435,15 +514,11 @@ export default function AdminPreciosPage() {
                                 Editar
                               </button>
                               <button
-                                onClick={() => {
-                                  if (confirm(`¿Estás seguro de eliminar el material "${material.nombre}"?`)) {
-                                    eliminarMaterialMutation.mutate(material.id);
-                                  }
-                                }}
-                                disabled={eliminarMaterialMutation.isPending}
+                                onClick={() => handleEliminarMaterial(material.id, material.nombre)}
+                                disabled={eliminandoMaterial === material.id}
                                 className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 disabled:opacity-50"
                               >
-                                Eliminar
+                                {eliminandoMaterial === material.id ? 'Eliminando...' : 'Eliminar'}
                               </button>
                             </div>
                           )}
@@ -474,6 +549,7 @@ export default function AdminPreciosPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descripción</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precio por Hora</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Horas Estimadas</th>
                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Acciones</th>
@@ -482,44 +558,41 @@ export default function AdminPreciosPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {loadingServicios ? (
                     <tr>
-                      <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
+                      <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
                         Cargando servicios...
                       </td>
                     </tr>
                   ) : servicios.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
+                      <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
                         No hay servicios disponibles
                       </td>
                     </tr>
                   ) : (
                     servicios.map((servicio) => (
                       <tr key={servicio.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           {editandoId === servicio.id ? (
-                            <div className="space-y-2">
-                              <input
-                                type="text"
-                                value={valoresEditando.nombre || servicio.nombre}
-                                onChange={(e) => setValoresEditando({ ...valoresEditando, nombre: e.target.value })}
-                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
-                                placeholder="Nombre del servicio"
-                              />
-                              <textarea
-                                value={valoresEditando.descripcion !== undefined ? valoresEditando.descripcion : (servicio.descripcion || '')}
-                                onChange={(e) => setValoresEditando({ ...valoresEditando, descripcion: e.target.value })}
-                                className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
-                                placeholder="Descripción (opcional)"
-                                rows={2}
-                              />
-                            </div>
+                            <input
+                              type="text"
+                              value={valoresEditando.nombre || servicio.nombre}
+                              onChange={(e) => setValoresEditando({ ...valoresEditando, nombre: e.target.value })}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                            />
                           ) : (
-                            <div>
-                              <span className="text-sm font-medium text-gray-900">{servicio.nombre}</span>
-                              {servicio.descripcion && (
-                                <p className="text-xs text-gray-500 mt-1">{servicio.descripcion}</p>
-                              )}
-                            </div>
+                            <span className="text-sm font-medium text-gray-900">{servicio.nombre}</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {editandoId === servicio.id ? (
+                            <input
+                              type="text"
+                              value={valoresEditando.descripcion || servicio.descripcion}
+                              onChange={(e) => setValoresEditando({ ...valoresEditando, descripcion: e.target.value })}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                            />
+                          ) : (
+                            <span className="text-sm text-gray-500">{servicio.descripcion || 'N/A'}</span>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -557,7 +630,7 @@ export default function AdminPreciosPage() {
                             <div className="flex gap-2 justify-center">
                               <button
                                 onClick={() => guardarServicio(servicio.id)}
-                                disabled={actualizarServicioMutation.isPending}
+                                disabled={guardandoServicio}
                                 className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
                               >
                                 Guardar
@@ -578,15 +651,11 @@ export default function AdminPreciosPage() {
                                 Editar
                               </button>
                               <button
-                                onClick={() => {
-                                  if (confirm(`¿Estás seguro de eliminar el servicio "${servicio.nombre}"?`)) {
-                                    eliminarServicioMutation.mutate(servicio.id);
-                                  }
-                                }}
-                                disabled={eliminarServicioMutation.isPending}
+                                onClick={() => handleEliminarServicio(servicio.id, servicio.nombre)}
+                                disabled={eliminandoServicio === servicio.id}
                                 className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 disabled:opacity-50"
                               >
-                                Eliminar
+                                {eliminandoServicio === servicio.id ? 'Eliminando...' : 'Eliminar'}
                               </button>
                             </div>
                           )}
@@ -654,7 +723,7 @@ export default function AdminPreciosPage() {
                             <div className="flex gap-2 justify-center">
                               <button
                                 onClick={() => guardarMueble(mueble.id)}
-                                disabled={actualizarMuebleMutation.isPending}
+                                disabled={guardandoMueble}
                                 className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
                               >
                                 Guardar
@@ -700,15 +769,15 @@ export default function AdminPreciosPage() {
                 .filter(mueble => {
                   const opciones = mueble.opciones_disponibles?.opciones_personalizadas;
                   return opciones && (
-                    opciones.tipo_cocina?.length > 0 ||
-                    opciones.material_puertas?.length > 0 ||
-                    opciones.tipo_topes?.length > 0
+                    (opciones.tipo_cocina && opciones.tipo_cocina.length > 0) ||
+                    (opciones.material_puertas && opciones.material_puertas.length > 0) ||
+                    (opciones.tipo_topes && opciones.tipo_topes.length > 0)
                   );
                 })
                 .map((mueble) => {
                   const opcionesPersonalizadas = mueble.opciones_disponibles?.opciones_personalizadas || {};
                   const tiposVariantes = Object.keys(opcionesPersonalizadas).filter(
-                    key => opcionesPersonalizadas[key]?.length > 0
+                    key => opcionesPersonalizadas[key] && (opcionesPersonalizadas[key] as any)?.length > 0
                   );
 
                   if (tiposVariantes.length === 0) return null;
@@ -785,7 +854,7 @@ export default function AdminPreciosPage() {
                                             onClick={() => {
                                               guardarVariante(mueble.id, tipoVariante, variante.nombre, valoresEditando);
                                             }}
-                                            disabled={actualizarMuebleMutation.isPending}
+                                            disabled={guardandoMueble}
                                             className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
                                           >
                                             Guardar
@@ -1022,17 +1091,11 @@ export default function AdminPreciosPage() {
               </div>
               <div className="flex gap-3 pt-4">
                 <button
-                  onClick={() => {
-                    if (!nuevoMaterial.nombre || !nuevoMaterial.tipo) {
-                      alert('Por favor completa todos los campos requeridos');
-                      return;
-                    }
-                    crearMaterialMutation.mutate(nuevoMaterial);
-                  }}
-                  disabled={crearMaterialMutation.isPending}
+                  onClick={handleCrearMaterial}
+                  disabled={creandoMaterial}
                   className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg transition-colors"
                 >
-                  {crearMaterialMutation.isPending ? 'Creando...' : 'Crear Material'}
+                  {creandoMaterial ? 'Creando...' : 'Crear Material'}
                 </button>
                 <button
                   onClick={() => {
@@ -1111,17 +1174,11 @@ export default function AdminPreciosPage() {
               </div>
               <div className="flex gap-3 pt-4">
                 <button
-                  onClick={() => {
-                    if (!nuevoServicio.nombre || nuevoServicio.precio_por_hora <= 0) {
-                      alert('Por favor completa todos los campos requeridos');
-                      return;
-                    }
-                    crearServicioMutation.mutate(nuevoServicio);
-                  }}
-                  disabled={crearServicioMutation.isPending}
+                  onClick={handleCrearServicio}
+                  disabled={creandoServicio}
                   className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg transition-colors"
                 >
-                  {crearServicioMutation.isPending ? 'Creando...' : 'Crear Servicio'}
+                  {creandoServicio ? 'Creando...' : 'Crear Servicio'}
                 </button>
                 <button
                   onClick={() => {
@@ -1140,4 +1197,3 @@ export default function AdminPreciosPage() {
     </div>
   );
 }
-

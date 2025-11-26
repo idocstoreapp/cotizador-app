@@ -6,6 +6,18 @@ import React from 'react';
 import { renderToString } from 'react-dom/server';
 import QuotePDF from '../components/QuotePDF';
 
+interface EmpresaInfo {
+  nombre: string;
+  nombreCompleto?: string;
+  logo?: string;
+  rut?: string;
+  direccion?: string;
+  emails?: string[];
+  telefonos?: string[];
+  sitioWeb?: string;
+  descripcion?: string;
+}
+
 interface QuoteData {
   clientName: string;
   date: string;
@@ -17,6 +29,7 @@ interface QuoteData {
   image?: string;
   companyName?: string;
   companyLogo?: string;
+  empresaInfo?: EmpresaInfo;
 }
 
 /**

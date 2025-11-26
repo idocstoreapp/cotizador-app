@@ -10,7 +10,35 @@ import { obtenerUsuarioActual } from '../services/auth.service';
 import { downloadQuotePDF } from '../utils/pdf';
 import { convertirCotizacionAPDF } from '../utils/convertirCotizacionAPDF';
 import EditarCotizacionModal from './EditarCotizacionModal';
+import { EMPRESAS } from '../types/empresas';
 import type { Cotizacion, UserProfile, HistorialModificacion } from '../types/database';
+
+/**
+ * Calcula el total desde items si están disponibles, sino usa el total guardado
+ */
+function calcularTotalDesdeItems(cotizacion: Cotizacion): number {
+  // Si hay items guardados, calcular desde items (más preciso)
+  if (cotizacion.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0) {
+    const subtotal = cotizacion.items.reduce((sum: number, item: any) => {
+      return sum + (item.precio_total || 0);
+    }, 0);
+    
+    // Aplicar descuento si existe (asumimos 0% por defecto)
+    const descuento = 0; // TODO: obtener descuento de la cotización si está guardado
+    const descuentoMonto = subtotal * (descuento / 100);
+    const subtotalConDescuento = subtotal - descuentoMonto;
+    
+    // Calcular IVA (19% por defecto)
+    const ivaPorcentaje = 19;
+    const iva = subtotalConDescuento * (ivaPorcentaje / 100);
+    
+    // Total final
+    return subtotalConDescuento + iva;
+  }
+  
+  // Fallback: usar total guardado
+  return cotizacion.total || 0;
+}
 
 export default function HistorialCotizaciones() {
   const contextoUsuario = useUser();
@@ -215,6 +243,7 @@ export default function HistorialCotizaciones() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Número</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Empresa</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
@@ -232,6 +261,23 @@ export default function HistorialCotizaciones() {
                       <div className="text-sm font-medium text-gray-900">{cotizacion.numero}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
+                      {cotizacion.empresa ? (
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={EMPRESAS[cotizacion.empresa].logo}
+                            alt={EMPRESAS[cotizacion.empresa].nombre}
+                            className="h-6 w-auto object-contain"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                          <span className="text-sm text-gray-900">{EMPRESAS[cotizacion.empresa].nombre}</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-400">N/A</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{cotizacion.cliente_nombre}</div>
                       {cotizacion.cliente_email && (
                         <div className="text-xs text-gray-500">{cotizacion.cliente_email}</div>
@@ -239,7 +285,7 @@ export default function HistorialCotizaciones() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-semibold text-gray-900">
-                        ${cotizacion.total.toLocaleString('es-CO')}
+                        ${calcularTotalDesdeItems(cotizacion).toLocaleString('es-CO')}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -369,7 +415,7 @@ export default function HistorialCotizaciones() {
                   <div>
                     <span className="font-medium text-gray-700">Total:</span>
                     <span className="ml-2 text-gray-900 font-semibold">
-                      ${cotizacionDetalles.total.toLocaleString('es-CO')}
+                      ${calcularTotalDesdeItems(cotizacionDetalles).toLocaleString('es-CO')}
                     </span>
                   </div>
                 </div>
@@ -805,7 +851,7 @@ export default function HistorialCotizaciones() {
                   <div className="flex justify-between pt-2 border-t border-gray-300">
                     <span className="text-lg font-semibold text-gray-900">Total:</span>
                     <span className="text-lg font-bold text-indigo-600">
-                      ${cotizacionDetalles.total.toLocaleString('es-CO')}
+                      ${calcularTotalDesdeItems(cotizacionDetalles).toLocaleString('es-CO')}
                     </span>
                   </div>
                 </div>

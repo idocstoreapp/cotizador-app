@@ -317,7 +317,7 @@ export default function Layout({ children, currentPath }: LayoutProps) {
 
   // A partir de aquí, usuario está garantizado que no es null
   console.log('✅ Layout renderizando con usuario:', usuario.email, usuario.role);
-  
+
   const esAdmin = usuario.role === 'admin';
 
   // Items del menú según el rol

@@ -31,6 +31,18 @@ interface QuoteItem {
   };
 }
 
+interface EmpresaInfo {
+  nombre: string;
+  nombreCompleto?: string;
+  logo?: string;
+  rut?: string;
+  direccion?: string;
+  emails?: string[];
+  telefonos?: string[];
+  sitioWeb?: string;
+  descripcion?: string;
+}
+
 interface QuotePDFProps {
   clientName: string;
   date: string;
@@ -42,6 +54,7 @@ interface QuotePDFProps {
   image?: string;
   companyName?: string;
   companyLogo?: string;
+  empresaInfo?: EmpresaInfo; // Información completa de la empresa
 }
 
 export default function QuotePDF({
@@ -54,7 +67,8 @@ export default function QuotePDF({
   total,
   image,
   companyName = 'Mueblería Casa Blanca',
-  companyLogo
+  companyLogo,
+  empresaInfo
 }: QuotePDFProps) {
   return (
     <div className="quote-pdf-container">
@@ -361,10 +375,18 @@ export default function QuotePDF({
       {/* Header */}
       <div className="quote-header">
         <div className="logo-section">
-          <div>
-            <div className="logo-text">KÜ</div>
-            <div className="logo-subtitle">MUEBLES SOBRE MEDIDA</div>
-          </div>
+          {companyLogo ? (
+            <img 
+              src={companyLogo} 
+              alt={companyName || 'Logo'} 
+              style={{ maxHeight: '80px', maxWidth: '200px', objectFit: 'contain' }}
+            />
+          ) : (
+            <div>
+              <div className="logo-text">KÜ</div>
+              <div className="logo-subtitle">MUEBLES SOBRE MEDIDA</div>
+            </div>
+          )}
         </div>
         <div className="company-name">{companyName}</div>
       </div>
@@ -413,9 +435,45 @@ export default function QuotePDF({
       {/* Footer */}
       <div className="quote-footer">
         <div className="footer-text">Gracias por confiar en nosotros.</div>
-        <div className="footer-links">
-          www.kay.com.mx | www.muebleriacasablanca.mx
-        </div>
+        {empresaInfo && (
+          <div style={{ marginTop: '8px' }}>
+            {empresaInfo.nombreCompleto && empresaInfo.rut && (
+              <div className="footer-text" style={{ fontSize: '10px', marginBottom: '4px' }}>
+                {empresaInfo.nombreCompleto} / {empresaInfo.rut}
+              </div>
+            )}
+            {empresaInfo.direccion && (
+              <div className="footer-text" style={{ fontSize: '10px', marginBottom: '4px' }}>
+                {empresaInfo.direccion}
+              </div>
+            )}
+            {empresaInfo.descripcion && (
+              <div className="footer-text" style={{ fontSize: '10px', marginBottom: '4px' }}>
+                {empresaInfo.descripcion}
+              </div>
+            )}
+            {empresaInfo.emails && empresaInfo.emails.length > 0 && (
+              <div className="footer-text" style={{ fontSize: '10px', marginBottom: '4px' }}>
+                {empresaInfo.emails.join(' / ')}
+              </div>
+            )}
+            {empresaInfo.telefonos && empresaInfo.telefonos.length > 0 && (
+              <div className="footer-text" style={{ fontSize: '10px', marginBottom: '4px' }}>
+                {empresaInfo.telefonos.join(' / ')}
+              </div>
+            )}
+            {empresaInfo.sitioWeb && (
+              <div className="footer-links" style={{ marginTop: '4px' }}>
+                {empresaInfo.sitioWeb.startsWith('http') ? empresaInfo.sitioWeb : `https://${empresaInfo.sitioWeb}`}
+              </div>
+            )}
+          </div>
+        )}
+        {!empresaInfo && (
+          <div className="footer-links">
+            www.kay.com.mx | www.muebleriacasablanca.mx
+          </div>
+        )}
       </div>
     </div>
   );

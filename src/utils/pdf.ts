@@ -7,6 +7,18 @@ interface QuoteItem {
   precio: number;
 }
 
+interface EmpresaInfo {
+  nombre: string;
+  nombreCompleto?: string;
+  logo?: string;
+  rut?: string;
+  direccion?: string;
+  emails?: string[];
+  telefonos?: string[];
+  sitioWeb?: string;
+  descripcion?: string;
+}
+
 interface QuotePDFData {
   clientName: string;
   date: string;
@@ -18,6 +30,7 @@ interface QuotePDFData {
   image?: string;
   companyName?: string;
   companyLogo?: string;
+  empresaInfo?: EmpresaInfo;
 }
 
 /**

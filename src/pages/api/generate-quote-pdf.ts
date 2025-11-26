@@ -60,7 +60,8 @@ export const POST: APIRoute = async ({ request }) => {
       total,
       image,
       companyName,
-      companyLogo
+      companyLogo,
+      empresaInfo
     } = body;
 
     // Validar datos requeridos
@@ -94,7 +95,8 @@ export const POST: APIRoute = async ({ request }) => {
       total,
       image,
       companyName,
-      companyLogo
+      companyLogo,
+      empresaInfo
     });
 
     console.log('✅ HTML renderizado, longitud:', html.length);

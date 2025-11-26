@@ -12,6 +12,7 @@ export async function crearCliente(cliente: {
   email?: string;
   telefono?: string;
   direccion?: string;
+  empresa?: 'casablanca' | 'kubica';
 }): Promise<Cliente> {
   const { data, error } = await supabase
     .from('clientes')
@@ -20,6 +21,7 @@ export async function crearCliente(cliente: {
       email: cliente.email || null,
       telefono: cliente.telefono || null,
       direccion: cliente.direccion || null,
+      empresa: cliente.empresa || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     })
