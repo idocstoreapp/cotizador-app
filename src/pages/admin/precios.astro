@@ -30,7 +30,7 @@ try {
   <body>
     <Layout client:load currentPath="/admin/precios">
       <QueryProvider client:load>
-        <AdminPreciosPage client:load />
+        <AdminPreciosPage client:only="react" />
       </QueryProvider>
     </Layout>
   </body>

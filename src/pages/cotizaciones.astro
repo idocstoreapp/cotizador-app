@@ -5,7 +5,7 @@
  */
 import Layout from '../components/Layout';
 import QueryProvider from '../components/QueryProvider';
-import CotizacionesPage from '../components/CotizacionesPage';
+import HistorialCotizaciones from '../components/HistorialCotizaciones';
 import { obtenerUsuarioActual } from '../services/auth.service';
 
 // Verificar autenticación
@@ -32,8 +32,8 @@ try {
   </head>
   <body>
     <Layout client:load currentPath="/cotizaciones">
-      <QueryProvider client:only="react">
-        <CotizacionesPage client:only="react" />
+      <QueryProvider client:load>
+        <HistorialCotizaciones client:only="react" />
       </QueryProvider>
     </Layout>
   </body>

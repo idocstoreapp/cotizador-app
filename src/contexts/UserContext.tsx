@@ -2,7 +2,7 @@
  * Contexto para compartir el usuario entre componentes
  * Evita múltiples consultas a la BD
  */
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import type { UserProfile } from '../types/database';
 
 interface UserContextType {
@@ -26,14 +26,18 @@ export function UserProvider({
   console.log('🔄 UserProvider actualizado:', {
     tieneUsuario: !!usuario,
     email: usuario?.email,
-    role: usuario?.role
+    role: usuario?.role,
+    id: usuario?.id
   });
   
+  // Usar useMemo para asegurar que el valor del contexto cambie cuando el usuario cambie
+  const contextValue = useMemo(() => ({
+    usuario,
+    esAdmin: usuario?.role === 'admin' || false
+  }), [usuario, usuario?.id, usuario?.role]); // Dependencias específicas para detectar cambios
+  
   return (
-    <UserContext.Provider value={{
-      usuario,
-      esAdmin: usuario?.role === 'admin' || false
-    }}>
+    <UserContext.Provider value={contextValue}>
       {children}
     </UserContext.Provider>
   );

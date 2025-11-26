@@ -227,13 +227,45 @@ export const useCotizacionStore = create<CotizacionStore>()(
         if (item.id === id && item.tipo === 'manual') {
           const itemActualizado = { ...item, ...updates } as ItemManualCotizacion;
           
-          // Recalcular precio si se modificaron materiales o servicios
-          if (updates.materiales || updates.servicios || updates.margen_ganancia !== undefined) {
-            const nuevoPrecioUnitario = calcularPrecioItemManual(
-              itemActualizado.materiales,
-              itemActualizado.servicios,
-              itemActualizado.margen_ganancia || 30
-            );
+          // Recalcular precio si se modificaron materiales, servicios, costos indirectos, gastos extras o margen de ganancia
+          if (updates.materiales || updates.servicios || updates.costos_indirectos || 
+              updates.gastos_extras !== undefined || updates.margen_ganancia !== undefined) {
+            // Calcular costos
+            const costoMateriales = (itemActualizado.materiales || []).reduce((sum, mat) => {
+              return sum + (mat.cantidad * (mat.precio_unitario || 0));
+            }, 0);
+            
+            const costoServicios = (itemActualizado.servicios || []).reduce((sum, serv) => {
+              return sum + ((serv.horas || 0) * (serv.precio_por_hora || 0));
+            }, 0);
+            
+            const costosIndirectos = itemActualizado.costos_indirectos 
+              ? (itemActualizado.costos_indirectos.transporte || 0) +
+                (itemActualizado.costos_indirectos.herramientas || 0) +
+                (itemActualizado.costos_indirectos.alquiler_espacio || 0) +
+                (itemActualizado.costos_indirectos.caja_chica || 0)
+              : 0;
+            
+            // Subtotal antes de gastos extras
+            const subtotalAntesExtras = costoMateriales + costoServicios + costosIndirectos;
+            
+            // Gastos extras (puede ser porcentaje o array)
+            let gastosExtrasValor = 0;
+            if (typeof itemActualizado.gastos_extras === 'number') {
+              gastosExtrasValor = subtotalAntesExtras * (itemActualizado.gastos_extras / 100);
+            } else if (Array.isArray(itemActualizado.gastos_extras)) {
+              gastosExtrasValor = itemActualizado.gastos_extras.reduce((sum, gasto) => sum + (gasto.monto || 0), 0);
+            }
+            
+            // Subtotal final
+            const subtotal = subtotalAntesExtras + gastosExtrasValor;
+            
+            // Margen de ganancia
+            const margenGanancia = itemActualizado.margen_ganancia || 30;
+            const margenGananciaValor = subtotal * (margenGanancia / 100);
+            
+            // Precio unitario final
+            const nuevoPrecioUnitario = Math.round((subtotal + margenGananciaValor) * 100) / 100;
             itemActualizado.precio_unitario = nuevoPrecioUnitario;
             itemActualizado.precio_total = nuevoPrecioUnitario * itemActualizado.cantidad;
           } else if (updates.cantidad !== undefined) {

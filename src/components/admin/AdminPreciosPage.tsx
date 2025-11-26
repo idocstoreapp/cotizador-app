@@ -2,24 +2,58 @@
  * Página de administración de precios
  * Permite modificar precios de materiales, servicios, muebles y variantes
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useUser } from '../../contexts/UserContext';
-import { obtenerMateriales, actualizarMaterial } from '../../services/materiales.service';
-import { obtenerServicios, actualizarServicio } from '../../services/servicios.service';
+import { obtenerMateriales, actualizarMaterial, crearMaterial, eliminarMaterial } from '../../services/materiales.service';
+import { obtenerServicios, actualizarServicio, crearServicio, eliminarServicio } from '../../services/servicios.service';
 import { obtenerMueblesAdmin, actualizarMuebleAdmin } from '../../services/muebles-admin.service';
 import type { Material } from '../../types/database';
 import type { Servicio } from '../../types/database';
 import type { Mueble, OpcionPersonalizada } from '../../types/muebles';
 
-type TabType = 'materiales' | 'servicios' | 'muebles' | 'variantes';
+type TabType = 'materiales' | 'servicios' | 'muebles' | 'variantes' | 'configuracion';
 
 export default function AdminPreciosPage() {
+  // TODOS LOS HOOKS DEBEN ESTAR AL INICIO, ANTES DE CUALQUIER RETURN CONDICIONAL
   const { usuario, esAdmin } = useUser();
   const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
   const [tabActual, setTabActual] = useState<TabType>('materiales');
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [valoresEditando, setValoresEditando] = useState<any>({});
+  const [mostrarModalNuevoMaterial, setMostrarModalNuevoMaterial] = useState(false);
+  const [mostrarModalNuevoServicio, setMostrarModalNuevoServicio] = useState(false);
+  const [nuevoMaterial, setNuevoMaterial] = useState({
+    nombre: '',
+    tipo: '',
+    unidad: 'unidad',
+    costo_unitario: 0,
+    proveedor: ''
+  });
+  const [nuevoServicio, setNuevoServicio] = useState({
+    nombre: '',
+    descripcion: '',
+    precio_por_hora: 0,
+    horas_estimadas: 0
+  });
+  const [configuracion, setConfiguracion] = useState({
+    iva_porcentaje: 19,
+    margen_ganancia_default: 30
+  });
+
+  // Cargar configuración desde localStorage al inicio
+  useEffect(() => {
+    const ivaGuardado = localStorage.getItem('iva_porcentaje');
+    const margenGuardado = localStorage.getItem('margen_ganancia_default');
+    
+    if (ivaGuardado) {
+      setConfiguracion(prev => ({ ...prev, iva_porcentaje: parseFloat(ivaGuardado) }));
+    }
+    if (margenGuardado) {
+      setConfiguracion(prev => ({ ...prev, margen_ganancia_default: parseFloat(margenGuardado) }));
+    }
+  }, []);
 
   // Si no hay usuario, mostrar loading
   if (!usuario) {
@@ -28,6 +62,25 @@ export default function AdminPreciosPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-2"></div>
           <p className="text-gray-600 text-sm">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Si hay error en las queries, mostrarlo
+  if (error || errorMateriales || errorServicios || errorMuebles) {
+    const mensajeError = error || errorMateriales?.message || errorServicios?.message || errorMuebles?.message || 'Error desconocido';
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-lg font-semibold text-red-600 mb-2">Error</p>
+          <p className="text-gray-600 mb-4">{mensajeError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+          >
+            Recargar Página
+          </button>
         </div>
       </div>
     );
@@ -45,21 +98,35 @@ export default function AdminPreciosPage() {
     );
   }
 
-  // Obtener datos
-  const { data: materiales = [], isLoading: loadingMateriales } = useQuery({
+  // Obtener datos - SIEMPRE ejecutar estos hooks, pero con enabled condicional
+  const { data: materiales = [], isLoading: loadingMateriales, error: errorMateriales } = useQuery({
     queryKey: ['materiales'],
-    queryFn: obtenerMateriales
+    queryFn: obtenerMateriales,
+    enabled: !!usuario && esAdmin,
+    onError: (err: any) => {
+      console.error('Error al cargar materiales:', err);
+      setError('Error al cargar materiales: ' + (err.message || 'Error desconocido'));
+    }
   });
 
-  const { data: servicios = [], isLoading: loadingServicios } = useQuery({
+  const { data: servicios = [], isLoading: loadingServicios, error: errorServicios } = useQuery({
     queryKey: ['servicios'],
-    queryFn: obtenerServicios
+    queryFn: obtenerServicios,
+    enabled: !!usuario && esAdmin,
+    onError: (err: any) => {
+      console.error('Error al cargar servicios:', err);
+      setError('Error al cargar servicios: ' + (err.message || 'Error desconocido'));
+    }
   });
 
-  const { data: muebles = [], isLoading: loadingMuebles } = useQuery({
+  const { data: muebles = [], isLoading: loadingMuebles, error: errorMuebles } = useQuery({
     queryKey: ['muebles-admin'],
     queryFn: obtenerMueblesAdmin,
-    enabled: esAdmin
+    enabled: !!usuario && esAdmin,
+    onError: (err: any) => {
+      console.error('Error al cargar muebles:', err);
+      setError('Error al cargar muebles: ' + (err.message || 'Error desconocido'));
+    }
   });
 
   // Mutaciones
@@ -67,12 +134,15 @@ export default function AdminPreciosPage() {
     mutationFn: ({ id, datos }: { id: string; datos: Partial<Material> }) =>
       actualizarMaterial(id, datos),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['materiales'] });
+      if (queryClient) {
+        queryClient.invalidateQueries({ queryKey: ['materiales'] });
+      }
       setEditandoId(null);
       setValoresEditando({});
       alert('✅ Precio actualizado exitosamente');
     },
     onError: (error: any) => {
+      console.error('Error al actualizar material:', error);
       alert('❌ Error al actualizar: ' + (error.message || 'Error desconocido'));
     }
   });
@@ -105,11 +175,61 @@ export default function AdminPreciosPage() {
     }
   });
 
+  // Mutaciones para crear/eliminar
+  const crearMaterialMutation = useMutation({
+    mutationFn: crearMaterial,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['materiales'] });
+      setMostrarModalNuevoMaterial(false);
+      setNuevoMaterial({ nombre: '', tipo: '', unidad: 'unidad', costo_unitario: 0, proveedor: '' });
+      alert('✅ Material creado exitosamente');
+    },
+    onError: (error: any) => {
+      alert('❌ Error al crear material: ' + (error.message || 'Error desconocido'));
+    }
+  });
+
+  const eliminarMaterialMutation = useMutation({
+    mutationFn: eliminarMaterial,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['materiales'] });
+      alert('✅ Material eliminado exitosamente');
+    },
+    onError: (error: any) => {
+      alert('❌ Error al eliminar material: ' + (error.message || 'Error desconocido'));
+    }
+  });
+
+  const crearServicioMutation = useMutation({
+    mutationFn: crearServicio,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servicios'] });
+      setMostrarModalNuevoServicio(false);
+      setNuevoServicio({ nombre: '', descripcion: '', precio_por_hora: 0, horas_estimadas: 0 });
+      alert('✅ Servicio creado exitosamente');
+    },
+    onError: (error: any) => {
+      alert('❌ Error al crear servicio: ' + (error.message || 'Error desconocido'));
+    }
+  });
+
+  const eliminarServicioMutation = useMutation({
+    mutationFn: eliminarServicio,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servicios'] });
+      alert('✅ Servicio eliminado exitosamente');
+    },
+    onError: (error: any) => {
+      alert('❌ Error al eliminar servicio: ' + (error.message || 'Error desconocido'));
+    }
+  });
+
   const tabs = [
     { id: 'materiales' as TabType, label: 'Materiales', icon: '🛒' },
     { id: 'servicios' as TabType, label: 'Servicios / Horas', icon: '🔨' },
     { id: 'muebles' as TabType, label: 'Muebles del Catálogo', icon: '📦' },
-    { id: 'variantes' as TabType, label: 'Variantes / Opciones', icon: '🎨' }
+    { id: 'variantes' as TabType, label: 'Variantes / Opciones', icon: '🎨' },
+    { id: 'configuracion' as TabType, label: 'Configuración General', icon: '⚙️' }
   ];
 
   const iniciarEdicion = (id: string, valores: any) => {
@@ -137,7 +257,9 @@ export default function AdminPreciosPage() {
       id,
       datos: {
         precio_por_hora: valoresEditando.precio_por_hora,
-        nombre: valoresEditando.nombre
+        nombre: valoresEditando.nombre,
+        descripcion: valoresEditando.descripcion,
+        horas_estimadas: valoresEditando.horas_estimadas
       }
     });
   };
@@ -194,6 +316,15 @@ export default function AdminPreciosPage() {
       case 'materiales':
         return (
           <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-gray-900">Materiales</h2>
+              <button
+                onClick={() => setMostrarModalNuevoMaterial(true)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+              >
+                <span>+</span> Agregar Material
+              </button>
+            </div>
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -233,8 +364,35 @@ export default function AdminPreciosPage() {
                             <span className="text-sm font-medium text-gray-900">{material.nombre}</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{material.tipo}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{material.unidad}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {editandoId === material.id ? (
+                            <input
+                              type="text"
+                              value={valoresEditando.tipo || material.tipo}
+                              onChange={(e) => setValoresEditando({ ...valoresEditando, tipo: e.target.value })}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                            />
+                          ) : (
+                            <span className="text-sm text-gray-500">{material.tipo}</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {editandoId === material.id ? (
+                            <select
+                              value={valoresEditando.unidad || material.unidad}
+                              onChange={(e) => setValoresEditando({ ...valoresEditando, unidad: e.target.value })}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                            >
+                              <option value="unidad">Unidad</option>
+                              <option value="m2">m²</option>
+                              <option value="m">m</option>
+                              <option value="kg">kg</option>
+                              <option value="litro">Litro</option>
+                            </select>
+                          ) : (
+                            <span className="text-sm text-gray-500">{material.unidad}</span>
+                          )}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {editandoId === material.id ? (
                             <input
@@ -269,12 +427,25 @@ export default function AdminPreciosPage() {
                               </button>
                             </div>
                           ) : (
-                            <button
-                              onClick={() => iniciarEdicion(material.id, { costo_unitario: material.costo_unitario, nombre: material.nombre })}
-                              className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700"
-                            >
-                              Editar
-                            </button>
+                            <div className="flex gap-2 justify-center">
+                              <button
+                                onClick={() => iniciarEdicion(material.id, { costo_unitario: material.costo_unitario, nombre: material.nombre, tipo: material.tipo, unidad: material.unidad, proveedor: material.proveedor })}
+                                className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm(`¿Estás seguro de eliminar el material "${material.nombre}"?`)) {
+                                    eliminarMaterialMutation.mutate(material.id);
+                                  }
+                                }}
+                                disabled={eliminarMaterialMutation.isPending}
+                                className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 disabled:opacity-50"
+                              >
+                                Eliminar
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -289,6 +460,15 @@ export default function AdminPreciosPage() {
       case 'servicios':
         return (
           <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-gray-900">Servicios / Mano de Obra</h2>
+              <button
+                onClick={() => setMostrarModalNuevoServicio(true)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+              >
+                <span>+</span> Agregar Servicio
+              </button>
+            </div>
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -315,16 +495,31 @@ export default function AdminPreciosPage() {
                   ) : (
                     servicios.map((servicio) => (
                       <tr key={servicio.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4">
                           {editandoId === servicio.id ? (
-                            <input
-                              type="text"
-                              value={valoresEditando.nombre || servicio.nombre}
-                              onChange={(e) => setValoresEditando({ ...valoresEditando, nombre: e.target.value })}
-                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
-                            />
+                            <div className="space-y-2">
+                              <input
+                                type="text"
+                                value={valoresEditando.nombre || servicio.nombre}
+                                onChange={(e) => setValoresEditando({ ...valoresEditando, nombre: e.target.value })}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                                placeholder="Nombre del servicio"
+                              />
+                              <textarea
+                                value={valoresEditando.descripcion !== undefined ? valoresEditando.descripcion : (servicio.descripcion || '')}
+                                onChange={(e) => setValoresEditando({ ...valoresEditando, descripcion: e.target.value })}
+                                className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                                placeholder="Descripción (opcional)"
+                                rows={2}
+                              />
+                            </div>
                           ) : (
-                            <span className="text-sm font-medium text-gray-900">{servicio.nombre}</span>
+                            <div>
+                              <span className="text-sm font-medium text-gray-900">{servicio.nombre}</span>
+                              {servicio.descripcion && (
+                                <p className="text-xs text-gray-500 mt-1">{servicio.descripcion}</p>
+                              )}
+                            </div>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -343,7 +538,20 @@ export default function AdminPreciosPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{servicio.horas_estimadas}h</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {editandoId === servicio.id ? (
+                            <input
+                              type="number"
+                              value={valoresEditando.horas_estimadas !== undefined ? valoresEditando.horas_estimadas : servicio.horas_estimadas}
+                              onChange={(e) => setValoresEditando({ ...valoresEditando, horas_estimadas: parseFloat(e.target.value) || 0 })}
+                              className="w-24 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                              min="0"
+                              step="0.5"
+                            />
+                          ) : (
+                            <span className="text-sm text-gray-500">{servicio.horas_estimadas}h</span>
+                          )}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           {editandoId === servicio.id ? (
                             <div className="flex gap-2 justify-center">
@@ -362,12 +570,25 @@ export default function AdminPreciosPage() {
                               </button>
                             </div>
                           ) : (
-                            <button
-                              onClick={() => iniciarEdicion(servicio.id, { precio_por_hora: servicio.precio_por_hora, nombre: servicio.nombre })}
-                              className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700"
-                            >
-                              Editar
-                            </button>
+                            <div className="flex gap-2 justify-center">
+                              <button
+                                onClick={() => iniciarEdicion(servicio.id, { precio_por_hora: servicio.precio_por_hora, nombre: servicio.nombre, descripcion: servicio.descripcion, horas_estimadas: servicio.horas_estimadas })}
+                                className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm(`¿Estás seguro de eliminar el servicio "${servicio.nombre}"?`)) {
+                                    eliminarServicioMutation.mutate(servicio.id);
+                                  }
+                                }}
+                                disabled={eliminarServicioMutation.isPending}
+                                className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 disabled:opacity-50"
+                              >
+                                Eliminar
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -603,6 +824,87 @@ export default function AdminPreciosPage() {
           </div>
         );
 
+      case 'configuracion':
+        return (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">Configuración General del Sistema</h2>
+              
+              <div className="space-y-6">
+                {/* IVA */}
+                <div className="border-b border-gray-200 pb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    IVA (Impuesto al Valor Agregado) - Porcentaje
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="number"
+                      value={configuracion.iva_porcentaje}
+                      onChange={(e) => setConfiguracion({ ...configuracion, iva_porcentaje: parseFloat(e.target.value) || 0 })}
+                      className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                    />
+                    <span className="text-gray-600">%</span>
+                    <button
+                      onClick={() => {
+                        localStorage.setItem('iva_porcentaje', configuracion.iva_porcentaje.toString());
+                        alert('✅ IVA guardado en configuración local');
+                      }}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                    >
+                      Guardar IVA
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Este valor se usará por defecto en todas las cotizaciones. Actual: {configuracion.iva_porcentaje}%
+                  </p>
+                </div>
+
+                {/* Margen de Ganancia */}
+                <div className="border-b border-gray-200 pb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Margen de Ganancia por Defecto - Porcentaje
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="number"
+                      value={configuracion.margen_ganancia_default}
+                      onChange={(e) => setConfiguracion({ ...configuracion, margen_ganancia_default: parseFloat(e.target.value) || 0 })}
+                      className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                    />
+                    <span className="text-gray-600">%</span>
+                    <button
+                      onClick={() => {
+                        localStorage.setItem('margen_ganancia_default', configuracion.margen_ganancia_default.toString());
+                        alert('✅ Margen de ganancia guardado en configuración local');
+                      }}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                    >
+                      Guardar Margen
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Este valor se usará por defecto en todas las cotizaciones. Actual: {configuracion.margen_ganancia_default}%
+                  </p>
+                </div>
+
+                {/* Información */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-800">
+                    <strong>Nota:</strong> Estos valores se guardan en el navegador (localStorage). 
+                    Para una configuración permanente en la base de datos, se requiere crear una tabla de configuración.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -645,6 +947,196 @@ export default function AdminPreciosPage() {
       <div>
         {renderTabContent()}
       </div>
+
+      {/* Modal para Nuevo Material */}
+      {mostrarModalNuevoMaterial && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">Nuevo Material</h2>
+              <button
+                onClick={() => {
+                  setMostrarModalNuevoMaterial(false);
+                  setNuevoMaterial({ nombre: '', tipo: '', unidad: 'unidad', costo_unitario: 0, proveedor: '' });
+                }}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+                <input
+                  type="text"
+                  value={nuevoMaterial.nombre}
+                  onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, nombre: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
+                <input
+                  type="text"
+                  value={nuevoMaterial.tipo}
+                  onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, tipo: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Unidad *</label>
+                <select
+                  value={nuevoMaterial.unidad}
+                  onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, unidad: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="unidad">Unidad</option>
+                  <option value="m2">m²</option>
+                  <option value="m">m</option>
+                  <option value="kg">kg</option>
+                  <option value="litro">Litro</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Costo Unitario *</label>
+                <input
+                  type="number"
+                  value={nuevoMaterial.costo_unitario}
+                  onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, costo_unitario: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  min="0"
+                  step="100"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
+                <input
+                  type="text"
+                  value={nuevoMaterial.proveedor}
+                  onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, proveedor: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => {
+                    if (!nuevoMaterial.nombre || !nuevoMaterial.tipo) {
+                      alert('Por favor completa todos los campos requeridos');
+                      return;
+                    }
+                    crearMaterialMutation.mutate(nuevoMaterial);
+                  }}
+                  disabled={crearMaterialMutation.isPending}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                >
+                  {crearMaterialMutation.isPending ? 'Creando...' : 'Crear Material'}
+                </button>
+                <button
+                  onClick={() => {
+                    setMostrarModalNuevoMaterial(false);
+                    setNuevoMaterial({ nombre: '', tipo: '', unidad: 'unidad', costo_unitario: 0, proveedor: '' });
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Nuevo Servicio */}
+      {mostrarModalNuevoServicio && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">Nuevo Servicio</h2>
+              <button
+                onClick={() => {
+                  setMostrarModalNuevoServicio(false);
+                  setNuevoServicio({ nombre: '', descripcion: '', precio_por_hora: 0, horas_estimadas: 0 });
+                }}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+                <input
+                  type="text"
+                  value={nuevoServicio.nombre}
+                  onChange={(e) => setNuevoServicio({ ...nuevoServicio, nombre: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                <textarea
+                  value={nuevoServicio.descripcion}
+                  onChange={(e) => setNuevoServicio({ ...nuevoServicio, descripcion: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Precio por Hora *</label>
+                <input
+                  type="number"
+                  value={nuevoServicio.precio_por_hora}
+                  onChange={(e) => setNuevoServicio({ ...nuevoServicio, precio_por_hora: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  min="0"
+                  step="1000"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Horas Estimadas *</label>
+                <input
+                  type="number"
+                  value={nuevoServicio.horas_estimadas}
+                  onChange={(e) => setNuevoServicio({ ...nuevoServicio, horas_estimadas: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  min="0"
+                  step="0.5"
+                  required
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => {
+                    if (!nuevoServicio.nombre || nuevoServicio.precio_por_hora <= 0) {
+                      alert('Por favor completa todos los campos requeridos');
+                      return;
+                    }
+                    crearServicioMutation.mutate(nuevoServicio);
+                  }}
+                  disabled={crearServicioMutation.isPending}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                >
+                  {crearServicioMutation.isPending ? 'Creando...' : 'Crear Servicio'}
+                </button>
+                <button
+                  onClick={() => {
+                    setMostrarModalNuevoServicio(false);
+                    setNuevoServicio({ nombre: '', descripcion: '', precio_por_hora: 0, horas_estimadas: 0 });
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

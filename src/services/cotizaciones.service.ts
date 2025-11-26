@@ -28,12 +28,10 @@ function generarNumeroCotizacion(): string {
  * @returns Lista de cotizaciones
  */
 export async function obtenerCotizaciones(usuarioId?: string): Promise<Cotizacion[]> {
+  // Primero obtener las cotizaciones sin el join
   let query = supabase
     .from('cotizaciones')
-    .select(`
-      *,
-      usuario:perfiles(id, nombre, email, role)
-    `)
+    .select('*')
     .order('created_at', { ascending: false });
 
   // Si se proporciona usuarioId, filtrar por usuario
@@ -41,10 +39,37 @@ export async function obtenerCotizaciones(usuarioId?: string): Promise<Cotizacio
     query = query.eq('usuario_id', usuarioId);
   }
 
-  const { data, error } = await query;
+  const { data: cotizaciones, error } = await query;
 
   if (error) throw error;
-  return data as Cotizacion[];
+  if (!cotizaciones || cotizaciones.length === 0) return [];
+
+  // Obtener los IDs únicos de usuarios
+  const usuarioIds = [...new Set(cotizaciones.map(c => c.usuario_id).filter(Boolean))];
+  
+  // Cargar los perfiles por separado
+  let perfiles: any[] = [];
+  if (usuarioIds.length > 0) {
+    const { data: perfilesData, error: perfilesError } = await supabase
+      .from('perfiles')
+      .select('id, nombre, email, role')
+      .in('id', usuarioIds);
+    
+    if (!perfilesError && perfilesData) {
+      perfiles = perfilesData;
+    }
+  }
+
+  // Combinar cotizaciones con perfiles
+  const cotizacionesConUsuario = cotizaciones.map(cotizacion => {
+    const perfil = perfiles.find(p => p.id === cotizacion.usuario_id);
+    return {
+      ...cotizacion,
+      usuario: perfil || null
+    } as Cotizacion;
+  });
+
+  return cotizacionesConUsuario;
 }
 
 /**
@@ -55,26 +80,41 @@ export async function obtenerCotizaciones(usuarioId?: string): Promise<Cotizacio
 export async function obtenerCotizacionPorId(id: string): Promise<Cotizacion | null> {
   const { data, error } = await supabase
     .from('cotizaciones')
-    .select(`
-      *,
-      usuario:perfiles(id, nombre, email, role)
-    `)
+    .select('*')
     .eq('id', id)
     .single();
 
   if (error) throw error;
-  return data as Cotizacion | null;
+  if (!data) return null;
+  
+  // Cargar usuario por separado
+  let cotizacionConUsuario = data as Cotizacion;
+  if (data.usuario_id) {
+    const { data: perfil } = await supabase
+      .from('perfiles')
+      .select('id, nombre, email, role')
+      .eq('id', data.usuario_id)
+      .single();
+    
+    if (perfil) {
+      cotizacionConUsuario = { ...cotizacionConUsuario, usuario: perfil as any };
+    }
+  }
+  
+  return cotizacionConUsuario;
 }
 
 /**
  * Crea una nueva cotización
  * @param cotizacion - Datos de la cotización
  * @param usuarioId - ID del usuario que crea la cotización
+ * @param items - Items completos de la cotización (opcional, para guardar detalles completos)
  * @returns Cotización creada
  */
 export async function crearCotizacion(
   cotizacion: CotizacionInput,
-  usuarioId: string
+  usuarioId: string,
+  items?: any[] // Items completos con toda su información
 ): Promise<Cotizacion> {
   // Calcular totales
   const calculos = calcularCotizacionCompleta(
@@ -94,6 +134,7 @@ export async function crearCotizacion(
       cliente_direccion: cotizacion.cliente_direccion || null,
       materiales: cotizacion.materiales,
       servicios: cotizacion.servicios,
+      items: items || [], // Guardar items completos
       subtotal_materiales: calculos.subtotalMateriales,
       subtotal_servicios: calculos.subtotalServicios,
       subtotal: calculos.subtotal,
@@ -114,14 +155,79 @@ export async function crearCotizacion(
 }
 
 /**
+ * Actualiza una cotización existente con registro de historial
+ * @param id - ID de la cotización
+ * @param cotizacion - Datos actualizados
+ * @param items - Items actualizados (opcional)
+ * @param descripcionModificacion - Descripción de por qué se hizo la modificación
+ * @param usuarioIdModificacion - ID del usuario que hace la modificación
+ * @returns Cotización actualizada
+ */
+export async function actualizarCotizacionConHistorial(
+  id: string,
+  cotizacion: Partial<CotizacionInput>,
+  items?: any[],
+  descripcionModificacion?: string,
+  usuarioIdModificacion?: string
+): Promise<Cotizacion> {
+  // Obtener cotización actual para comparar
+  const cotizacionActual = await obtenerCotizacionPorId(id);
+  if (!cotizacionActual) {
+    throw new Error('Cotización no encontrada');
+  }
+
+  const totalAnterior = cotizacionActual.total;
+
+  // Actualizar la cotización
+  const cotizacionActualizada = await actualizarCotizacion(id, cotizacion, items);
+
+  // Si hay descripción de modificación y usuario, crear registro en historial
+  if (descripcionModificacion && usuarioIdModificacion) {
+    const cambios = {
+      materiales: {
+        anterior: cotizacionActual.materiales,
+        nuevo: cotizacionActualizada.materiales
+      },
+      servicios: {
+        anterior: cotizacionActual.servicios,
+        nuevo: cotizacionActualizada.servicios
+      },
+      items: {
+        anterior: cotizacionActual.items || [],
+        nuevo: cotizacionActualizada.items || []
+      },
+      total: {
+        anterior: totalAnterior,
+        nuevo: cotizacionActualizada.total
+      }
+    };
+
+    // Importar dinámicamente para evitar dependencias circulares
+    const { crearRegistroModificacion } = await import('./historial-modificaciones.service');
+    await crearRegistroModificacion(
+      id,
+      usuarioIdModificacion,
+      descripcionModificacion,
+      cambios,
+      totalAnterior,
+      cotizacionActualizada.total
+    );
+  }
+
+  return cotizacionActualizada;
+}
+
+/**
  * Actualiza una cotización existente
  * @param id - ID de la cotización
  * @param cotizacion - Datos actualizados
+ * @param items - Items actualizados (opcional)
  * @returns Cotización actualizada
  */
 export async function actualizarCotizacion(
   id: string,
-  cotizacion: Partial<CotizacionInput>
+  cotizacion: Partial<CotizacionInput>,
+  items?: any[]
 ): Promise<Cotizacion> {
   // Si se actualizan materiales o servicios, recalcular
   let calculos = null;
@@ -155,14 +261,26 @@ export async function actualizarCotizacion(
     .from('cotizaciones')
     .update(datosActualizacion)
     .eq('id', id)
-    .select(`
-      *,
-      usuario:perfiles(id, nombre, email, role)
-    `)
+    .select('*')
     .single();
 
   if (error) throw error;
-  return data as Cotizacion;
+  
+  // Cargar el usuario por separado si es necesario
+  let cotizacionConUsuario = data as Cotizacion;
+  if (data.usuario_id) {
+    const { data: perfil } = await supabase
+      .from('perfiles')
+      .select('id, nombre, email, role')
+      .eq('id', data.usuario_id)
+      .single();
+    
+    if (perfil) {
+      cotizacionConUsuario = { ...cotizacionConUsuario, usuario: perfil as any };
+    }
+  }
+  
+  return cotizacionConUsuario;
 }
 
 /**
@@ -230,14 +348,26 @@ export async function cambiarEstadoCotizacion(
     .from('cotizaciones')
     .update({ estado, updated_at: new Date().toISOString() })
     .eq('id', id)
-    .select(`
-      *,
-      usuario:perfiles(id, nombre, email, role)
-    `)
+    .select('*')
     .single();
 
   if (error) throw error;
-  return data as Cotizacion;
+  
+  // Cargar el usuario por separado si es necesario
+  let cotizacionConUsuario = data as Cotizacion;
+  if (data.usuario_id) {
+    const { data: perfil } = await supabase
+      .from('perfiles')
+      .select('id, nombre, email, role')
+      .eq('id', data.usuario_id)
+      .single();
+    
+    if (perfil) {
+      cotizacionConUsuario = { ...cotizacionConUsuario, usuario: perfil as any };
+    }
+  }
+  
+  return cotizacionConUsuario;
 }
 
 

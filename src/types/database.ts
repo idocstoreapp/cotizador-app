@@ -102,6 +102,7 @@ export interface Cotizacion {
   cliente_direccion?: string;
   materiales: CotizacionMaterial[];
   servicios: CotizacionServicio[];
+  items?: any[]; // Items completos con toda su información (nombre, descripción, medidas, materiales, servicios, costos, utilidades, etc.)
   subtotal_materiales: number;
   subtotal_servicios: number;
   subtotal: number;
@@ -125,5 +126,19 @@ export interface Configuracion {
   empresa_logo?: string;
   empresa_direccion?: string;
   empresa_telefono?: string;
+}
+
+// Historial de modificaciones de cotizaciones
+export interface HistorialModificacion {
+  id: string;
+  cotizacion_id: string;
+  usuario_id: string;
+  descripcion: string;
+  cambios: any; // JSON con los cambios realizados
+  total_anterior?: number;
+  total_nuevo?: number;
+  created_at: string;
+  // Relaciones
+  usuario?: UserProfile;
 }
 

@@ -28,15 +28,33 @@ export async function crearTrabajo(trabajo: {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     })
-    .select(`
-      *,
-      cliente:clientes(*),
-      cotizacion:cotizaciones(*)
-    `)
+    .select('*')
     .single();
 
   if (error) throw error;
-  return data as Trabajo;
+  
+  // Cargar cliente y cotización por separado
+  const trabajoCompleto = data as any;
+  
+  if (trabajo.cliente_id) {
+    const { data: cliente } = await supabase
+      .from('clientes')
+      .select('*')
+      .eq('id', trabajo.cliente_id)
+      .single();
+    if (cliente) trabajoCompleto.cliente = cliente;
+  }
+  
+  if (trabajo.cotizacion_id) {
+    const { data: cotizacion } = await supabase
+      .from('cotizaciones')
+      .select('*')
+      .eq('id', trabajo.cotizacion_id)
+      .single();
+    if (cotizacion) trabajoCompleto.cotizacion = cotizacion;
+  }
+  
+  return trabajoCompleto as Trabajo;
 }
 
 /**
@@ -59,15 +77,33 @@ export async function actualizarTrabajo(
       updated_at: new Date().toISOString()
     })
     .eq('id', id)
-    .select(`
-      *,
-      cliente:clientes(*),
-      cotizacion:cotizaciones(*)
-    `)
+    .select('*')
     .single();
 
   if (error) throw error;
-  return data as Trabajo;
+  
+  // Cargar cliente y cotización por separado
+  const trabajoCompleto = data as any;
+  
+  if (data.cliente_id) {
+    const { data: cliente } = await supabase
+      .from('clientes')
+      .select('*')
+      .eq('id', data.cliente_id)
+      .single();
+    if (cliente) trabajoCompleto.cliente = cliente;
+  }
+  
+  if (data.cotizacion_id) {
+    const { data: cotizacion } = await supabase
+      .from('cotizaciones')
+      .select('*')
+      .eq('id', data.cotizacion_id)
+      .single();
+    if (cotizacion) trabajoCompleto.cotizacion = cotizacion;
+  }
+  
+  return trabajoCompleto as Trabajo;
 }
 
 /**
@@ -76,15 +112,41 @@ export async function actualizarTrabajo(
 export async function obtenerTrabajos(): Promise<Trabajo[]> {
   const { data, error } = await supabase
     .from('trabajos')
-    .select(`
-      *,
-      cliente:clientes(*),
-      cotizacion:cotizaciones(*)
-    `)
+    .select('*')
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data as Trabajo[];
+  if (!data || data.length === 0) return [];
+  
+  // Cargar clientes y cotizaciones por separado
+  const clienteIds = [...new Set(data.map(t => t.cliente_id).filter(Boolean))];
+  const cotizacionIds = [...new Set(data.map(t => t.cotizacion_id).filter(Boolean))];
+  
+  let clientes: any[] = [];
+  let cotizaciones: any[] = [];
+  
+  if (clienteIds.length > 0) {
+    const { data: clientesData } = await supabase
+      .from('clientes')
+      .select('*')
+      .in('id', clienteIds);
+    if (clientesData) clientes = clientesData;
+  }
+  
+  if (cotizacionIds.length > 0) {
+    const { data: cotizacionesData } = await supabase
+      .from('cotizaciones')
+      .select('*')
+      .in('id', cotizacionIds);
+    if (cotizacionesData) cotizaciones = cotizacionesData;
+  }
+  
+  // Combinar datos
+  return data.map(trabajo => ({
+    ...trabajo,
+    cliente: clientes.find(c => c.id === trabajo.cliente_id) || null,
+    cotizacion: cotizaciones.find(c => c.id === trabajo.cotizacion_id) || null
+  })) as Trabajo[];
 }
 
 /**
@@ -93,17 +155,37 @@ export async function obtenerTrabajos(): Promise<Trabajo[]> {
 export async function obtenerTrabajoPorId(id: string): Promise<Trabajo | null> {
   const { data, error } = await supabase
     .from('trabajos')
-    .select(`
-      *,
-      cliente:clientes(*),
-      cotizacion:cotizaciones(*)
-    `)
+    .select('*')
     .eq('id', id)
     .single();
 
   if (error) throw error;
-  return data as Trabajo | null;
+  if (!data) return null;
+  
+  // Cargar cliente y cotización por separado
+  const trabajoCompleto = data as any;
+  
+  if (data.cliente_id) {
+    const { data: cliente } = await supabase
+      .from('clientes')
+      .select('*')
+      .eq('id', data.cliente_id)
+      .single();
+    if (cliente) trabajoCompleto.cliente = cliente;
+  }
+  
+  if (data.cotizacion_id) {
+    const { data: cotizacion } = await supabase
+      .from('cotizaciones')
+      .select('*')
+      .eq('id', data.cotizacion_id)
+      .single();
+    if (cotizacion) trabajoCompleto.cotizacion = cotizacion;
+  }
+  
+  return trabajoCompleto as Trabajo;
 }
+
 
 
 

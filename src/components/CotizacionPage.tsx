@@ -53,6 +53,7 @@ export default function CotizacionPage() {
       );
 
       // Guardar cotización en la base de datos (estado: pendiente)
+      // Incluir items completos para guardar toda la información detallada
       console.log('💾 Guardando cotización...', {
         usuarioId: usuario.id,
         itemsCount: items.length,
@@ -61,7 +62,7 @@ export default function CotizacionPage() {
         serviciosCount: cotizacionInput.servicios.length
       });
       
-      const cotizacionGuardada = await crearCotizacion(cotizacionInput, usuario.id);
+      const cotizacionGuardada = await crearCotizacion(cotizacionInput, usuario.id, items);
       
       console.log('✅ Cotización guardada:', {
         id: cotizacionGuardada.id,

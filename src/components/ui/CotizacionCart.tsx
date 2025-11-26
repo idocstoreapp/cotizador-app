@@ -4,14 +4,16 @@
  */
 import { useCotizacionStore } from '../../store/cotizacionStore';
 import { useState } from 'react';
+import EditarItemModal from './EditarItemModal';
 
 interface CotizacionCartProps {
-  onGenerarPDF: () => void;
+  onGenerarPDF?: () => void;
 }
 
 export default function CotizacionCart({ onGenerarPDF }: CotizacionCartProps) {
-  const { items, subtotal, descuento, iva, total, eliminarItem, actualizarCantidad, setDescuento } = useCotizacionStore();
+  const { items, subtotal, descuento, iva, total, eliminarItem, actualizarCantidad, setDescuento, calcularTotales } = useCotizacionStore();
   const [descuentoInput, setDescuentoInput] = useState(descuento.toString());
+  const [itemEditando, setItemEditando] = useState<string | null>(null);
 
   /**
    * Maneja el cambio de descuento
@@ -183,6 +185,14 @@ export default function CotizacionCart({ onGenerarPDF }: CotizacionCartProps) {
                     >
                       +
                     </button>
+                    {item.tipo === 'manual' && (
+                      <button
+                        onClick={() => setItemEditando(item.id)}
+                        className="ml-4 text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                      >
+                        Editar
+                      </button>
+                    )}
                     <button
                       onClick={() => eliminarItem(item.id)}
                       className="ml-4 text-red-600 hover:text-red-800 text-sm font-medium"
@@ -244,22 +254,42 @@ export default function CotizacionCart({ onGenerarPDF }: CotizacionCartProps) {
           </div>
         </div>
 
-        {/* Botones de acción */}
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={onGenerarPDF}
-            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
-          >
-            Generar Cotización PDF
-          </button>
-          <a
-            href="/catalogo"
-            className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-center"
-          >
-            Seguir Agregando
-          </a>
-        </div>
+        {/* Botones de acción - Solo mostrar si onGenerarPDF está definido */}
+        {onGenerarPDF && (
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={onGenerarPDF}
+              className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
+            >
+              Generar Cotización PDF
+            </button>
+            <a
+              href="/catalogo"
+              className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-center"
+            >
+              Seguir Agregando
+            </a>
+          </div>
+        )}
       </div>
+
+      {/* Modal de editar item */}
+      {itemEditando && (() => {
+        const item = items.find(i => i.id === itemEditando);
+        if (!item) return null;
+        return (
+          <EditarItemModal
+            item={item}
+            onClose={() => {
+              setItemEditando(null);
+              calcularTotales();
+            }}
+            onSave={() => {
+              calcularTotales();
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }
