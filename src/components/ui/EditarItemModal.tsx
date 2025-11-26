@@ -1,13 +1,13 @@
 /**
  * Modal para editar un item existente en la cotización
  * Permite modificar materiales, servicios, días de trabajo, etc.
+ * VERSIÓN SIN REACT QUERY - Carga datos directamente
  */
 import { useState, useEffect, useMemo } from 'react';
 import { useCotizacionStore } from '../../store/cotizacionStore';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { obtenerMateriales, crearMaterial } from '../../services/materiales.service';
-import { obtenerServicios } from '../../services/servicios.service';
 import type { ItemCotizacion, ItemManualCotizacion, MaterialMueble, MedidasMueble } from '../../types/muebles';
+import type { Material } from '../../types/database';
 
 interface EditarItemModalProps {
   item: ItemCotizacion;
@@ -19,96 +19,12 @@ const PRECIO_HORA_MANO_OBRA = 50000;
 const PRECIO_DIA_TRABAJO = 150000;
 
 export default function EditarItemModal({ item, onClose, onSave }: EditarItemModalProps) {
-  // TODOS LOS HOOKS DEBEN ESTAR AL INICIO, ANTES DE CUALQUIER RETURN CONDICIONAL
   const { actualizarItemManual } = useCotizacionStore();
   const [error, setError] = useState<string | null>(null);
-  const [materiales, setMateriales] = useState<any[]>([]);
+  const [materiales, setMateriales] = useState<Material[]>([]);
   const [loadingMateriales, setLoadingMateriales] = useState(true);
+  const [creandoMaterial, setCreandoMaterial] = useState(false);
   
-  // Intentar obtener queryClient de forma segura
-  let queryClient: any = null;
-  try {
-    queryClient = useQueryClient();
-  } catch (err: any) {
-    console.warn('QueryClient no disponible, usando carga directa:', err);
-  }
-  
-  // Cargar materiales - usar Query si está disponible, sino cargar directamente
-  useEffect(() => {
-    const cargarMateriales = async () => {
-      try {
-        setLoadingMateriales(true);
-        const materialesData = await obtenerMateriales();
-        setMateriales(materialesData);
-      } catch (err: any) {
-        console.error('Error al cargar materiales:', err);
-        setError('Error al cargar materiales: ' + (err.message || 'Error desconocido'));
-      } finally {
-        setLoadingMateriales(false);
-      }
-    };
-    
-    if (item.tipo === 'manual') {
-      cargarMateriales();
-    }
-  }, [item.tipo]);
-  
-  // Si hay QueryClient, usar useQuery para cachear
-  const materialesQuery = queryClient ? useQuery({
-    queryKey: ['materiales'],
-    queryFn: obtenerMateriales,
-    retry: 1,
-    enabled: item.tipo === 'manual' && !!queryClient
-  }) : null;
-  
-  // Usar datos de query si está disponible, sino usar estado local
-  const materialesFinales = materialesQuery?.data || materiales;
-  const errorMateriales = materialesQuery?.error || null;
-
-  // Manejar errores de materiales con useEffect
-  useEffect(() => {
-    if (errorMateriales) {
-      console.error('Error al cargar materiales:', errorMateriales);
-      setError('Error al cargar materiales: ' + ((errorMateriales as any)?.message || 'Error desconocido'));
-    }
-  }, [errorMateriales]);
-
-  const { data: servicios = [] } = useQuery({
-    queryKey: ['servicios'],
-    queryFn: async () => [],
-    retry: 1,
-    enabled: item.tipo === 'manual'
-  });
-
-  // Mutación para crear material - solo si hay queryClient
-  const crearMaterialMutation = queryClient ? useMutation({
-    mutationFn: crearMaterial,
-    onSuccess: (materialCreado) => {
-      queryClient.invalidateQueries({ queryKey: ['materiales'] });
-      // Recargar materiales manualmente también
-      obtenerMateriales().then(setMateriales).catch(console.error);
-    },
-    onError: (error: any) => {
-      console.error('Error al crear material:', error);
-      alert('❌ Error al crear material: ' + (error.message || 'Error desconocido'));
-    }
-  }) : null;
-  
-  // Función para crear material sin mutation si no hay queryClient
-  const crearMaterialDirecto = async (nuevoMaterial: any) => {
-    try {
-      const materialCreado = await crearMaterial(nuevoMaterial);
-      // Recargar materiales
-      const materialesData = await obtenerMateriales();
-      setMateriales(materialesData);
-      return materialCreado;
-    } catch (error: any) {
-      console.error('Error al crear material:', error);
-      alert('❌ Error al crear material: ' + (error.message || 'Error desconocido'));
-      throw error;
-    }
-  };
-
   // Solo permitir editar items manuales
   if (item.tipo !== 'manual') {
     return (
@@ -130,6 +46,24 @@ export default function EditarItemModal({ item, onClose, onSave }: EditarItemMod
   }
 
   const itemManual = item as ItemManualCotizacion;
+
+  // Cargar materiales al montar el componente
+  useEffect(() => {
+    const cargarMateriales = async () => {
+      try {
+        setLoadingMateriales(true);
+        const materialesData = await obtenerMateriales();
+        setMateriales(materialesData);
+      } catch (err: any) {
+        console.error('Error al cargar materiales:', err);
+        setError('Error al cargar materiales: ' + (err.message || 'Error desconocido'));
+      } finally {
+        setLoadingMateriales(false);
+      }
+    };
+    
+    cargarMateriales();
+  }, []);
 
   // Estado del formulario
   const [nombre, setNombre] = useState(itemManual.nombre || '');
@@ -239,7 +173,7 @@ export default function EditarItemModal({ item, onClose, onSave }: EditarItemMod
   const agregarMaterial = () => {
     if (!materialSeleccionado) return;
 
-    const material = materialesFinales.find((m: any) => m.id === materialSeleccionado);
+    const material = materiales.find(m => m.id === materialSeleccionado);
     if (!material) return;
 
     const nuevoMaterialMueble: MaterialMueble = {
@@ -258,6 +192,34 @@ export default function EditarItemModal({ item, onClose, onSave }: EditarItemMod
   // Eliminar material
   const eliminarMaterial = (index: number) => {
     setMaterialesSeleccionados(materialesSeleccionados.filter((_, i) => i !== index));
+  };
+
+  // Crear nuevo material
+  const handleCrearMaterial = async () => {
+    if (!nuevoMaterial.nombre || !nuevoMaterial.tipo) {
+      alert('Completa todos los campos requeridos');
+      return;
+    }
+
+    try {
+      setCreandoMaterial(true);
+      const materialCreado = await crearMaterial(nuevoMaterial);
+      
+      // Recargar materiales
+      const materialesData = await obtenerMateriales();
+      setMateriales(materialesData);
+      
+      // Seleccionar el material recién creado
+      setMaterialSeleccionado(materialCreado.id);
+      setMostrarCrearMaterial(false);
+      setNuevoMaterial({ nombre: '', tipo: '', unidad: 'unidad', costo_unitario: 0, proveedor: '' });
+      alert('✅ Material creado exitosamente');
+    } catch (err: any) {
+      console.error('Error al crear material:', err);
+      alert('❌ Error al crear material: ' + (err.message || 'Error desconocido'));
+    } finally {
+      setCreandoMaterial(false);
+    }
   };
 
   // Guardar cambios
@@ -330,14 +292,12 @@ export default function EditarItemModal({ item, onClose, onSave }: EditarItemMod
   };
 
   // Mostrar error si hay alguno
-  if (error || errorMateriales) {
+  if (error) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
           <h2 className="text-xl font-bold text-red-600 mb-4">Error</h2>
-          <p className="text-gray-700 mb-4">
-            {error || errorMateriales?.message || 'Error desconocido al cargar el componente'}
-          </p>
+          <p className="text-gray-700 mb-4">{error}</p>
           <div className="flex gap-3">
             <button
               onClick={() => window.location.reload()}
@@ -413,7 +373,7 @@ export default function EditarItemModal({ item, onClose, onSave }: EditarItemMod
             ) : (
               <>
                 <div className="space-y-2 mb-4">
-                    {materialesSeleccionados.map((mat: MaterialMueble, index: number) => (
+                  {materialesSeleccionados.map((mat, index) => (
                     <div key={index} className="flex items-center justify-between bg-gray-100 p-3 rounded-lg">
                       <span className="text-sm">
                         {mat.material_nombre || 'Material'} - {mat.cantidad} {mat.unidad} @ ${mat.precio_unitario?.toLocaleString('es-CO')}
@@ -434,7 +394,7 @@ export default function EditarItemModal({ item, onClose, onSave }: EditarItemMod
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="">Seleccionar Material</option>
-                    {materialesFinales.map((mat: any) => (
+                    {materiales.map((mat) => (
                       <option key={mat.id} value={mat.id}>
                         {mat.nombre} ({mat.tipo}) - ${mat.costo_unitario.toLocaleString('es-CO')} / {mat.unidad}
                       </option>
@@ -704,29 +664,11 @@ export default function EditarItemModal({ item, onClose, onSave }: EditarItemMod
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={async () => {
-                    if (!nuevoMaterial.nombre || !nuevoMaterial.tipo) {
-                      alert('Completa todos los campos requeridos');
-                      return;
-                    }
-                    if (crearMaterialMutation) {
-                      crearMaterialMutation.mutate(nuevoMaterial);
-                    } else {
-                      try {
-                        const materialCreado = await crearMaterialDirecto(nuevoMaterial);
-                        setMaterialSeleccionado(materialCreado.id);
-                        setMostrarCrearMaterial(false);
-                        setNuevoMaterial({ nombre: '', tipo: '', unidad: 'unidad', costo_unitario: 0, proveedor: '' });
-                        alert('✅ Material creado exitosamente');
-                      } catch (err) {
-                        // Error ya manejado en crearMaterialDirecto
-                      }
-                    }
-                  }}
-                  disabled={crearMaterialMutation?.isPending || false}
+                  onClick={handleCrearMaterial}
+                  disabled={creandoMaterial}
                   className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg"
                 >
-                  {crearMaterialMutation?.isPending ? 'Creando...' : 'Crear'}
+                  {creandoMaterial ? 'Creando...' : 'Crear'}
                 </button>
                 <button
                   onClick={() => {
