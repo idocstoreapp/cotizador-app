@@ -39,8 +39,33 @@ export async function downloadQuotePDF(data: QuotePDFData): Promise<void> {
 
     // Verificar si la respuesta es exitosa
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `Error ${response.status}: ${response.statusText}`);
+      let errorMessage = `Error ${response.status}: ${response.statusText}`;
+      let errorDetails: any = {};
+      
+      try {
+        // Intentar obtener el error como JSON
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          errorDetails = errorData;
+        } else {
+          // Si no es JSON, intentar leer como texto
+          const errorText = await response.text();
+          errorMessage = errorText || errorMessage;
+        }
+      } catch (parseError) {
+        console.error('Error al parsear respuesta de error:', parseError);
+      }
+      
+      console.error('❌ Error del servidor al generar PDF:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorMessage,
+        details: errorDetails
+      });
+      
+      throw new Error(errorMessage);
     }
 
     // Obtener el blob del PDF
@@ -63,7 +88,11 @@ export async function downloadQuotePDF(data: QuotePDFData): Promise<void> {
     window.URL.revokeObjectURL(url);
 
   } catch (error: any) {
-    console.error('Error al descargar PDF:', error);
+    console.error('❌ Error completo al descargar PDF:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack
+    });
     throw error;
   }
 }
@@ -84,8 +113,31 @@ export async function openQuotePDF(data: QuotePDFData): Promise<void> {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `Error ${response.status}: ${response.statusText}`);
+      let errorMessage = `Error ${response.status}: ${response.statusText}`;
+      let errorDetails: any = {};
+      
+      try {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          errorDetails = errorData;
+        } else {
+          const errorText = await response.text();
+          errorMessage = errorText || errorMessage;
+        }
+      } catch (parseError) {
+        console.error('Error al parsear respuesta de error:', parseError);
+      }
+      
+      console.error('❌ Error del servidor al generar PDF:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorMessage,
+        details: errorDetails
+      });
+      
+      throw new Error(errorMessage);
     }
 
     const blob = await response.blob();

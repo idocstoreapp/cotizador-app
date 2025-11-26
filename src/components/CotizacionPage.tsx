@@ -87,11 +87,21 @@ export default function CotizacionPage() {
 
       // Generar PDF profesional usando el nuevo sistema
       try {
+        console.log('📄 Intentando generar PDF con datos:', {
+          quoteNumber: numero,
+          itemsCount: datosPDF.items.length,
+          total: datosPDF.total
+        });
         await downloadQuotePDF(datosPDF);
         alert(`✅ Cotización ${numero} guardada y PDF generado exitosamente`);
       } catch (pdfError: any) {
-        console.error('Error al generar PDF:', pdfError);
-        alert(`⚠️ Cotización ${numero} guardada, pero hubo un error al generar el PDF: ${pdfError.message}`);
+        console.error('❌ Error completo al generar PDF:', {
+          message: pdfError.message,
+          name: pdfError.name,
+          stack: pdfError.stack
+        });
+        const errorMsg = pdfError.message || 'Error desconocido al generar PDF';
+        alert(`⚠️ Cotización ${numero} guardada, pero hubo un error al generar el PDF:\n\n${errorMsg}\n\nRevisa la consola para más detalles.`);
       }
 
       // Limpiar el carrito después de guardar
