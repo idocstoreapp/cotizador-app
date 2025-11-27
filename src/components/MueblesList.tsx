@@ -3,7 +3,7 @@
  * SOLO se renderiza en el cliente - completamente seguro para SSR
  * Tiene su propio QueryClientProvider como fallback
  */
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { obtenerMuebles } from '../services/muebles.service';
 import ProductCard from './ui/ProductCard';
@@ -44,7 +44,8 @@ function getOrCreateQueryClientMuebles(): QueryClient {
 }
 
 // Componente interno que usa useQuery
-function MueblesListContent({ onMuebleClick, onAddToQuote }: MueblesListProps) {
+// Memoizar el componente para evitar re-renders innecesarios
+const MueblesListContent = React.memo(function MueblesListContent({ onMuebleClick, onAddToQuote }: MueblesListProps) {
   const { data: muebles = [], isLoading, error } = useQuery({
     queryKey: ['muebles'],
     queryFn: obtenerMuebles,
@@ -107,7 +108,7 @@ function MueblesListContent({ onMuebleClick, onAddToQuote }: MueblesListProps) {
       ))}
     </div>
   );
-}
+});
 
 // Componente wrapper que proporciona QueryClient
 export default function MueblesList({ onMuebleClick, onAddToQuote }: MueblesListProps) {

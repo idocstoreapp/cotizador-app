@@ -1,7 +1,7 @@
 /**
  * Página de cotización (carrito)
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCotizacionStore } from '../store/cotizacionStore';
 import CotizacionCart from './ui/CotizacionCart';
 import AgregarItemManual from './ui/AgregarItemManual';
@@ -12,6 +12,8 @@ import { crearCotizacion } from '../services/cotizaciones.service';
 import { obtenerUsuarioActual } from '../services/auth.service';
 import { convertirItemsACotizacionInput } from '../utils/convertirCotizacionStore';
 import { EMPRESAS, type Empresa } from '../types/empresas';
+import { obtenerVendedores } from '../services/usuarios.service';
+import type { UserProfile } from '../types/database';
 
 export default function CotizacionPage() {
   const { items, subtotal, descuento, iva, total } = useCotizacionStore();
@@ -19,12 +21,27 @@ export default function CotizacionPage() {
   const [mostrarFormularioCliente, setMostrarFormularioCliente] = useState(false);
   const [mostrarSeleccionarEmpresa, setMostrarSeleccionarEmpresa] = useState(false);
   const [empresaSeleccionada, setEmpresaSeleccionada] = useState<Empresa | null>(null);
+  const [vendedores, setVendedores] = useState<UserProfile[]>([]);
+  const [vendedorSeleccionado, setVendedorSeleccionado] = useState<string>('');
   const [datosCliente, setDatosCliente] = useState({
     nombre: '',
     telefono: '',
     email: '',
     direccion: ''
   });
+
+  // Cargar vendedores al montar el componente
+  useEffect(() => {
+    const cargarVendedores = async () => {
+      try {
+        const vendedoresData = await obtenerVendedores();
+        setVendedores(vendedoresData);
+      } catch (error) {
+        console.error('Error al cargar vendedores:', error);
+      }
+    };
+    cargarVendedores();
+  }, []);
 
   /**
    * Genera el PDF y guarda la cotización en la base de datos
@@ -84,7 +101,8 @@ export default function CotizacionPage() {
         descuento, // Descuento
         iva, // IVA calculado desde items
         total, // Total calculado desde items
-        empresa // Empresa seleccionada
+        empresa, // Empresa seleccionada
+        vendedorSeleccionado || undefined // Vendedor seleccionado
       );
       
       console.log('✅ Cotización guardada:', {
@@ -284,6 +302,25 @@ export default function CotizacionPage() {
                   placeholder="Ej: Calle Principal 123"
                 />
               </div>
+              {vendedores.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Vendedor
+                  </label>
+                  <select
+                    value={vendedorSeleccionado}
+                    onChange={(e) => setVendedorSeleccionado(e.target.value)}
+                    className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  >
+                    <option value="">Seleccionar vendedor (opcional)</option>
+                    {vendedores.map((vendedor) => (
+                      <option key={vendedor.id} value={vendedor.id}>
+                        {vendedor.nombre || ''} {vendedor.apellido || ''} {!vendedor.nombre && !vendedor.apellido ? (vendedor.email || 'Sin nombre') : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="flex gap-3 pt-4">
                 <button
                   type="submit"

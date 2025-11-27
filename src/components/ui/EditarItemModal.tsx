@@ -6,11 +6,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useCotizacionStore } from '../../store/cotizacionStore';
 import { obtenerMateriales, crearMaterial } from '../../services/materiales.service';
+import { obtenerGastosRealesPorItem } from '../../services/gastos-reales.service';
+import RegistrarGastoRealModal from './RegistrarGastoRealModal';
 import type { ItemCotizacion, ItemManualCotizacion, MaterialMueble, MedidasMueble } from '../../types/muebles';
-import type { Material } from '../../types/database';
+import type { Material, GastoRealMaterial } from '../../types/database';
 
 interface EditarItemModalProps {
   item: ItemCotizacion;
+  cotizacionId?: string; // ID de la cotización para registrar gastos reales
   onClose: () => void;
   onSave: () => void;
 }
@@ -18,12 +21,15 @@ interface EditarItemModalProps {
 const PRECIO_HORA_MANO_OBRA = 50000;
 const PRECIO_DIA_TRABAJO = 150000;
 
-export default function EditarItemModal({ item, onClose, onSave }: EditarItemModalProps) {
+export default function EditarItemModal({ item, cotizacionId, onClose, onSave }: EditarItemModalProps) {
   const { actualizarItemManual } = useCotizacionStore();
   const [error, setError] = useState<string | null>(null);
   const [materiales, setMateriales] = useState<Material[]>([]);
   const [loadingMateriales, setLoadingMateriales] = useState(true);
   const [creandoMaterial, setCreandoMaterial] = useState(false);
+  const [materialRegistrandoGasto, setMaterialRegistrandoGasto] = useState<MaterialMueble | null>(null);
+  const [gastosReales, setGastosReales] = useState<GastoRealMaterial[]>([]);
+  const [loadingGastos, setLoadingGastos] = useState(false);
   
   // Solo permitir editar items manuales
   if (item.tipo !== 'manual') {
@@ -374,15 +380,47 @@ export default function EditarItemModal({ item, onClose, onSave }: EditarItemMod
               <>
                 <div className="space-y-2 mb-4">
                   {materialesSeleccionados.map((mat, index) => (
-                    <div key={index} className="flex items-center justify-between bg-gray-100 p-3 rounded-lg">
-                      <span className="text-sm">
-                        {mat.material_nombre || 'Material'} - {mat.cantidad} {mat.unidad} @ ${mat.precio_unitario?.toLocaleString('es-CO')}
-                      </span>
+                    <div key={index} className="flex items-center gap-3 bg-gray-100 p-3 rounded-lg">
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-gray-900">
+                          {mat.material_nombre || 'Material'}
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          {mat.unidad} @ ${mat.precio_unitario?.toLocaleString('es-CO')}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs text-gray-700">Cantidad:</label>
+                        <input
+                          type="number"
+                          value={mat.cantidad}
+                          onChange={(e) => {
+                            // Usar requestAnimationFrame para evitar reprocesamiento forzado
+                            requestAnimationFrame(() => {
+                              const nuevaCantidad = parseFloat(e.target.value) || 0;
+                              const nuevosMateriales = [...materialesSeleccionados];
+                              nuevosMateriales[index] = {
+                                ...nuevosMateriales[index],
+                                cantidad: nuevaCantidad
+                              };
+                              setMaterialesSeleccionados(nuevosMateriales);
+                            });
+                          }}
+                          className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                          min="0"
+                          step="0.1"
+                        />
+                        <span className="text-xs text-gray-600">{mat.unidad}</span>
+                      </div>
+                      <div className="text-sm font-medium text-gray-900">
+                        ${((mat.cantidad || 0) * (mat.precio_unitario || 0)).toLocaleString('es-CO')}
+                      </div>
                       <button
                         onClick={() => eliminarMaterial(index)}
-                        className="text-red-600 hover:text-red-800 text-sm"
+                        className="text-red-600 hover:text-red-800 text-sm px-2"
+                        title="Eliminar material"
                       >
-                        Eliminar
+                        🗑️
                       </button>
                     </div>
                   ))}

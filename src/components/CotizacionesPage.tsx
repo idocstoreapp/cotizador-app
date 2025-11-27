@@ -10,6 +10,7 @@ import { obtenerUsuarios } from '../services/usuarios.service';
 import { downloadQuotePDF } from '../utils/pdf';
 import { convertirCotizacionAPDF } from '../utils/convertirCotizacionAPDF';
 import { useUser } from '../contexts/UserContext';
+import AsignarTrabajadoresModal from './ui/AsignarTrabajadoresModal';
 import type { Cotizacion } from '../types/database';
 
 export default function CotizacionesPage() {
@@ -17,7 +18,6 @@ export default function CotizacionesPage() {
   const { usuario, esAdmin } = useUser();
   const queryClient = useQueryClient();
   const [cotizacionSeleccionada, setCotizacionSeleccionada] = useState<Cotizacion | null>(null);
-  const [empleadosSeleccionados, setEmpleadosSeleccionados] = useState<string[]>([]);
   const [mostrarModalAsignacion, setMostrarModalAsignacion] = useState(false);
   const [mostrarModalDetalles, setMostrarModalDetalles] = useState(false);
   const [cotizacionDetalles, setCotizacionDetalles] = useState<Cotizacion | null>(null);
@@ -95,13 +95,28 @@ export default function CotizacionesPage() {
 
   // Mutación para cambiar estado
   const cambiarEstadoMutation = useMutation({
-    mutationFn: ({ id, estado, empleadosAsignados }: { id: string; estado: any; empleadosAsignados?: string[] }) => 
-      cambiarEstadoCotizacion(id, estado, empleadosAsignados),
+    mutationFn: ({ 
+      id, 
+      estado, 
+      empleadosAsignados, 
+      pagoVendedor, 
+      trabajadores 
+    }: { 
+      id: string; 
+      estado: any; 
+      empleadosAsignados?: string[];
+      pagoVendedor?: number;
+      trabajadores?: Array<{
+        trabajadorId: string;
+        pagoTrabajador: number;
+        notas?: string;
+      }>;
+    }) => 
+      cambiarEstadoCotizacion(id, estado, empleadosAsignados, pagoVendedor, trabajadores),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cotizaciones'] });
       setMostrarModalAsignacion(false);
       setCotizacionSeleccionada(null);
-      setEmpleadosSeleccionados([]);
     }
   });
 
@@ -125,10 +140,9 @@ export default function CotizacionesPage() {
    * Maneja el cambio de estado de una cotización
    */
   const handleCambiarEstado = async (cotizacion: Cotizacion, nuevoEstado: string) => {
-    // Si se acepta, mostrar modal para asignar empleados
+    // Si se acepta, mostrar modal para asignar trabajadores y definir pagos
     if (nuevoEstado === 'aceptada') {
       setCotizacionSeleccionada(cotizacion);
-      setEmpleadosSeleccionados([]);
       setMostrarModalAsignacion(true);
     } else {
       // Para rechazada o pendiente, cambiar directamente
@@ -140,15 +154,23 @@ export default function CotizacionesPage() {
   };
 
   /**
-   * Confirma la aceptación con empleados asignados
+   * Confirma la aceptación con trabajadores asignados y pagos
    */
-  const handleConfirmarAceptacion = async () => {
+  const handleConfirmarAceptacion = async (
+    pagoVendedor: number,
+    trabajadores: Array<{
+      trabajadorId: string;
+      pagoTrabajador: number;
+      notas?: string;
+    }>
+  ) => {
     if (!cotizacionSeleccionada) return;
 
     await cambiarEstadoMutation.mutateAsync({
       id: cotizacionSeleccionada.id,
       estado: 'aceptada' as any,
-      empleadosAsignados: empleadosSeleccionados
+      pagoVendedor,
+      trabajadores
     });
   };
 
@@ -433,91 +455,21 @@ export default function CotizacionesPage() {
         )}
       </div>
 
-      {/* Modal para asignar empleados al aceptar cotización */}
+      {/* Modal para asignar trabajadores y definir pagos al aceptar cotización */}
       {mostrarModalAsignacion && cotizacionSeleccionada && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Aceptar Cotización</h2>
-              <button
-                onClick={() => {
-                  setMostrarModalAsignacion(false);
-                  setCotizacionSeleccionada(null);
-                  setEmpleadosSeleccionados([]);
-                }}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <p className="text-sm text-gray-600 mb-4">
-                  Al aceptar esta cotización, se creará un nuevo cliente y un nuevo trabajo.
-                  Puedes asignar empleados al trabajo:
-                </p>
-                <p className="text-sm font-medium text-gray-900 mb-2">
-                  Cotización: {cotizacionSeleccionada.numero}
-                </p>
-                <p className="text-sm text-gray-600 mb-4">
-                  Cliente: {cotizacionSeleccionada.cliente_nombre}
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Asignar Empleados (opcional)
-                </label>
-                <div className="space-y-2 max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                  {empleados.length === 0 ? (
-                    <p className="text-sm text-gray-500">No hay empleados disponibles</p>
-                  ) : (
-                    empleados.map((empleado) => (
-                      <label key={empleado.id} className="flex items-center space-x-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={empleadosSeleccionados.includes(empleado.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setEmpleadosSeleccionados([...empleadosSeleccionados, empleado.id]);
-                            } else {
-                              setEmpleadosSeleccionados(empleadosSeleccionados.filter(id => id !== empleado.id));
-                            }
-                          }}
-                          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                        <span className="text-sm text-gray-700">
-                          {empleado.nombre || empleado.email}
-                        </span>
-                      </label>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={handleConfirmarAceptacion}
-                  disabled={cambiarEstadoMutation.isPending}
-                  className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-                >
-                  {cambiarEstadoMutation.isPending ? 'Guardando...' : 'Aceptar y Crear Trabajo'}
-                </button>
-                <button
-                  onClick={() => {
-                    setMostrarModalAsignacion(false);
-                    setCotizacionSeleccionada(null);
-                    setEmpleadosSeleccionados([]);
-                  }}
-                  disabled={cambiarEstadoMutation.isPending}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <AsignarTrabajadoresModal
+          cotizacionId={cotizacionSeleccionada.id}
+          pagoVendedor={cotizacionSeleccionada.pago_vendedor || 0}
+          onConfirmar={(pagoVendedor, trabajadores) => {
+            handleConfirmarAceptacion(pagoVendedor, trabajadores);
+            setMostrarModalAsignacion(false);
+            setCotizacionSeleccionada(null);
+          }}
+          onCancelar={() => {
+            setMostrarModalAsignacion(false);
+            setCotizacionSeleccionada(null);
+          }}
+        />
       )}
 
       {/* Modal de Detalles Completos */}

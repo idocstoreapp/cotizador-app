@@ -8,9 +8,10 @@ import EditarItemModal from './EditarItemModal';
 
 interface CotizacionCartProps {
   onGenerarPDF?: () => void;
+  cotizacionId?: string; // ID de la cotización para registrar gastos reales
 }
 
-export default function CotizacionCart({ onGenerarPDF }: CotizacionCartProps) {
+export default function CotizacionCart({ onGenerarPDF, cotizacionId }: CotizacionCartProps) {
   const { items, subtotal, descuento, iva, total, eliminarItem, actualizarCantidad, setDescuento, calcularTotales } = useCotizacionStore();
   const [descuentoInput, setDescuentoInput] = useState(descuento.toString());
   const [itemEditando, setItemEditando] = useState<string | null>(null);
@@ -172,19 +173,29 @@ export default function CotizacionCart({ onGenerarPDF }: CotizacionCartProps) {
                 </td>
                 <td className="px-4 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => actualizarCantidad(item.id, item.cantidad - 1)}
-                      className="w-8 h-8 rounded border border-gray-300 hover:bg-gray-50 flex items-center justify-center"
-                    >
-                      −
-                    </button>
-                    <span className="w-12 text-center">{item.cantidad}</span>
-                    <button
-                      onClick={() => actualizarCantidad(item.id, item.cantidad + 1)}
-                      className="w-8 h-8 rounded border border-gray-300 hover:bg-gray-50 flex items-center justify-center"
-                    >
-                      +
-                    </button>
+                        <button
+                          onClick={() => {
+                            // Agrupar actualización para evitar reflow
+                            requestAnimationFrame(() => {
+                              actualizarCantidad(item.id, item.cantidad - 1);
+                            });
+                          }}
+                          className="w-8 h-8 rounded border border-gray-300 hover:bg-gray-50 flex items-center justify-center"
+                        >
+                          −
+                        </button>
+                        <span className="w-12 text-center">{item.cantidad}</span>
+                        <button
+                          onClick={() => {
+                            // Agrupar actualización para evitar reflow
+                            requestAnimationFrame(() => {
+                              actualizarCantidad(item.id, item.cantidad + 1);
+                            });
+                          }}
+                          className="w-8 h-8 rounded border border-gray-300 hover:bg-gray-50 flex items-center justify-center"
+                        >
+                          +
+                        </button>
                     {item.tipo === 'manual' && (
                       <button
                         onClick={() => setItemEditando(item.id)}
@@ -280,6 +291,7 @@ export default function CotizacionCart({ onGenerarPDF }: CotizacionCartProps) {
         return (
           <EditarItemModal
             item={item}
+            cotizacionId={cotizacionId}
             onClose={() => {
               setItemEditando(null);
               calcularTotales();

@@ -225,7 +225,7 @@ export default function EditarCotizacionModal({
                 <p className="text-gray-600">Cargando items...</p>
               </div>
             ) : (
-              <CotizacionCart onGenerarPDF={undefined} />
+              <CotizacionCart onGenerarPDF={undefined} cotizacionId={cotizacion.id} />
             )}
           </div>
 

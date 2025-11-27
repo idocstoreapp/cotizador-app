@@ -8,6 +8,7 @@ import type { CotizacionInput } from '../schemas/validations';
 import { calcularCotizacionCompleta } from '../utils/calcularCotizacion';
 import { crearCliente, buscarCliente } from './clientes.service';
 import { crearTrabajo } from './trabajos.service';
+import { asignarTrabajadoresACotizacion } from './cotizacion-trabajadores.service';
 
 /**
  * Genera un número único de cotización según la empresa
@@ -71,16 +72,18 @@ export async function obtenerCotizaciones(usuarioId?: string): Promise<Cotizacio
   if (error) throw error;
   if (!cotizaciones || cotizaciones.length === 0) return [];
 
-  // Obtener los IDs únicos de usuarios
+  // Obtener los IDs únicos de usuarios y vendedores
   const usuarioIds = [...new Set(cotizaciones.map(c => c.usuario_id).filter(Boolean))];
+  const vendedorIds = [...new Set(cotizaciones.map(c => c.vendedor_id).filter(Boolean))];
+  const todosLosIds = [...new Set([...usuarioIds, ...vendedorIds])];
   
   // Cargar los perfiles por separado
   let perfiles: any[] = [];
-  if (usuarioIds.length > 0) {
+  if (todosLosIds.length > 0) {
     const { data: perfilesData, error: perfilesError } = await supabase
       .from('perfiles')
       .select('id, nombre, email, role')
-      .in('id', usuarioIds);
+      .in('id', todosLosIds);
     
     if (!perfilesError && perfilesData) {
       perfiles = perfilesData;
@@ -90,9 +93,13 @@ export async function obtenerCotizaciones(usuarioId?: string): Promise<Cotizacio
   // Combinar cotizaciones con perfiles
   const cotizacionesConUsuario = cotizaciones.map(cotizacion => {
     const perfil = perfiles.find(p => p.id === cotizacion.usuario_id);
+    const vendedor = cotizacion.vendedor_id 
+      ? perfiles.find(p => p.id === cotizacion.vendedor_id)
+      : null;
     return {
       ...cotizacion,
-      usuario: perfil || null
+      usuario: perfil || null,
+      vendedor: vendedor || null
     } as Cotizacion;
   });
 
@@ -114,7 +121,7 @@ export async function obtenerCotizacionPorId(id: string): Promise<Cotizacion | n
   if (error) throw error;
   if (!data) return null;
   
-  // Cargar usuario por separado
+  // Cargar usuario y vendedor por separado
   let cotizacionConUsuario = data as Cotizacion;
   if (data.usuario_id) {
     const { data: perfil } = await supabase
@@ -125,6 +132,19 @@ export async function obtenerCotizacionPorId(id: string): Promise<Cotizacion | n
     
     if (perfil) {
       cotizacionConUsuario = { ...cotizacionConUsuario, usuario: perfil as any };
+    }
+  }
+  
+  // Cargar vendedor si existe
+  if (data.vendedor_id) {
+    const { data: vendedor } = await supabase
+      .from('perfiles')
+      .select('id, nombre, email, role')
+      .eq('id', data.vendedor_id)
+      .single();
+    
+    if (vendedor) {
+      cotizacionConUsuario = { ...cotizacionConUsuario, vendedor: vendedor as any };
     }
   }
   
@@ -146,7 +166,8 @@ export async function crearCotizacion(
   descuento?: number, // Descuento aplicado
   ivaDesdeItems?: number, // IVA calculado desde items
   totalDesdeItems?: number, // Total calculado desde items
-  empresa?: 'casablanca' | 'kubica' // Empresa que genera la cotización
+  empresa?: 'casablanca' | 'kubica', // Empresa que genera la cotización
+  vendedorId?: string // ID del vendedor que genera la cotización
 ): Promise<Cotizacion> {
   // Si hay items, calcular totales desde los items (más preciso)
   let subtotal = 0;
@@ -210,6 +231,8 @@ export async function crearCotizacion(
       total: total,
       estado: 'pendiente',
       usuario_id: usuarioId,
+      vendedor_id: vendedorId || null,
+      pago_vendedor: 0, // Inicialmente 0, se actualiza al aceptar
       notas: cotizacion.notas || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -428,12 +451,21 @@ export async function eliminarCotizacion(id: string): Promise<void> {
  * Cambia el estado de una cotización
  * @param id - ID de la cotización
  * @param estado - Nuevo estado
+ * @param empleadosAsignados - IDs de empleados asignados (deprecated, usar trabajadores)
+ * @param pagoVendedor - Monto del pago al vendedor (solo para aceptada)
+ * @param trabajadores - Array de trabajadores con sus pagos (solo para aceptada)
  * @returns Cotización actualizada
  */
 export async function cambiarEstadoCotizacion(
   id: string,
   estado: 'pendiente' | 'aceptada' | 'rechazada',
-  empleadosAsignados?: string[]
+  empleadosAsignados?: string[], // Deprecated, mantener por compatibilidad
+  pagoVendedor?: number,
+  trabajadores?: Array<{
+    trabajadorId: string;
+    pagoTrabajador: number;
+    notas?: string;
+  }>
 ): Promise<Cotizacion> {
   // Obtener la cotización actual
   const cotizacion = await obtenerCotizacionPorId(id);
@@ -477,12 +509,28 @@ export async function cambiarEstadoCotizacion(
       cotizacion_id: id,
       empleados_asignados: empleadosAsignados || []
     });
+
+    // Asignar trabajadores de taller si se proporcionaron
+    if (trabajadores && trabajadores.length > 0) {
+      await asignarTrabajadoresACotizacion(id, trabajadores);
+    }
+  }
+
+  // Preparar datos de actualización
+  const datosActualizacion: any = {
+    estado,
+    updated_at: new Date().toISOString()
+  };
+
+  // Si se acepta y hay pago de vendedor, actualizarlo
+  if (estado === 'aceptada' && pagoVendedor !== undefined) {
+    datosActualizacion.pago_vendedor = pagoVendedor;
   }
 
   // Actualizar estado de la cotización
   const { data, error } = await supabase
     .from('cotizaciones')
-    .update({ estado, updated_at: new Date().toISOString() })
+    .update(datosActualizacion)
     .eq('id', id)
     .select('*')
     .single();

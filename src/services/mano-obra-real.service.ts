@@ -1,0 +1,125 @@
+/**
+ * Servicio para gestionar mano de obra real
+ */
+import { supabase } from '../utils/supabase';
+import type { ManoObraReal } from '../types/database';
+
+/**
+ * Crea un registro de mano de obra real
+ */
+export async function crearManoObraReal(manoObra: {
+  cotizacion_id: string;
+  trabajador_id?: string;
+  horas_trabajadas: number;
+  pago_por_hora: number;
+  fecha: string;
+  comprobante_url?: string;
+  notas?: string;
+}): Promise<ManoObraReal> {
+  const total_pagado = manoObra.horas_trabajadas * manoObra.pago_por_hora;
+
+  const { data, error } = await supabase
+    .from('mano_obra_real')
+    .insert({
+      cotizacion_id: manoObra.cotizacion_id,
+      trabajador_id: manoObra.trabajador_id || null,
+      horas_trabajadas: manoObra.horas_trabajadas,
+      pago_por_hora: manoObra.pago_por_hora,
+      total_pagado: total_pagado,
+      fecha: manoObra.fecha,
+      comprobante_url: manoObra.comprobante_url || null,
+      notas: manoObra.notas || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ManoObraReal;
+}
+
+/**
+ * Obtiene todos los registros de mano de obra real de una cotización
+ */
+export async function obtenerManoObraRealPorCotizacion(cotizacionId: string): Promise<ManoObraReal[]> {
+  const { data, error } = await supabase
+    .from('mano_obra_real')
+    .select(`
+      *,
+      trabajador:perfiles(id, nombre, email)
+    `)
+    .eq('cotizacion_id', cotizacionId)
+    .order('fecha', { ascending: false });
+
+  if (error) throw error;
+  
+  // Mapear trabajador si existe (apellido puede no existir aún)
+  return (data || []).map((item: any) => ({
+    ...item,
+    trabajador: item.trabajador ? {
+      id: item.trabajador.id,
+      nombre: item.trabajador.nombre || '',
+      apellido: (item.trabajador as any).apellido || null,
+      email: item.trabajador.email || null
+    } : null
+  })) as ManoObraReal[];
+}
+
+/**
+ * Actualiza un registro de mano de obra real
+ */
+export async function actualizarManoObraReal(
+  id: string,
+  updates: Partial<{
+    trabajador_id: string;
+    horas_trabajadas: number;
+    pago_por_hora: number;
+    fecha: string;
+    comprobante_url: string;
+    notas: string;
+  }>
+): Promise<ManoObraReal> {
+  // Si se actualizan horas o pago, recalcular total
+  const updateData: any = { ...updates };
+  if (updates.horas_trabajadas !== undefined || updates.pago_por_hora !== undefined) {
+    // Necesitamos obtener el registro actual para calcular el total
+    const { data: actual } = await supabase
+      .from('mano_obra_real')
+      .select('horas_trabajadas, pago_por_hora')
+      .eq('id', id)
+      .single();
+    
+    if (actual) {
+      const horas = updates.horas_trabajadas ?? actual.horas_trabajadas;
+      const pago = updates.pago_por_hora ?? actual.pago_por_hora;
+      updateData.total_pagado = horas * pago;
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('mano_obra_real')
+    .update({
+      ...updateData,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ManoObraReal;
+}
+
+/**
+ * Elimina un registro de mano de obra real
+ */
+export async function eliminarManoObraReal(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('mano_obra_real')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+

@@ -138,6 +138,7 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
 
   /**
    * Calcula los totales en tiempo real
+   * Optimizado para evitar recálculos innecesarios
    */
   const calculos = useMemo(() => {
     // Costo de materiales

@@ -19,15 +19,19 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [loading, setLoading] = useState(false);
 
   /**
-   * Maneja el envío del formulario de login
+   * Función auxiliar que ejecuta el login
    */
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    // Prevenir comportamiento por defecto del formulario
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
+  const ejecutarLogin = async () => {
+    // Validar que haya datos
+    if (!email.trim() || !password.trim()) {
+      return;
     }
-    
+
+    // Si ya está cargando, no hacer nada
+    if (loading) {
+      return;
+    }
+
     console.log('Formulario enviado - Email:', email);
     setError(null);
     setLoading(true);
@@ -87,6 +91,16 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     }
   };
 
+  /**
+   * Maneja el envío del formulario de login
+   */
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    // Prevenir comportamiento por defecto del formulario
+    e.preventDefault();
+    e.stopPropagation();
+    await ejecutarLogin();
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -100,11 +114,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         </div>
         <form 
           className="mt-8 space-y-6" 
-          onSubmit={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            handleSubmit(e);
-          }}
+          onSubmit={handleSubmit}
           noValidate
         >
           {error && (
@@ -159,11 +169,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             <button
               type="submit"
               disabled={loading}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
             </button>

@@ -250,6 +250,7 @@ export default function HistorialCotizaciones() {
                   {esAdmin && (
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Creado por</th>
                   )}
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vendedor</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
                 </tr>
@@ -314,6 +315,22 @@ export default function HistorialCotizaciones() {
                       </td>
                     )}
                     <td className="px-6 py-4 whitespace-nowrap">
+                      {cotizacion.vendedor ? (
+                        <>
+                          <div className="text-sm text-gray-900">
+                            {(cotizacion.vendedor as any)?.nombre || 'N/A'}
+                          </div>
+                          {cotizacion.pago_vendedor && cotizacion.pago_vendedor > 0 && (
+                            <div className="text-xs text-green-600 font-medium">
+                              ${cotizacion.pago_vendedor.toLocaleString('es-CO')}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-sm text-gray-400">Sin vendedor</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
                         {new Date(cotizacion.created_at).toLocaleDateString('es-ES')}
                       </div>
@@ -343,13 +360,22 @@ export default function HistorialCotizaciones() {
                         >
                           PDF
                         </button>
+                        {cotizacion.estado === 'aceptada' && esAdmin && (
+                          <a
+                            href={`/cotizaciones/${cotizacion.id}/costos`}
+                            className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
+                            title="Control de Costos"
+                          >
+                            💰 Costos
+                          </a>
+                        )}
                         {esAdmin && (
                           <button
                             onClick={() => {
                               setCotizacionEditando(cotizacion);
                               setMostrarModalEditar(true);
                             }}
-                            className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
+                            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
                             title="Editar cotización"
                           >
                             Editar

@@ -2,6 +2,7 @@
  * Componente de tarjeta de producto para el catálogo
  * Diseño moderno con imagen grande, precio destacado y botón de acción
  */
+import React from 'react';
 import type { Mueble } from '../../types/muebles';
 
 interface ProductCardProps {
@@ -9,7 +10,8 @@ interface ProductCardProps {
   onAddToQuote: (mueble: Mueble) => void;
 }
 
-export default function ProductCard({ mueble, onAddToQuote }: ProductCardProps) {
+// Memoizar para evitar re-renders innecesarios
+const ProductCard = React.memo(function ProductCard({ mueble, onAddToQuote }: ProductCardProps) {
   return (
     <div className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden group cursor-pointer">
       {/* Imagen del producto */}
@@ -66,6 +68,6 @@ export default function ProductCard({ mueble, onAddToQuote }: ProductCardProps) 
       </div>
     </div>
   );
-}
+});
 
-
+export default ProductCard;

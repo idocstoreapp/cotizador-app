@@ -5,17 +5,20 @@
  */
 import { useState, useEffect } from 'react';
 import { useUser } from '../../contexts/UserContext';
+import { obtenerUsuarioActual } from '../../services/auth.service';
 import { obtenerMateriales, actualizarMaterial, crearMaterial, eliminarMaterial } from '../../services/materiales.service';
 import { obtenerServicios, actualizarServicio, crearServicio, eliminarServicio } from '../../services/servicios.service';
 import { obtenerMueblesAdmin, actualizarMuebleAdmin } from '../../services/muebles-admin.service';
 import type { Material } from '../../types/database';
 import type { Servicio } from '../../types/database';
 import type { Mueble, OpcionPersonalizada } from '../../types/muebles';
+import type { UserProfile } from '../../types/database';
 
 type TabType = 'materiales' | 'servicios' | 'muebles' | 'variantes' | 'configuracion';
 
 export default function AdminPreciosPage() {
-  const { usuario, esAdmin } = useUser();
+  const contextoUsuario = useUser();
+  const [usuarioLocal, setUsuarioLocal] = useState<UserProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tabActual, setTabActual] = useState<TabType>('materiales');
   const [editandoId, setEditandoId] = useState<string | null>(null);
@@ -71,10 +74,46 @@ export default function AdminPreciosPage() {
     }
   }, []);
 
+  // Usar usuario del contexto o cargar directamente
+  const usuario = contextoUsuario.usuario || usuarioLocal;
+  const esAdmin = usuario?.role === 'admin' || false;
+
+  // Cargar usuario directamente si no está en contexto
+  useEffect(() => {
+    const cargarUsuario = async () => {
+      // Si ya tenemos usuario del contexto, usarlo
+      if (contextoUsuario.usuario?.id) {
+        console.log('✅ Usuario disponible desde contexto:', contextoUsuario.usuario.email);
+        setUsuarioLocal(null);
+        return;
+      }
+
+      // Si no, cargar directamente desde Supabase
+      try {
+        console.log('📥 Cargando usuario directamente desde Supabase...');
+        const usuarioDirecto = await obtenerUsuarioActual();
+        if (usuarioDirecto) {
+          console.log('✅ Usuario cargado directamente:', usuarioDirecto.email);
+          setUsuarioLocal(usuarioDirecto);
+        }
+      } catch (err: any) {
+        console.error('❌ Error al cargar usuario:', err);
+        setError('Error al cargar usuario: ' + (err.message || 'Error desconocido'));
+      }
+    };
+
+    cargarUsuario();
+  }, [contextoUsuario.usuario?.id]);
+
   // Cargar datos cuando el usuario esté disponible y sea admin
   useEffect(() => {
     const cargarDatos = async () => {
-      if (!usuario || !esAdmin) return;
+      // Esperar a que el usuario se cargue completamente
+      if (!usuario?.id) {
+        console.log('⏳ Esperando usuario...');
+        return;
+      }
+      if (!esAdmin) return;
 
       try {
         // Cargar materiales

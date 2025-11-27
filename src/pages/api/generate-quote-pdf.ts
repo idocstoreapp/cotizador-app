@@ -6,6 +6,7 @@
 import type { APIRoute } from 'astro';
 import { renderQuoteToHTML } from '../../utils/renderQuoteToHTML';
 import { supabase } from '../../utils/supabase';
+import { convertirLogoABase64 } from '../../utils/convertirLogoABase64';
 
 // Importar dinámicamente según el entorno
 async function getPuppeteer() {
@@ -84,6 +85,18 @@ export const POST: APIRoute = async ({ request }) => {
 
     console.log('🎨 Renderizando HTML...');
     
+    // Convertir logo a base64 si está disponible (para que Puppeteer pueda renderizarlo)
+    let logoBase64 = companyLogo;
+    if (companyLogo && !companyLogo.startsWith('data:image')) {
+      console.log('📸 Convirtiendo logo a base64...', companyLogo);
+      logoBase64 = await convertirLogoABase64(companyLogo) || companyLogo;
+      if (logoBase64 !== companyLogo) {
+        console.log('✅ Logo convertido a base64 exitosamente');
+      } else {
+        console.warn('⚠️ No se pudo convertir el logo a base64, usando URL original');
+      }
+    }
+    
     // Renderizar React a HTML
     const html = renderQuoteToHTML({
       clientName,
@@ -95,7 +108,7 @@ export const POST: APIRoute = async ({ request }) => {
       total,
       image,
       companyName,
-      companyLogo,
+      companyLogo: logoBase64, // Usar base64 en lugar de URL
       empresaInfo
     });
 

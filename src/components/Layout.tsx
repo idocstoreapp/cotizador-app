@@ -22,19 +22,18 @@ export default function Layout({ children, currentPath }: LayoutProps) {
 
   /**
    * Obtiene el usuario autenticado
-   * NOTA: Esta función puede colgarse si getSession() tiene problemas
-   * Por eso el listener onAuthStateChange usa la sesión del evento directamente
+   * OPTIMIZADO: Usa onAuthStateChange como fuente principal, esta función es solo un fallback
    */
   const cargarUsuario = useCallback(async () => {
-    console.log('=== cargarUsuario() llamado ===');
+    console.log('=== cargarUsuario() llamado (fallback) ===');
     try {
       setLoading(true);
       
-      // Intentar obtener sesión con timeout
-      console.log('Obteniendo sesión de Supabase (con timeout de 3s)...');
+      // Intentar obtener sesión con timeout más largo (5s)
+      console.log('Obteniendo sesión de Supabase (con timeout de 5s)...');
       const sessionPromise = supabase.auth.getSession();
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout: getSession() tardó más de 3 segundos')), 3000)
+        setTimeout(() => reject(new Error('Timeout: getSession() tardó más de 5 segundos')), 5000)
       );
       
       let sessionResult;
@@ -59,25 +58,36 @@ export default function Layout({ children, currentPath }: LayoutProps) {
       
       if (sessionError) {
         console.error('Error al obtener sesión:', sessionError);
+        setLoading(false);
+        return;
       }
       
       if (!session || !session.user) {
-        // No hay sesión, detener loading y redirigir si es necesario
+        // No hay sesión, detener loading
         console.log('✗ No hay sesión activa');
         setUsuario(null);
         setLoading(false);
-        if (currentPath && currentPath !== '/') {
-          console.log('Redirigiendo a login...');
-          window.location.href = '/';
-        }
+        setVerificandoSesion(false);
         return;
       }
       
       console.log('✓ Sesión encontrada:', session.user.email);
       console.log('Usuario ID:', session.user.id);
-      console.log('Obteniendo perfil de la base de datos...');
       
-      // Obtener perfil directamente
+      // Crear perfil temporal primero para mostrar algo rápido
+      const perfilTemporal: UserProfile = {
+        id: session.user.id,
+        email: session.user.email || '',
+        nombre: session.user.email?.split('@')[0] || 'Usuario',
+        role: 'tecnico',
+        created_at: new Date().toISOString()
+      };
+      setUsuario(perfilTemporal);
+      setLoading(false);
+      setVerificandoSesion(false);
+      
+      // Obtener perfil real en background
+      console.log('Obteniendo perfil de la base de datos...');
       const { data: perfil, error: perfilError } = await supabase
         .from('perfiles')
         .select('*')
@@ -90,31 +100,18 @@ export default function Layout({ children, currentPath }: LayoutProps) {
         perfilNombre: perfil?.nombre
       });
       
-      if (perfil) {
+      if (perfil && !perfilError) {
         console.log('✓ Perfil encontrado:', perfil.nombre, '- Rol:', perfil.role);
         setUsuario(perfil as UserProfile);
-        setLoading(false);
       } else {
-        console.error('✗ No se pudo obtener el perfil. Error completo:', perfilError);
-        // Crear perfil temporal si hay sesión
-        console.log('⚠️ Creando perfil temporal desde sesión...');
-        const perfilTemporal: UserProfile = {
-          id: session.user.id,
-          email: session.user.email || '',
-          nombre: session.user.email?.split('@')[0] || 'Usuario',
-          role: 'tecnico',
-          created_at: new Date().toISOString()
-        };
-        console.log('Perfil temporal creado:', perfilTemporal);
-        setUsuario(perfilTemporal);
-        setLoading(false);
+        console.log('⚠️ Manteniendo perfil temporal');
       }
     } catch (error) {
       console.error('❌ Error completo en cargarUsuario:', error);
-      console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
       setLoading(false);
+      setVerificandoSesion(false);
     }
-  }, [currentPath]);
+  }, []);
 
   /**
    * Carga el usuario actual al montar el componente
@@ -321,6 +318,9 @@ export default function Layout({ children, currentPath }: LayoutProps) {
   const esAdmin = usuario.role === 'admin';
 
   // Items del menú según el rol
+      // Menú según rol
+      const esVendedor = usuario.role === 'vendedor';
+      
       const menuItems = esAdmin
         ? [
             { path: '/dashboard', label: 'Dashboard', icon: '📊' },
@@ -329,8 +329,15 @@ export default function Layout({ children, currentPath }: LayoutProps) {
             { path: '/cotizaciones', label: 'Historial', icon: '📋' },
             { path: '/clientes', label: 'Clientes', icon: '👤' },
             { path: '/admin/precios', label: 'Precios', icon: '💰' },
-            { path: '/vendedores', label: 'Vendedores', icon: '👥' },
-            { path: '/taller', label: 'Taller', icon: '🔧' }
+            { path: '/admin/personal', label: 'Gestión de Personal', icon: '👥' },
+            { path: '/gastos-fijos', label: 'Gastos Fijos', icon: '💳' }
+          ]
+        : esVendedor
+        ? [
+            // Vendedores solo pueden cotizar
+            { path: '/catalogo', label: 'Catálogo', icon: '📚' },
+            { path: '/cotizacion', label: 'Cotización', icon: '📝' },
+            { path: '/cotizaciones', label: 'Mis Cotizaciones', icon: '📋' }
           ]
     : [
         { path: '/dashboard', label: 'Dashboard', icon: '📊' },

@@ -1,0 +1,34 @@
+---
+/**
+ * Página de gestión de personal (vendedores y trabajadores de taller)
+ * Solo accesible para administradores
+ */
+import Layout from '../../components/Layout';
+import GestionarPersonalPage from '../../components/GestionarPersonalPage';
+import { obtenerUsuarioActual } from '../../services/auth.service';
+
+// Verificar autenticación
+let usuario = null;
+try {
+  usuario = await obtenerUsuarioActual();
+} catch (error) {
+  console.error('Error al verificar usuario en personal (servidor):', error);
+}
+---
+
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Gestión de Personal - Admin</title>
+  </head>
+  <body>
+    <Layout client:load currentPath="/admin/personal">
+      <GestionarPersonalPage client:only="react" />
+    </Layout>
+  </body>
+</html>
+
+

@@ -150,12 +150,27 @@ export default function QuotePDF({
           letter-spacing: 1px;
         }
 
+        .company-info-section {
+          flex: 1;
+          padding-left: 20px;
+          border-left: 2px solid #d4a574;
+        }
+
         .company-name {
           font-size: 18px;
           color: #333;
           font-weight: 500;
-          padding-left: 20px;
-          border-left: 2px solid #d4a574;
+          margin-bottom: 8px;
+        }
+
+        .company-details {
+          font-size: 10px;
+          color: #666;
+          line-height: 1.4;
+        }
+
+        .company-detail-line {
+          margin-bottom: 3px;
         }
 
         .quote-title {
@@ -388,7 +403,35 @@ export default function QuotePDF({
             </div>
           )}
         </div>
-        <div className="company-name">{companyName}</div>
+        <div className="company-info-section">
+          <div className="company-name">{companyName}</div>
+          {empresaInfo && (
+            <div className="company-details">
+              {empresaInfo.nombreCompleto && empresaInfo.rut && (
+                <div className="company-detail-line">
+                  {empresaInfo.nombreCompleto} / {empresaInfo.rut}
+                </div>
+              )}
+              {empresaInfo.direccion && (
+                <div className="company-detail-line">{empresaInfo.direccion}</div>
+              )}
+              {empresaInfo.descripcion && (
+                <div className="company-detail-line">{empresaInfo.descripcion}</div>
+              )}
+              {empresaInfo.emails && empresaInfo.emails.length > 0 && (
+                <div className="company-detail-line">{empresaInfo.emails.join(' / ')}</div>
+              )}
+              {empresaInfo.telefonos && empresaInfo.telefonos.length > 0 && (
+                <div className="company-detail-line">{empresaInfo.telefonos.join(' / ')}</div>
+              )}
+              {empresaInfo.sitioWeb && (
+                <div className="company-detail-line">
+                  {empresaInfo.sitioWeb.startsWith('http') ? empresaInfo.sitioWeb : `https://${empresaInfo.sitioWeb}`}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Title */}
@@ -435,45 +478,6 @@ export default function QuotePDF({
       {/* Footer */}
       <div className="quote-footer">
         <div className="footer-text">Gracias por confiar en nosotros.</div>
-        {empresaInfo && (
-          <div style={{ marginTop: '8px' }}>
-            {empresaInfo.nombreCompleto && empresaInfo.rut && (
-              <div className="footer-text" style={{ fontSize: '10px', marginBottom: '4px' }}>
-                {empresaInfo.nombreCompleto} / {empresaInfo.rut}
-              </div>
-            )}
-            {empresaInfo.direccion && (
-              <div className="footer-text" style={{ fontSize: '10px', marginBottom: '4px' }}>
-                {empresaInfo.direccion}
-              </div>
-            )}
-            {empresaInfo.descripcion && (
-              <div className="footer-text" style={{ fontSize: '10px', marginBottom: '4px' }}>
-                {empresaInfo.descripcion}
-              </div>
-            )}
-            {empresaInfo.emails && empresaInfo.emails.length > 0 && (
-              <div className="footer-text" style={{ fontSize: '10px', marginBottom: '4px' }}>
-                {empresaInfo.emails.join(' / ')}
-              </div>
-            )}
-            {empresaInfo.telefonos && empresaInfo.telefonos.length > 0 && (
-              <div className="footer-text" style={{ fontSize: '10px', marginBottom: '4px' }}>
-                {empresaInfo.telefonos.join(' / ')}
-              </div>
-            )}
-            {empresaInfo.sitioWeb && (
-              <div className="footer-links" style={{ marginTop: '4px' }}>
-                {empresaInfo.sitioWeb.startsWith('http') ? empresaInfo.sitioWeb : `https://${empresaInfo.sitioWeb}`}
-              </div>
-            )}
-          </div>
-        )}
-        {!empresaInfo && (
-          <div className="footer-links">
-            www.kay.com.mx | www.muebleriacasablanca.mx
-          </div>
-        )}
       </div>
     </div>
   );
