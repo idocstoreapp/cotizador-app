@@ -7,7 +7,6 @@ import { createClient } from '@supabase/supabase-js';
 
 export const POST: APIRoute = async ({ request }) => {
   try {
-    // Verificar que el usuario esté autenticado
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'No autorizado' }), {
@@ -16,13 +15,11 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    // Extraer token del header
     const token = authHeader.replace('Bearer ', '');
-    
-    // Crear cliente de Supabase para verificar usuario
+
     const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
-    
+
     if (!supabaseUrl || !supabaseAnonKey) {
       return new Response(JSON.stringify({ error: 'Configuración del servidor incorrecta' }), {
         status: 500,
@@ -31,10 +28,9 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
-    
-    // Verificar token y obtener usuario
+
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
-    
+
     if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Token inválido' }), {
         status: 401,
@@ -42,25 +38,23 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    // Verificar que el usuario sea admin
-    const { data: perfil, error: perfilError } = await supabaseClient
+    // Verificar perfil del usuario autenticado
+    const { data: perfilAuth, error: perfilError } = await supabaseClient
       .from('perfiles')
       .select('role')
       .eq('id', user.id)
       .single();
 
-    if (perfilError || !perfil || perfil.role !== 'admin') {
+    if (perfilError || !perfilAuth || perfilAuth.role !== 'admin') {
       return new Response(JSON.stringify({ error: 'Solo los administradores pueden crear vendedores' }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    // Obtener datos del body
     const body = await request.json();
     const { nombre, apellido, email, password } = body;
 
-    // Validaciones
     if (!nombre || !apellido || !email || !password) {
       return new Response(JSON.stringify({ error: 'Faltan datos requeridos' }), {
         status: 400,
@@ -75,7 +69,6 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    // Crear cliente admin de Supabase (usar service role key)
     const supabaseServiceKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseServiceKey) {
@@ -92,11 +85,10 @@ export const POST: APIRoute = async ({ request }) => {
       }
     });
 
-    // Crear usuario en Supabase Auth (sin requerir confirmación de email)
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: email.trim(),
-      password: password,
-      email_confirm: true, // Auto-confirmar email
+      password,
+      email_confirm: true,
       user_metadata: {
         nombre,
         apellido,
@@ -118,8 +110,8 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    // Crear perfil en la tabla de perfiles
-    const { data: perfil, error: profileError } = await supabaseAdmin
+    // Crear perfil del vendedor (renombrado a perfilNuevo)
+    const { data: perfilNuevo, error: profileError } = await supabaseAdmin
       .from('perfiles')
       .insert({
         id: authData.user.id,
@@ -132,20 +124,19 @@ export const POST: APIRoute = async ({ request }) => {
       .single();
 
     if (profileError) {
-      // Si falla la creación del perfil, eliminar el usuario de auth
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id).catch(() => {
-        // Ignorar errores al eliminar
-      });
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id).catch(() => {});
+      
       return new Response(JSON.stringify({ error: profileError.message }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    return new Response(JSON.stringify({ usuario: perfil }), {
+    return new Response(JSON.stringify({ usuario: perfilNuevo }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
+
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message || 'Error al crear vendedor' }), {
       status: 500,
@@ -153,4 +144,3 @@ export const POST: APIRoute = async ({ request }) => {
     });
   }
 };
-
