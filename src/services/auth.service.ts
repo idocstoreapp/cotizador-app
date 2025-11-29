@@ -91,6 +91,7 @@ export async function obtenerUsuarioActual(): Promise<UserProfile | null> {
     
     if (sessionError) {
       console.error('Error al obtener sesión:', sessionError);
+      return null;
     }
     
     if (!session || !session.user) {
@@ -108,13 +109,32 @@ export async function obtenerUsuarioActual(): Promise<UserProfile | null> {
       .single();
 
     if (error) {
+      // Si el error es que no se encontró el perfil (PGRST116), no es crítico
+      // pero sí es un problema que debemos reportar
+      if (error.code === 'PGRST116') {
+        console.warn('⚠️ Perfil no encontrado para usuario:', user.id, user.email);
+        console.warn('⚠️ El usuario existe en auth.users pero no tiene perfil en la tabla perfiles');
+        console.warn('⚠️ Esto puede causar problemas. Asegúrate de crear el perfil después del registro.');
+        return null;
+      }
+      
+      // Para otros errores, loguear y retornar null
       console.error('Error al obtener perfil:', error);
-      throw error;
+      console.error('Código de error:', error.code);
+      console.error('Mensaje:', error.message);
+      return null;
+    }
+    
+    if (!perfil) {
+      console.warn('⚠️ No se encontró perfil para el usuario:', user.id);
+      return null;
     }
     
     return perfil as UserProfile;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error al obtener usuario:', error);
+    console.error('Tipo de error:', error?.constructor?.name);
+    console.error('Mensaje:', error?.message);
     return null;
   }
 }
