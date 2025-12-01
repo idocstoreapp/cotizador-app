@@ -73,3 +73,4 @@ CREATE POLICY "Admins can update all profiles" ON perfiles
 -- 3. Puedes insertar perfiles con IDs que no sean de auth.users
 -- ============================================
 
+

@@ -155,3 +155,4 @@ WHERE u.email = 'admin@cotizador.com';
 -- 3. Un problema con las variables de entorno de Supabase
 -- ============================================
 
+
