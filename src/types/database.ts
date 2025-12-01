@@ -157,7 +157,9 @@ export interface Cotizacion {
   subtotal_materiales: number;
   subtotal_servicios: number;
   subtotal: number;
-  iva: number; // 19%
+  descuento?: number; // Porcentaje de descuento aplicado
+  iva: number; // Monto del IVA calculado
+  iva_porcentaje?: number; // Porcentaje de IVA (default 19%)
   margen_ganancia: number; // Porcentaje configurado
   total: number;
   estado: 'pendiente' | 'aceptada' | 'rechazada';
@@ -355,4 +357,58 @@ export interface FixedExpense {
   date: string; // Fecha del gasto
   created_at: string;
   updated_at: string;
+}
+
+// Liquidación de pago a trabajador/vendedor
+export interface Liquidacion {
+  id: string;
+  persona_id: string;
+  persona?: UserProfile; // Relación cargada
+  tipo_persona: 'vendedor' | 'trabajador_taller';
+  monto: number;
+  fecha_liquidacion: string;
+  metodo_pago?: 'efectivo' | 'transferencia' | 'cheque' | 'otro';
+  numero_referencia?: string;
+  notas?: string;
+  liquidado_por?: string;
+  liquidador?: UserProfile; // Relación cargada
+  created_at: string;
+  updated_at: string;
+}
+
+// Balance de un trabajador/vendedor
+export interface BalancePersonal {
+  persona_id: string;
+  nombre?: string;
+  apellido?: string;
+  email?: string;
+  tipo_persona: 'vendedor' | 'trabajador_taller';
+  especialidad?: string;
+  total_ganado_vendedor: number;
+  total_ganado_trabajador: number;
+  total_liquidado: number;
+  balance_pendiente: number;
+  cotizaciones_vendedor: number;
+  trabajos_realizados: number;
+  ultima_liquidacion?: string;
+}
+
+// Detalle de pago individual
+export interface DetallePago {
+  tipo: 'vendedor' | 'trabajador';
+  cotizacion_id: string;
+  cotizacion_numero: string;
+  cliente_nombre: string;
+  monto: number;
+  fecha: string;
+  estado: string;
+}
+
+// Resumen de liquidaciones
+export interface ResumenLiquidaciones {
+  total_vendedores: number;
+  total_trabajadores: number;
+  total_pendiente_vendedores: number;
+  total_pendiente_trabajadores: number;
+  total_liquidado_mes: number;
 }

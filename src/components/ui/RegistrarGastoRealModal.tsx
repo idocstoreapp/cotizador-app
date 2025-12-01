@@ -99,7 +99,10 @@ export default function RegistrarGastoRealModal({
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="font-medium text-gray-700">Cantidad Presupuestada:</span>
-                <span className="ml-2 text-gray-900">{cantidadPresupuestada} {material.unidad}</span>
+                <span className="ml-2 text-gray-900 font-semibold">{cantidadPresupuestada} {material.unidad}</span>
+                <p className="text-xs text-gray-600 mt-1">
+                  💡 Esta cantidad ya incluye la multiplicación por la cantidad del item
+                </p>
               </div>
               <div>
                 <span className="font-medium text-gray-700">Precio Unitario Presupuestado:</span>
@@ -107,7 +110,7 @@ export default function RegistrarGastoRealModal({
               </div>
               <div className="col-span-2">
                 <span className="font-medium text-gray-700">Total Presupuestado:</span>
-                <span className="ml-2 text-gray-900 font-semibold">${totalPresupuestado.toLocaleString('es-CO')}</span>
+                <span className="ml-2 text-gray-900 font-semibold text-lg">${totalPresupuestado.toLocaleString('es-CO')}</span>
               </div>
             </div>
           </div>

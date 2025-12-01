@@ -1,0 +1,27 @@
+---
+/**
+ * Página para actualizar una cotización con materiales desde costos reales
+ * Solo accesible para administradores
+ */
+import Layout from '../components/Layout';
+import QueryProvider from '../components/QueryProvider';
+import ActualizarCotizacionPage from '../components/ActualizarCotizacionPage';
+---
+
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Actualizar Cotización - Cotizador</title>
+  </head>
+  <body>
+    <Layout client:load currentPath="/actualizar-cotizacion">
+      <QueryProvider client:load>
+        <ActualizarCotizacionPage client:only="react" />
+      </QueryProvider>
+    </Layout>
+  </body>
+</html>
+

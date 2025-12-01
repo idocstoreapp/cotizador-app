@@ -3,7 +3,7 @@
  * Reutiliza el sistema existente de gastos reales de materiales
  */
 import { useState, useEffect } from 'react';
-import { obtenerGastosRealesPorCotizacion, eliminarGastoReal } from '../../services/gastos-reales.service';
+import { obtenerGastosRealesPorCotizacion, eliminarGastoReal, crearGastoReal } from '../../services/gastos-reales.service';
 import RegistrarGastoRealModal from './RegistrarGastoRealModal';
 import type { Cotizacion, GastoRealMaterial } from '../../types/database';
 import type { MaterialMueble } from '../../types/muebles';
@@ -14,9 +14,232 @@ interface MaterialesRealesTabProps {
   onUpdate: () => void;
 }
 
+// Modal para agregar material adicional
+function AgregarMaterialAdicionalModal({ 
+  cotizacionId, 
+  onClose, 
+  onSuccess 
+}: { 
+  cotizacionId: string; 
+  onClose: () => void; 
+  onSuccess: () => void; 
+}) {
+  const [guardando, setGuardando] = useState(false);
+  const [formData, setFormData] = useState({
+    material_nombre: '',
+    cantidad: 1,
+    precio_unitario: 0,
+    unidad: 'unidad',
+    fecha_compra: new Date().toISOString().split('T')[0],
+    proveedor: '',
+    numero_factura: '',
+    notas: ''
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.material_nombre.trim()) {
+      alert('El nombre del material es requerido');
+      return;
+    }
+    if (formData.cantidad <= 0 || formData.precio_unitario <= 0) {
+      alert('La cantidad y precio deben ser mayores a 0');
+      return;
+    }
+
+    try {
+      setGuardando(true);
+      await crearGastoReal({
+        cotizacion_id: cotizacionId,
+        item_id: 'material-adicional-' + Date.now(),
+        material_nombre: formData.material_nombre.trim(),
+        cantidad_presupuestada: 0, // No estaba presupuestado
+        cantidad_real: formData.cantidad,
+        precio_unitario_presupuestado: 0, // No estaba presupuestado
+        precio_unitario_real: formData.precio_unitario,
+        unidad: formData.unidad,
+        fecha_compra: formData.fecha_compra,
+        proveedor: formData.proveedor || undefined,
+        numero_factura: formData.numero_factura || undefined,
+        notas: formData.notas ? `[MATERIAL ADICIONAL] ${formData.notas}` : '[MATERIAL ADICIONAL] Material no presupuestado originalmente'
+      });
+      onSuccess();
+    } catch (error: any) {
+      console.error('Error al guardar:', error);
+      alert('Error al guardar: ' + (error.message || 'Error desconocido'));
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold text-gray-900">➕ Agregar Material Adicional</h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+          </div>
+          <p className="text-sm text-gray-500 mt-1">
+            Material que no estaba en el presupuesto original
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nombre del Material *
+            </label>
+            <input
+              type="text"
+              value={formData.material_nombre}
+              onChange={(e) => setFormData({ ...formData, material_nombre: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="Ej: Tornillos de 2 pulgadas"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Cantidad *
+              </label>
+              <input
+                type="number"
+                value={formData.cantidad}
+                onChange={(e) => setFormData({ ...formData, cantidad: Number(e.target.value) })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                min="0.01"
+                step="0.01"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Precio Unitario *
+              </label>
+              <input
+                type="number"
+                value={formData.precio_unitario}
+                onChange={(e) => setFormData({ ...formData, precio_unitario: Number(e.target.value) })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                min="0"
+                step="0.01"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Unidad
+              </label>
+              <select
+                value={formData.unidad}
+                onChange={(e) => setFormData({ ...formData, unidad: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                <option value="unidad">Unidad</option>
+                <option value="m²">m²</option>
+                <option value="m">Metro lineal</option>
+                <option value="kg">Kg</option>
+                <option value="litro">Litro</option>
+                <option value="galón">Galón</option>
+                <option value="caja">Caja</option>
+                <option value="rollo">Rollo</option>
+                <option value="bolsa">Bolsa</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 p-3 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <span className="font-medium">Total:</span>{' '}
+              <span className="text-lg font-bold">
+                ${(formData.cantidad * formData.precio_unitario).toLocaleString('es-CO')}
+              </span>
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Fecha de Compra
+            </label>
+            <input
+              type="date"
+              value={formData.fecha_compra}
+              onChange={(e) => setFormData({ ...formData, fecha_compra: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Proveedor
+              </label>
+              <input
+                type="text"
+                value={formData.proveedor}
+                onChange={(e) => setFormData({ ...formData, proveedor: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Nombre del proveedor"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Nº Factura
+              </label>
+              <input
+                type="text"
+                value={formData.numero_factura}
+                onChange={(e) => setFormData({ ...formData, numero_factura: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Número de factura"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Notas
+            </label>
+            <textarea
+              value={formData.notas}
+              onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              rows={2}
+              placeholder="Razón por la que se necesitó este material..."
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              disabled={guardando}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+              disabled={guardando}
+            >
+              {guardando ? 'Guardando...' : 'Agregar Material'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate }: MaterialesRealesTabProps) {
   const [gastos, setGastos] = useState<GastoRealMaterial[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [mostrarModalAdicional, setMostrarModalAdicional] = useState(false);
   const [materialRegistrando, setMaterialRegistrando] = useState<{
     material: MaterialMueble;
     itemId: string;
@@ -53,25 +276,38 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
   };
 
   // Extraer materiales presupuestados de los items de la cotización
+  // IMPORTANTE: Multiplicar por la cantidad del item
   const materialesPresupuestados: Array<{
     material: MaterialMueble;
     itemId: string;
     itemNombre: string;
+    itemCantidad: number; // Cantidad del item (ej: 15 unidades)
     costoTotal: number;
   }> = [];
   
   if (cotizacion.items && Array.isArray(cotizacion.items)) {
     cotizacion.items.forEach((item: any) => {
+      // Obtener la cantidad del item (por defecto 1 si no está definida)
+      const cantidadItem = item.cantidad || 1;
+      
       if (item.materiales && Array.isArray(item.materiales)) {
         item.materiales.forEach((mat: MaterialMueble) => {
-          const cantidad = mat.cantidad || 0;
+          // Cantidad del material por unidad del item
+          const cantidadMaterialPorUnidad = mat.cantidad || 0;
+          // Cantidad total del material = cantidad por unidad * cantidad del item
+          const cantidadTotalMaterial = cantidadMaterialPorUnidad * cantidadItem;
           const precioUnitario = mat.precio_unitario || 0;
-          const costoTotal = cantidad * precioUnitario;
+          // Costo total = cantidad total * precio unitario
+          const costoTotal = cantidadTotalMaterial * precioUnitario;
           
           materialesPresupuestados.push({
-            material: mat,
+            material: {
+              ...mat,
+              cantidad: cantidadTotalMaterial // Actualizar cantidad para reflejar el total
+            },
             itemId: item.id || item.nombre || 'item-' + Date.now(),
             itemNombre: item.nombre || 'Item sin nombre',
+            itemCantidad: cantidadItem,
             costoTotal
           });
         });
@@ -80,6 +316,8 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
   }
 
   // Agrupar materiales por nombre para sumar cantidades
+  // IMPORTANTE: El precio unitario se mantiene del material original
+  // Si hay diferentes precios, se usa el del primer material encontrado
   const materialesAgrupados = new Map<string, {
     material_nombre: string;
     cantidad_total: number;
@@ -98,6 +336,8 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
       existente.cantidad_total += material.cantidad || 0;
       existente.costo_total += costoTotal;
       existente.items.push(itemNombre);
+      // Recalcular precio unitario promedio si hay diferencias (aunque normalmente debería ser el mismo)
+      // Por ahora mantenemos el precio original del primer material
     } else {
       materialesAgrupados.set(key, {
         material_nombre: nombre,
@@ -132,6 +372,19 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
 
   return (
     <div className="space-y-4">
+      {/* Botón Agregar Material Adicional */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => setMostrarModalAdicional(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors shadow-sm"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          Agregar Material Adicional
+        </button>
+      </div>
+
       {/* Resumen */}
       <div className="grid grid-cols-4 gap-4 mb-6">
         <div className="bg-blue-50 p-4 rounded-lg">
@@ -205,19 +458,22 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {!gastoReal && materialesPresupuestados.length > 0 && (
+                        {!gastoReal && (
                           <button
                             onClick={() => {
-                              // Encontrar el primer material con este nombre
-                              const materialEncontrado = materialesPresupuestados.find(m => 
-                                (m.material.material_nombre || '').toLowerCase() === mat.material_nombre.toLowerCase()
-                              );
-                              if (materialEncontrado) {
-                                setMaterialRegistrando({
-                                  material: materialEncontrado.material,
-                                  itemId: materialEncontrado.itemId
-                                });
-                              }
+                              // Crear un material con la cantidad total agrupada para el modal
+                              const materialParaModal: MaterialMueble = {
+                                material_id: mat.material_nombre, // Usar nombre como ID temporal
+                                material_nombre: mat.material_nombre,
+                                cantidad: mat.cantidad_total, // Cantidad total agrupada (ya multiplicada por cantidad del item)
+                                precio_unitario: mat.precio_unitario,
+                                unidad: mat.unidad,
+                                material_tipo: undefined
+                              };
+                              setMaterialRegistrando({
+                                material: materialParaModal,
+                                itemId: 'material-agrupado-' + mat.material_nombre.toLowerCase().replace(/\s+/g, '-')
+                              });
                             }}
                             className="px-3 py-1 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700"
                           >
@@ -329,6 +585,19 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
             cargarDatos();
             onUpdate();
             setMaterialRegistrando(null);
+          }}
+        />
+      )}
+
+      {/* Modal de agregar material adicional */}
+      {mostrarModalAdicional && (
+        <AgregarMaterialAdicionalModal
+          cotizacionId={cotizacionId}
+          onClose={() => setMostrarModalAdicional(false)}
+          onSuccess={() => {
+            cargarDatos();
+            onUpdate();
+            setMostrarModalAdicional(false);
           }}
         />
       )}

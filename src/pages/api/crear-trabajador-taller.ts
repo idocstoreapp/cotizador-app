@@ -20,18 +20,25 @@ export const POST: APIRoute = async ({ request }) => {
     const token = authHeader.replace('Bearer ', '');
 
     const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+    const supabaseServiceKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!supabaseUrl || !supabaseAnonKey) {
+    if (!supabaseUrl || !supabaseServiceKey) {
       return new Response(JSON.stringify({ error: 'Configuración del servidor incorrecta' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+    // Usar service role key para bypasear RLS
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+    // Verificar el token del usuario
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
 
     if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Token inválido' }), {
@@ -40,8 +47,8 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    // Verificar perfil del usuario autenticado
-    const { data: perfilAuth, error: perfilError } = await supabaseClient
+    // Verificar perfil del usuario autenticado (usando admin para bypasear RLS)
+    const { data: perfilAuth, error: perfilError } = await supabaseAdmin
       .from('perfiles')
       .select('role')
       .eq('id', user.id)
@@ -63,22 +70,6 @@ export const POST: APIRoute = async ({ request }) => {
         headers: { 'Content-Type': 'application/json' }
       });
     }
-
-    const supabaseServiceKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseServiceKey) {
-      return new Response(JSON.stringify({ error: 'Configuración del servidor incorrecta' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
 
     // Crear perfil del trabajador de taller
     // Generar UUID manualmente ya que no tiene usuario de auth
