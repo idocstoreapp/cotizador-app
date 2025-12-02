@@ -319,6 +319,7 @@ export interface Factura {
   total: number;
   archivo_url?: string;
   tipo: 'material' | 'mano_obra' | 'transporte' | 'gasto_hormiga' | 'mixta';
+  bsale_document_id?: number; // ID del documento en Bsale para enlaces directos
   created_at: string;
   updated_at: string;
   // Relaciones

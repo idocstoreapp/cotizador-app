@@ -25,6 +25,8 @@ export default function FacturasTab({ cotizacionId, onUpdate }: FacturasTabProps
     archivo: null as File | null
   });
   const [guardando, setGuardando] = useState(false);
+  const [sincronizando, setSincronizando] = useState<string | null>(null);
+  const [sincronizandoTodas, setSincronizandoTodas] = useState(false);
 
   useEffect(() => {
     cargarDatos();
@@ -125,6 +127,84 @@ export default function FacturasTab({ cotizacionId, onUpdate }: FacturasTabProps
     setMostrarModal(true);
   };
 
+  const handleSincronizarFactura = async (factura: Factura) => {
+    if (sincronizando) return;
+
+    try {
+      setSincronizando(factura.id);
+      
+      const response = await fetch('/api/sincronizar-factura-bsale', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ facturaId: factura.id }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al sincronizar');
+      }
+
+      if (data.success) {
+        alert(`✅ Factura sincronizada exitosamente con Bsale`);
+        await cargarDatos();
+        onUpdate();
+      } else {
+        throw new Error(data.error || 'No se pudo sincronizar');
+      }
+    } catch (error: any) {
+      console.error('Error al sincronizar:', error);
+      alert(`❌ Error: ${error.message || 'No se pudo sincronizar la factura con Bsale'}`);
+    } finally {
+      setSincronizando(null);
+    }
+  };
+
+  const handleSincronizarTodas = async () => {
+    if (sincronizandoTodas) return;
+
+    if (!confirm(`¿Sincronizar todas las facturas sin enlace a Bsale? (${facturas.filter(f => !f.bsale_document_id).length} facturas)`)) {
+      return;
+    }
+
+    try {
+      setSincronizandoTodas(true);
+      
+      const response = await fetch('/api/sincronizar-todas-facturas-bsale', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ limit: 100 }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al sincronizar');
+      }
+
+      if (data.success) {
+        alert(`✅ Sincronización completada:\n- ${data.sincronizadas} sincronizadas\n- ${data.no_encontradas} no encontradas\n- ${data.errores} errores`);
+        await cargarDatos();
+        onUpdate();
+      } else {
+        throw new Error(data.error || 'No se pudo sincronizar');
+      }
+    } catch (error: any) {
+      console.error('Error al sincronizar todas:', error);
+      alert(`❌ Error: ${error.message || 'No se pudieron sincronizar las facturas'}`);
+    } finally {
+      setSincronizandoTodas(false);
+    }
+  };
+
+  const generarUrlBsale = (documentId: number) => {
+    return `https://www.bsale.cl/document/${documentId}`;
+  };
+
   const total = facturas.reduce((sum, f) => sum + f.total, 0);
 
   if (cargando) {
@@ -147,8 +227,20 @@ export default function FacturasTab({ cotizacionId, onUpdate }: FacturasTabProps
         </div>
       </div>
 
-      {/* Botón agregar */}
-      <div className="flex justify-end mb-4">
+      {/* Botones de acción */}
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex gap-2">
+          {facturas.filter(f => !f.bsale_document_id).length > 0 && (
+            <button
+              onClick={handleSincronizarTodas}
+              disabled={sincronizandoTodas}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm"
+              title="Sincronizar todas las facturas sin enlace a Bsale"
+            >
+              {sincronizandoTodas ? '⏳ Sincronizando...' : `🔄 Sincronizar con Bsale (${facturas.filter(f => !f.bsale_document_id).length})`}
+            </button>
+          )}
+        </div>
         <button
           onClick={() => {
             setEditando(null);
@@ -183,6 +275,7 @@ export default function FacturasTab({ cotizacionId, onUpdate }: FacturasTabProps
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bsale</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Archivo</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
               </tr>
@@ -206,6 +299,28 @@ export default function FacturasTab({ cotizacionId, onUpdate }: FacturasTabProps
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {new Date(factura.fecha_factura).toLocaleDateString('es-CO')}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {factura.bsale_document_id ? (
+                      <a
+                        href={generarUrlBsale(factura.bsale_document_id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-green-600 hover:text-green-800 text-sm font-medium"
+                        title="Ver en Bsale"
+                      >
+                        🔗 Ver en Bsale
+                      </a>
+                    ) : (
+                      <button
+                        onClick={() => handleSincronizarFactura(factura)}
+                        disabled={sincronizando === factura.id}
+                        className="text-orange-600 hover:text-orange-800 text-sm disabled:text-gray-400"
+                        title="Sincronizar con Bsale"
+                      >
+                        {sincronizando === factura.id ? '⏳...' : '🔄 Sincronizar'}
+                      </button>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {factura.archivo_url ? (

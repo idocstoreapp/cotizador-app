@@ -1,6 +1,6 @@
 /**
  * API Endpoint para actualizar una cotización con materiales desde costos reales
- * POST /api/actualizar-cotizacion-costos-reales
+ * POST /api/actualizar-costos
  * Body: { numeroCotizacion: string }
  */
 import type { APIRoute } from 'astro';
@@ -9,8 +9,13 @@ import { obtenerGastosRealesPorCotizacion } from '../../services/gastos-reales.s
 import { obtenerCotizacionPorId, actualizarCotizacion } from '../../services/cotizaciones.service';
 
 export const POST: APIRoute = async ({ request }) => {
+  console.log('🚀 ====== ENDPOINT /api/actualizar-costos LLAMADO ======');
+  console.log('📥 Request recibido');
+  
   try {
-    const { numeroCotizacion } = await request.json();
+    const body = await request.json();
+    console.log('📦 Body recibido:', body);
+    const { numeroCotizacion } = body;
 
     if (!numeroCotizacion) {
       return new Response(
@@ -169,7 +174,13 @@ export const POST: APIRoute = async ({ request }) => {
 
     console.log('📋 Materiales calculados por unidad:');
     materialesPorUnidad.forEach(mat => {
-      console.log(`  - ${mat.material_nombre}: ${mat.cantidad_por_unidad} ${mat.unidad} × $${mat.precio_unitario_por_unidad.toLocaleString('es-CO')}`);
+      console.log(`  - "${mat.material_nombre}": ${mat.cantidad_por_unidad} ${mat.unidad} × $${mat.precio_unitario_por_unidad.toLocaleString('es-CO')}`);
+    });
+    
+    // Debug: Mostrar todos los nombres exactos de materiales en gastos reales
+    console.log('📝 Nombres exactos de materiales en gastos reales:');
+    materialesPorUnidad.forEach((mat, idx) => {
+      console.log(`  ${idx + 1}. "${mat.material_nombre}" (${mat.cantidad_total} ${mat.unidad})`);
     });
 
     // Debug: Listar todos los materiales en los items
@@ -198,24 +209,54 @@ export const POST: APIRoute = async ({ request }) => {
       if (item.materiales && Array.isArray(item.materiales) && item.materiales.length > 0) {
         materialesActualizados = item.materiales.map((mat: any) => {
           const nombreMat = (mat.material_nombre || mat.nombre || '').trim();
-          const nombreMatLower = nombreMat.toLowerCase();
+          const nombreMatLower = nombreMat.toLowerCase()
+            .replace(/\s+/g, ' ') // Normalizar espacios múltiples
+            .replace(/mm/g, 'mm') // Normalizar mm
+            .replace(/litro/g, 'litro') // Normalizar litro
+            .trim();
+          
+          // Función para normalizar nombres (eliminar espacios extra, normalizar mayúsculas)
+          const normalizarNombre = (nombre: string) => {
+            return nombre.toLowerCase()
+              .replace(/\s+/g, ' ')
+              .replace(/mm/g, 'mm')
+              .replace(/litro/g, 'litro')
+              .trim();
+          };
           
           // Buscar material real con matching más flexible
-          let materialReal = materialesPorUnidad.find(m => 
-            m.material_nombre.toLowerCase().trim() === nombreMatLower
-          );
+          let materialReal = materialesPorUnidad.find(m => {
+            const nombreReal = normalizarNombre(m.material_nombre);
+            return nombreReal === nombreMatLower;
+          });
           
-          // Si no encuentra exacto, intentar búsqueda parcial
+          // Si no encuentra exacto, intentar búsqueda parcial (una contiene a la otra)
           if (!materialReal) {
             materialReal = materialesPorUnidad.find(m => {
-              const nombreReal = m.material_nombre.toLowerCase().trim();
-              return nombreReal.includes(nombreMatLower) || nombreMatLower.includes(nombreReal);
+              const nombreReal = normalizarNombre(m.material_nombre);
+              // Una contiene a la otra (con un mínimo de 3 caracteres para evitar matches falsos)
+              if (nombreMatLower.length >= 3 && nombreReal.length >= 3) {
+                return nombreReal.includes(nombreMatLower) || nombreMatLower.includes(nombreReal);
+              }
+              return false;
+            });
+          }
+          
+          // Si aún no encuentra, intentar matching por palabras clave
+          if (!materialReal) {
+            const palabrasMat = nombreMatLower.split(/\s+/).filter(p => p.length >= 3);
+            materialReal = materialesPorUnidad.find(m => {
+              const nombreReal = normalizarNombre(m.material_nombre);
+              const palabrasReal = nombreReal.split(/\s+/).filter(p => p.length >= 3);
+              // Si al menos 2 palabras coinciden, considerarlo match
+              const coincidencias = palabrasMat.filter(p => palabrasReal.some(r => r.includes(p) || p.includes(r)));
+              return coincidencias.length >= Math.min(2, palabrasMat.length);
             });
           }
 
           if (materialReal) {
             materialesEncontrados++;
-            console.log(`  ✓ Actualizando material: "${nombreMat}" → "${materialReal.material_nombre}"`);
+            console.log(`  ✅ MATCH ENCONTRADO: "${nombreMat}" → "${materialReal.material_nombre}"`);
             console.log(`    - Cantidad: ${mat.cantidad || 0} → ${materialReal.cantidad_por_unidad}`);
             console.log(`    - Precio unitario: ${mat.precio_unitario || 0} → ${materialReal.precio_unitario_por_unidad}`);
             return {
@@ -233,7 +274,8 @@ export const POST: APIRoute = async ({ request }) => {
             if (nombreMat && !materialesNoEncontrados.includes(nombreMat)) {
               materialesNoEncontrados.push(nombreMat);
             }
-            console.log(`  ⚠️ Material no encontrado en gastos reales: "${nombreMat}"`);
+            console.log(`  ❌ NO ENCONTRADO: "${nombreMat}"`);
+            console.log(`    Buscando en: ${materialesPorUnidad.map(m => `"${m.material_nombre}"`).join(', ')}`);
             return mat; // Mantener material si no hay gasto real
           }
         });

@@ -1,4 +1,4 @@
-/**
+so con los material/**
  * Componente Dashboard
  * Muestra diferentes vistas según el rol del usuario
  * Carga datos directamente sin usar React Query para evitar problemas de timing

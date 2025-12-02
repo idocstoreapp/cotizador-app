@@ -99,27 +99,77 @@ export default function ActualizarCotizacionPage() {
     setResultado(null);
 
     try {
-      const response = await fetch('/api/actualizar-cotizacion-costos-reales', {
+      // Intentar con la ruta más corta
+      const apiUrl = '/api/actualizar-costos';
+      console.log('🔍 [Frontend] Llamando a:', apiUrl);
+      console.log('🔍 [Frontend] Body:', { numeroCotizacion: numeroLimpio });
+      console.log('🔍 [Frontend] URL completa:', window.location.origin + apiUrl);
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ numeroCotizacion: numeroLimpio }),
+      }).catch((fetchError) => {
+        console.error('❌ [Frontend] Error en fetch:', fetchError);
+        throw new Error(`Error de conexión: ${fetchError.message}. ¿El servidor está corriendo en http://localhost:4321?`);
       });
 
+      console.log('📥 [Frontend] Response status:', response.status);
+      console.log('📥 [Frontend] Response ok:', response.ok);
+      console.log('📥 [Frontend] Response headers:', Object.fromEntries(response.headers.entries()));
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ [Frontend] Response error:', errorText);
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.error || `Error ${response.status}: ${errorText}`);
+        } catch {
+          throw new Error(`Error ${response.status}: ${errorText}`);
+        }
+      }
+
       const data = await response.json();
+      console.log('📥 [Frontend] Response data:', data);
 
       if (!response.ok) {
         // Guardar sugerencias si vienen en el error
         if (data.sugerencias) {
           setResultado({ sugerencias: data.sugerencias });
         }
+        // Guardar información adicional del error para mostrar
+        if (data.materialesEnGastosRealesLista || data.materialesEnGastosReales) {
+          setResultado({ 
+            sugerencias: data.sugerencias,
+            materialesEnGastosReales: data.materialesEnGastosReales,
+            materialesEnGastosRealesLista: data.materialesEnGastosRealesLista,
+            materialesNoEncontrados: data.materialesNoEncontrados,
+            itemsCount: data.itemsCount,
+            materialesEnItems: data.materialesEnItems
+          });
+        }
         throw new Error(data.error || 'Error al actualizar la cotización');
       }
 
-      setResultado(data);
+      // Solo mostrar éxito si realmente se actualizó algo
+      if (data.materialesActualizados === 0) {
+        setError('No se encontraron materiales para actualizar. Verifica que los nombres coincidan.');
+        setResultado({
+          materialesEnGastosReales: data.materialesEnGastosReales,
+          materialesEnGastosRealesLista: data.materiales?.map((m: any) => m.nombre) || [],
+          materialesActualizados: 0
+        });
+      } else {
+        setResultado(data);
+      }
     } catch (err: any) {
       setError(err.message || 'Error desconocido');
+      // Si el error es 404, puede ser que el servidor no esté corriendo
+      if (err.message?.includes('Failed to fetch') || err.message?.includes('404')) {
+        setError('Error de conexión. Verifica que el servidor esté corriendo (npm run dev)');
+      }
     } finally {
       setCargando(false);
     }
@@ -208,6 +258,22 @@ export default function ActualizarCotizacionPage() {
                   </ul>
                 </div>
               )}
+              {resultado?.materialesEnGastosRealesLista && (
+                <div className="mt-3 pt-3 border-t border-red-200">
+                  <p className="text-red-700 text-sm font-medium mb-2">
+                    Materiales encontrados en gastos reales ({resultado.materialesEnGastosReales || 0}):
+                  </p>
+                  <ul className="text-xs text-red-600 space-y-1">
+                    {resultado.materialesEnGastosRealesLista.map((nombre: string, idx: number) => (
+                      <li key={idx}>• {nombre}</li>
+                    ))}
+                  </ul>
+                  <p className="text-red-700 text-xs mt-2">
+                    Estos materiales están registrados en gastos reales pero no se encontraron en los items de la cotización.
+                    Verifica que los nombres coincidan exactamente.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -225,8 +291,27 @@ export default function ActualizarCotizacionPage() {
                   <strong>Items Actualizados:</strong> {resultado.itemsActualizados || 0}
                 </p>
                 <p className="text-gray-700">
+                  <strong>Materiales en Gastos Reales:</strong> {resultado.materialesEnGastosReales || 0}
+                </p>
+                <p className="text-gray-700">
                   <strong>Materiales Actualizados:</strong> {resultado.materialesActualizados || 0}
                 </p>
+                {resultado.materialesNoEncontrados && resultado.materialesNoEncontrados.length > 0 && (
+                  <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                    <p className="text-yellow-800 text-xs font-medium mb-1">
+                      ⚠️ Materiales no encontrados en items ({resultado.materialesNoEncontrados.length}):
+                    </p>
+                    <ul className="text-xs text-yellow-700 space-y-1">
+                      {resultado.materialesNoEncontrados.map((nombre: string, idx: number) => (
+                        <li key={idx}>• {nombre}</li>
+                      ))}
+                    </ul>
+                    <p className="text-yellow-700 text-xs mt-2">
+                      Estos materiales están en gastos reales pero no se encontraron en los items de la cotización. 
+                      Verifica que los nombres coincidan exactamente.
+                    </p>
+                  </div>
+                )}
                 {resultado.totalAnterior !== undefined && (
                   <div className="mt-3 pt-3 border-t border-green-200">
                     <p className="text-gray-700 font-medium mb-2">Comparación de Totales:</p>

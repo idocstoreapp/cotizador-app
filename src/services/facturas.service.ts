@@ -131,6 +131,7 @@ export async function actualizarFactura(
     total: number;
     archivo_url: string;
     tipo: 'material' | 'mano_obra' | 'transporte' | 'gasto_hormiga' | 'mixta';
+    bsale_document_id: number;
   }>
 ): Promise<Factura> {
   const { data, error } = await supabase
