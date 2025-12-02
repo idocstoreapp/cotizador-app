@@ -125,7 +125,19 @@ export default function GastosHormigaTab({ cotizacionId, cotizacion, onUpdate }:
     setMostrarModal(true);
   };
 
-  const total = gastos.reduce((sum, g) => sum + g.monto, 0);
+  // Obtener la cantidad del item (los gastos reales están registrados para 1 unidad)
+  let cantidadItem = 1;
+  if (cotizacion?.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0) {
+    const itemConCantidad = cotizacion.items.find((item: any) => item.cantidad && item.cantidad > 1);
+    if (itemConCantidad) {
+      cantidadItem = itemConCantidad.cantidad;
+    }
+  }
+  
+  // IMPORTANTE: Los gastos hormiga están registrados para 1 unidad
+  // Necesitamos multiplicarlos por la cantidad del item
+  const totalPorUnidad = gastos.reduce((sum, g) => sum + g.monto, 0);
+  const total = totalPorUnidad * cantidadItem;
 
   // Extraer costos indirectos presupuestados desde gastos_extras de los items
   const costosIndirectosPresupuestados: Array<{
@@ -307,8 +319,13 @@ export default function GastosHormigaTab({ cotizacionId, cotizacion, onUpdate }:
           <p className="text-xl font-bold text-blue-600">${totalPresupuestado.toLocaleString('es-CO')}</p>
         </div>
         <div className="bg-green-50 p-4 rounded-lg">
-          <p className="text-sm text-gray-600">Real (Hormiga)</p>
+          <p className="text-sm text-gray-600">Real (Hormiga) (×{cantidadItem} unidades)</p>
           <p className="text-xl font-bold text-green-600">${total.toLocaleString('es-CO')}</p>
+          {cantidadItem > 1 && (
+            <p className="text-xs text-gray-500 mt-1">
+              ${totalPorUnidad.toLocaleString('es-CO')} por unidad
+            </p>
+          )}
         </div>
         <div className="bg-yellow-50 p-4 rounded-lg">
           <p className="text-sm text-gray-600">Total Real</p>

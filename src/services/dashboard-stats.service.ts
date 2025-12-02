@@ -51,19 +51,19 @@ export interface EstadisticasDashboard {
  * Función auxiliar para calcular total desde items de una cotización
  */
 function calcularTotalDesdeItems(cotizacion: Cotizacion): number {
-  if (cotizacion.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0) {
-    const subtotal = cotizacion.items.reduce((sum: number, item: any) => {
-      return sum + (item.precio_total || 0);
-    }, 0);
-    
+    if (cotizacion.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0) {
+      const subtotal = cotizacion.items.reduce((sum: number, item: any) => {
+        return sum + (item.precio_total || 0);
+      }, 0);
+      
     const descuento = (cotizacion as any).descuento || 0;
-    const descuentoMonto = subtotal * (descuento / 100);
-    const subtotalConDescuento = subtotal - descuentoMonto;
-    const ivaPorcentaje = (cotizacion as any).iva_porcentaje || 19;
-    const iva = subtotalConDescuento * (ivaPorcentaje / 100);
-    
-    return subtotalConDescuento + iva;
-  }
+      const descuentoMonto = subtotal * (descuento / 100);
+      const subtotalConDescuento = subtotal - descuentoMonto;
+      const ivaPorcentaje = (cotizacion as any).iva_porcentaje || 19;
+      const iva = subtotalConDescuento * (ivaPorcentaje / 100);
+      
+      return subtotalConDescuento + iva;
+    }
   return cotizacion.total || 0;
 }
 

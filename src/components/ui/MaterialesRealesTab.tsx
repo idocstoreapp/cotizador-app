@@ -352,14 +352,30 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
 
   const totalPresupuestado = Array.from(materialesAgrupados.values()).reduce((sum, mat) => sum + mat.costo_total, 0);
   
+  // Obtener la cantidad del item (para multiplicar los gastos reales)
+  // Los gastos reales están registrados para 1 unidad, pero el item puede tener múltiples unidades
+  let cantidadItem = 1;
+  if (cotizacion.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0) {
+    // Buscar el item con cantidad mayor a 1
+    const itemConCantidad = cotizacion.items.find((item: any) => item.cantidad && item.cantidad > 1);
+    if (itemConCantidad) {
+      cantidadItem = itemConCantidad.cantidad;
+    }
+  }
+  
   // También calcular desde gastos reales registrados (para comparación)
   const totalPresupuestadoDesdeGastos = gastos.reduce((sum, g) => {
     return sum + (g.cantidad_presupuestada * g.precio_unitario_presupuestado);
   }, 0);
 
-  const totalReal = gastos.reduce((sum, g) => {
+  // IMPORTANTE: Los gastos reales están registrados para 1 unidad
+  // Necesitamos multiplicarlos por la cantidad del item para obtener el total real
+  const totalRealPorUnidad = gastos.reduce((sum, g) => {
     return sum + (g.cantidad_real * g.precio_unitario_real);
   }, 0);
+  
+  // Multiplicar por la cantidad del item para obtener el total real
+  const totalReal = totalRealPorUnidad * cantidadItem;
 
   const diferencia = totalReal - totalPresupuestado;
   const diferenciaPorcentaje = totalPresupuestado > 0
@@ -392,8 +408,13 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
           <p className="text-xl font-bold text-blue-600">${totalPresupuestado.toLocaleString('es-CO')}</p>
         </div>
         <div className="bg-green-50 p-4 rounded-lg">
-          <p className="text-sm text-gray-600">Real</p>
+          <p className="text-sm text-gray-600">Real (×{cantidadItem} unidades)</p>
           <p className="text-xl font-bold text-green-600">${totalReal.toLocaleString('es-CO')}</p>
+          {cantidadItem > 1 && (
+            <p className="text-xs text-gray-500 mt-1">
+              ${totalRealPorUnidad.toLocaleString('es-CO')} por unidad
+            </p>
+          )}
         </div>
         <div className={`p-4 rounded-lg ${diferencia >= 0 ? 'bg-red-50' : 'bg-green-50'}`}>
           <p className="text-sm text-gray-600">Diferencia</p>
@@ -470,10 +491,10 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
                                 unidad: mat.unidad,
                                 material_tipo: undefined
                               };
-                              setMaterialRegistrando({
+                                setMaterialRegistrando({
                                 material: materialParaModal,
                                 itemId: 'material-agrupado-' + mat.material_nombre.toLowerCase().replace(/\s+/g, '-')
-                              });
+                                });
                             }}
                             className="px-3 py-1 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700"
                           >

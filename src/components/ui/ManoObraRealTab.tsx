@@ -132,10 +132,23 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
     setMostrarModal(true);
   };
 
-  const totalPagado = registros.reduce((sum, r) => sum + r.total_pagado, 0);
+  // Obtener la cantidad del item (los gastos reales están registrados para 1 unidad)
+  let cantidadItem = 1;
+  if (cotizacion?.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0) {
+    const itemConCantidad = cotizacion.items.find((item: any) => item.cantidad && item.cantidad > 1);
+    if (itemConCantidad) {
+      cantidadItem = itemConCantidad.cantidad;
+    }
+  }
+  
+  // IMPORTANTE: Los registros de mano de obra están para 1 unidad
+  // Necesitamos multiplicarlos por la cantidad del item
+  const totalPagadoPorUnidad = registros.reduce((sum, r) => sum + r.total_pagado, 0);
+  const totalPagado = totalPagadoPorUnidad * cantidadItem;
+  
   const totalHoras = registros.reduce((sum, r) => sum + r.horas_trabajadas, 0);
 
-  // Calcular mano de obra presupuestada desde items
+  // Calcular mano de obra presupuestada desde items (ya incluye cantidad del item)
   const serviciosPresupuestados: Array<{
     servicio_nombre: string;
     horas: number;
@@ -146,15 +159,18 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
 
   if (cotizacion?.items && Array.isArray(cotizacion.items)) {
     cotizacion.items.forEach((item: any) => {
+      const cantidadItemPresupuestado = item.cantidad || 1;
       if (item.servicios && Array.isArray(item.servicios)) {
         item.servicios.forEach((serv: any) => {
           const horas = serv.horas || 0;
           const precioPorHora = serv.precio_por_hora || 0;
+          // El costo total ya incluye la cantidad del item en el precio_total del item
+          // Pero aquí calculamos por servicio, así que multiplicamos por cantidad
           serviciosPresupuestados.push({
             servicio_nombre: serv.servicio_nombre || 'Mano de Obra',
-            horas,
+            horas: horas * cantidadItemPresupuestado,
             precio_por_hora: precioPorHora,
-            costo_total: horas * precioPorHora,
+            costo_total: horas * precioPorHora * cantidadItemPresupuestado,
             item_nombre: item.nombre || 'Item sin nombre'
           });
         });
@@ -274,8 +290,13 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
           <p className="text-2xl font-bold text-blue-600">{totalHoras.toFixed(2)}</p>
         </div>
         <div className="bg-green-50 p-4 rounded-lg">
-          <p className="text-sm text-gray-600">Total Pagado</p>
+          <p className="text-sm text-gray-600">Total Pagado (×{cantidadItem} unidades)</p>
           <p className="text-2xl font-bold text-green-600">${totalPagado.toLocaleString('es-CO')}</p>
+          {cantidadItem > 1 && (
+            <p className="text-xs text-gray-500 mt-1">
+              ${totalPagadoPorUnidad.toLocaleString('es-CO')} por unidad
+            </p>
+          )}
         </div>
         <div className="bg-purple-50 p-4 rounded-lg">
           <p className="text-sm text-gray-600">Registros</p>

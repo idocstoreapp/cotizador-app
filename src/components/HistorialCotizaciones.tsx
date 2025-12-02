@@ -14,29 +14,13 @@ import { EMPRESAS } from '../types/empresas';
 import type { Cotizacion, UserProfile, HistorialModificacion } from '../types/database';
 
 /**
- * Calcula el total desde items si están disponibles, sino usa el total guardado
+ * Obtiene el total de la cotización
+ * IMPORTANTE: Usa siempre el total guardado para evitar inconsistencias
+ * No recalcula desde items porque los items pueden haber sido modificados para comparación
  */
 function calcularTotalDesdeItems(cotizacion: Cotizacion): number {
-  // Si hay items guardados, calcular desde items (más preciso)
-  if (cotizacion.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0) {
-    const subtotal = cotizacion.items.reduce((sum: number, item: any) => {
-      return sum + (item.precio_total || 0);
-    }, 0);
-    
-    // Aplicar descuento si existe (asumimos 0% por defecto)
-    const descuento = 0; // TODO: obtener descuento de la cotización si está guardado
-    const descuentoMonto = subtotal * (descuento / 100);
-    const subtotalConDescuento = subtotal - descuentoMonto;
-    
-    // Calcular IVA (19% por defecto)
-    const ivaPorcentaje = 19;
-    const iva = subtotalConDescuento * (ivaPorcentaje / 100);
-    
-    // Total final
-    return subtotalConDescuento + iva;
-  }
-  
-  // Fallback: usar total guardado
+  // Siempre usar el total guardado en la cotización (es el precio cotizado original)
+  // No recalcular desde items porque pueden tener materiales modificados para comparación
   return cotizacion.total || 0;
 }
 

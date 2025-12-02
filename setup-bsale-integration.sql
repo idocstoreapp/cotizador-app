@@ -16,3 +16,5 @@ CREATE INDEX IF NOT EXISTS idx_facturas_numero_factura_lower ON facturas(LOWER(n
 -- Comentarios
 COMMENT ON COLUMN facturas.bsale_document_id IS 'ID del documento en Bsale (para enlaces directos)';
 
+
+

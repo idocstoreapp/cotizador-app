@@ -116,7 +116,19 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
     setMostrarModal(true);
   };
 
-  const total = transportes.reduce((sum, t) => sum + t.costo, 0);
+  // Obtener la cantidad del item (los gastos reales están registrados para 1 unidad)
+  let cantidadItem = 1;
+  if (cotizacion?.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0) {
+    const itemConCantidad = cotizacion.items.find((item: any) => item.cantidad && item.cantidad > 1);
+    if (itemConCantidad) {
+      cantidadItem = itemConCantidad.cantidad;
+    }
+  }
+  
+  // IMPORTANTE: Los transportes están registrados para 1 unidad
+  // Necesitamos multiplicarlos por la cantidad del item
+  const totalPorUnidad = transportes.reduce((sum, t) => sum + t.costo, 0);
+  const total = totalPorUnidad * cantidadItem;
 
   // Extraer transporte presupuestado desde gastos_extras de los items
   const transportePresupuestado: Array<{
@@ -266,6 +278,11 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
         <div className="bg-green-50 p-4 rounded-lg">
           <p className="text-sm text-gray-600">Real</p>
           <p className="text-xl font-bold text-green-600">${total.toLocaleString('es-CO')}</p>
+          {cantidadItem > 1 && (
+            <p className="text-xs text-gray-500 mt-1">
+              ${totalPorUnidad.toLocaleString('es-CO')} por unidad (×{cantidadItem})
+            </p>
+          )}
         </div>
         <div className={`p-4 rounded-lg ${total - totalPresupuestado >= 0 ? 'bg-red-50' : 'bg-green-50'}`}>
           <p className="text-sm text-gray-600">Diferencia</p>

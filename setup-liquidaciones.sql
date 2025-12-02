@@ -239,3 +239,5 @@ $$;
 -- 4. Las funciones ayudan a obtener detalles y resúmenes
 -- ============================================
 
+
+

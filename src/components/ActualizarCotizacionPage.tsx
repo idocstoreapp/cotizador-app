@@ -98,36 +98,107 @@ export default function ActualizarCotizacionPage() {
     setError(null);
     setResultado(null);
 
+    // Primero verificar que el endpoint esté disponible
+    try {
+      console.log('🔍 Verificando conexión con el endpoint...');
+      const testResponse = await fetch('/api/actualizar-costos', {
+        method: 'GET',
+      });
+      
+      if (!testResponse.ok && testResponse.status !== 405) {
+        // 405 es "Method Not Allowed" que es aceptable para GET
+        console.warn('⚠️ Endpoint responde pero con status:', testResponse.status);
+      } else {
+        console.log('✅ Endpoint está disponible');
+      }
+    } catch (testError) {
+      console.warn('⚠️ No se pudo verificar el endpoint (continuando de todas formas):', testError);
+    }
+
     try {
       // Intentar con la ruta más corta
       const apiUrl = '/api/actualizar-costos';
+      const urlCompleta = window.location.origin + apiUrl;
       console.log('🔍 [Frontend] Llamando a:', apiUrl);
+      console.log('🔍 [Frontend] URL completa:', urlCompleta);
       console.log('🔍 [Frontend] Body:', { numeroCotizacion: numeroLimpio });
-      console.log('🔍 [Frontend] URL completa:', window.location.origin + apiUrl);
       
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ numeroCotizacion: numeroLimpio }),
-      }).catch((fetchError) => {
+      let response: Response;
+      try {
+        response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ numeroCotizacion: numeroLimpio }),
+        });
+      } catch (fetchError: any) {
         console.error('❌ [Frontend] Error en fetch:', fetchError);
-        throw new Error(`Error de conexión: ${fetchError.message}. ¿El servidor está corriendo en http://localhost:4321?`);
-      });
+        const mensajeError = fetchError.message || 'Error desconocido';
+        
+        // Verificar si es un error de red
+        if (mensajeError.includes('Failed to fetch') || mensajeError.includes('NetworkError')) {
+          setError(`Error de conexión: No se pudo conectar al servidor. 
+          
+Verifica que:
+1. El servidor esté corriendo (npm run dev)
+2. Estés accediendo desde http://localhost:4321
+3. No haya problemas de firewall o proxy
+
+URL intentada: ${urlCompleta}`);
+        } else {
+          setError(`Error de conexión: ${mensajeError}`);
+        }
+        return;
+      }
 
       console.log('📥 [Frontend] Response status:', response.status);
       console.log('📥 [Frontend] Response ok:', response.ok);
       console.log('📥 [Frontend] Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ [Frontend] Response error:', errorText);
+        let errorText: string;
         try {
-          const errorData = JSON.parse(errorText);
-          throw new Error(errorData.error || `Error ${response.status}: ${errorText}`);
-        } catch {
-          throw new Error(`Error ${response.status}: ${errorText}`);
+          errorText = await response.text();
+          console.error('❌ [Frontend] Response error:', errorText);
+          
+          // Intentar parsear como JSON
+          try {
+            const errorData = JSON.parse(errorText);
+            const mensajeError = errorData.error || `Error ${response.status}`;
+            
+            // Si es 404, dar mensaje más específico
+            if (response.status === 404) {
+              setError(`Endpoint no encontrado (404). 
+              
+El servidor no encontró la ruta /api/actualizar-costos.
+
+Verifica que:
+1. El archivo src/pages/api/actualizar-costos.ts existe
+2. El servidor se haya reiniciado después de crear el archivo
+3. No haya errores de sintaxis en el endpoint
+
+Error: ${mensajeError}`);
+            } else {
+              setError(mensajeError);
+            }
+            
+            // Guardar información adicional si está disponible
+            if (errorData.materialesEnGastosReales || errorData.materialesNoEncontrados) {
+              setResultado({
+                materialesEnGastosReales: errorData.materialesEnGastosReales,
+                materialesNoEncontrados: errorData.materialesNoEncontrados,
+                sugerencias: errorData.sugerencias
+              });
+            }
+            return;
+          } catch {
+            // No es JSON, usar el texto directamente
+            throw new Error(`Error ${response.status}: ${errorText}`);
+          }
+        } catch (parseError) {
+          setError(`Error ${response.status}: No se pudo leer la respuesta del servidor`);
+          return;
         }
       }
 
@@ -175,12 +246,66 @@ export default function ActualizarCotizacionPage() {
     }
   };
 
+  const handleCorregirTotal = async () => {
+    const numeroLimpio = numeroCotizacion.trim().toUpperCase();
+    
+    if (!numeroLimpio) {
+      setError('Por favor ingresa un número de cotización');
+      return;
+    }
+
+    setCargando(true);
+    setError(null);
+    setResultado(null);
+
+    try {
+      const response = await fetch('/api/corregir-total-cotizacion', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ numeroCotizacion: numeroLimpio }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al corregir el total');
+      }
+
+      setResultado({
+        ...data,
+        tipo: 'correccion_total'
+      });
+    } catch (err: any) {
+      setError(err.message || 'Error desconocido');
+    } finally {
+      setCargando(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="bg-white rounded-lg shadow-lg p-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">
           🔄 Actualizar Cotización desde Costos Reales
         </h1>
+        
+        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-sm text-yellow-800 mb-2">
+            <strong>⚠️ Si el total de la cotización está incorrecto:</strong>
+          </p>
+          <button
+            onClick={handleCorregirTotal}
+            disabled={cargando || !numeroCotizacion.trim()}
+            className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:bg-gray-400 text-sm"
+          >
+            🔧 Corregir Solo el Total (sin modificar items)
+          </button>
+          <p className="text-xs text-yellow-700 mt-2">
+            Esto recalcula el total desde el precio_total de los items y actualiza solo subtotal, IVA y total.
+          </p>
+        </div>
 
         <div className="space-y-4">
           <div>
@@ -279,20 +404,76 @@ export default function ActualizarCotizacionPage() {
 
           {resultado && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <p className="text-green-800 font-medium">✅ Actualización Exitosa</p>
+              <p className="text-green-800 font-medium">
+                {resultado.tipo === 'correccion_total' ? '✅ Total Corregido' : '✅ Actualización Exitosa'}
+              </p>
               <div className="mt-3 space-y-2 text-sm">
-                <p className="text-gray-700">
-                  <strong>Cotización:</strong> {numeroCotizacion}
-                </p>
-                <p className="text-gray-700">
-                  <strong>Cantidad del Item:</strong> {resultado.cantidadItem} unidades
-                </p>
-                <p className="text-gray-700">
-                  <strong>Items Actualizados:</strong> {resultado.itemsActualizados || 0}
-                </p>
-                <p className="text-gray-700">
-                  <strong>Materiales en Gastos Reales:</strong> {resultado.materialesEnGastosReales || 0}
-                </p>
+                {resultado.tipo === 'correccion_total' ? (
+                  <>
+                    <p className="text-gray-700">
+                      <strong>Cotización:</strong> {numeroCotizacion}
+                    </p>
+                    {resultado.totalesAnteriores && resultado.totalesNuevos && (
+                      <div className="mt-3 pt-3 border-t border-green-200">
+                        <p className="text-gray-700 font-medium mb-2">Totales Corregidos:</p>
+                        <div className="space-y-1 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Subtotal anterior:</span>
+                            <span className="line-through text-gray-500">${(resultado.totalesAnteriores.subtotal || 0).toLocaleString('es-CO')}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Subtotal nuevo:</span>
+                            <span className="font-semibold text-green-700">${(resultado.totalesNuevos.subtotal || 0).toLocaleString('es-CO')}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">IVA anterior:</span>
+                            <span className="line-through text-gray-500">${(resultado.totalesAnteriores.iva || 0).toLocaleString('es-CO')}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">IVA nuevo:</span>
+                            <span className="font-semibold text-green-700">${(resultado.totalesNuevos.iva || 0).toLocaleString('es-CO')}</span>
+                          </div>
+                          <div className="flex justify-between pt-2 border-t border-green-300">
+                            <span className="text-gray-700 font-bold">Total anterior:</span>
+                            <span className="line-through text-red-600 font-bold">${(resultado.totalesAnteriores.total || 0).toLocaleString('es-CO')}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-700 font-bold">Total nuevo:</span>
+                            <span className="font-bold text-green-700 text-lg">${(resultado.totalesNuevos.total || 0).toLocaleString('es-CO')}</span>
+                          </div>
+                        </div>
+                        {resultado.items && resultado.items.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-green-200">
+                            <p className="text-gray-700 font-medium mb-2 text-xs">Items usados para el cálculo:</p>
+                            <div className="space-y-1 text-xs">
+                              {resultado.items.map((item: any, idx: number) => (
+                                <div key={idx} className="flex justify-between text-gray-600">
+                                  <span>{item.nombre} (×{item.cantidad}):</span>
+                                  <span>${(item.precio_total || 0).toLocaleString('es-CO')}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="text-gray-700">
+                      <strong>Cotización:</strong> {numeroCotizacion}
+                    </p>
+                    <p className="text-gray-700">
+                      <strong>Cantidad del Item:</strong> {resultado.cantidadItem} unidades
+                    </p>
+                    <p className="text-gray-700">
+                      <strong>Items Actualizados:</strong> {resultado.itemsActualizados || 0}
+                    </p>
+                    <p className="text-gray-700">
+                      <strong>Materiales en Gastos Reales:</strong> {resultado.materialesEnGastosReales || 0}
+                    </p>
+                  </>
+                )}
                 <p className="text-gray-700">
                   <strong>Materiales Actualizados:</strong> {resultado.materialesActualizados || 0}
                 </p>
@@ -312,20 +493,25 @@ export default function ActualizarCotizacionPage() {
                     </p>
                   </div>
                 )}
-                {resultado.totalAnterior !== undefined && (
+                {resultado.totalCotizado !== undefined && (
                   <div className="mt-3 pt-3 border-t border-green-200">
-                    <p className="text-gray-700 font-medium mb-2">Comparación de Totales:</p>
+                    <p className="text-gray-700 font-medium mb-2">Comparación Cotizado vs Real:</p>
                     <div className="space-y-1 text-sm">
                       <p className="text-gray-600">
-                        Total Anterior: <span className="font-semibold line-through">${resultado.totalAnterior.toLocaleString('es-CO')}</span>
+                        Total Cotizado (mantiene original): <span className="font-semibold">${(resultado.totalCotizado || resultado.totales?.total || 0).toLocaleString('es-CO')}</span>
                       </p>
-                      <p className="text-gray-700 font-bold text-lg">
-                        Total Nuevo: ${resultado.totales?.total.toLocaleString('es-CO')}
-                      </p>
-                      <p className={`font-semibold ${(resultado.totales?.total - resultado.totalAnterior) >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        Diferencia: {((resultado.totales?.total - resultado.totalAnterior) >= 0 ? '+' : '')}
-                        ${(resultado.totales?.total - resultado.totalAnterior).toLocaleString('es-CO')}
-                      </p>
+                      {resultado.costoMaterialesReal !== undefined && (
+                        <>
+                          <p className="text-gray-600">
+                            Costo Materiales Real (×{resultado.cantidadItem || 15} unidades): <span className="font-semibold text-blue-600">${(resultado.costoMaterialesReal || 0).toLocaleString('es-CO')}</span>
+                          </p>
+                          {resultado.utilidadReal !== undefined && (
+                            <p className={`text-gray-700 font-bold text-lg ${resultado.utilidadReal >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              Utilidad Real (hasta ahora, solo materiales): ${(resultado.utilidadReal || 0).toLocaleString('es-CO')}
+                            </p>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
@@ -335,12 +521,26 @@ export default function ActualizarCotizacionPage() {
                     <div className="space-y-1 text-xs max-h-40 overflow-y-auto">
                       {resultado.materiales.map((mat: any, idx: number) => (
                         <div key={idx} className="bg-white p-2 rounded border border-gray-200">
-                          <p className="font-semibold text-gray-900">{mat.nombre}</p>
+                          <p className="font-semibold text-gray-900">{mat.nombre || 'Material sin nombre'}</p>
                           <p className="text-gray-600">
-                            {mat.cantidad_por_unidad} {mat.unidad} × ${mat.precio_unitario.toLocaleString('es-CO')} = 
-                            <span className="font-semibold ml-1">
-                              ${(mat.cantidad_por_unidad * mat.precio_unitario).toLocaleString('es-CO')}
-                            </span>
+                            {mat.cantidad_total !== undefined ? (
+                              <>
+                                {mat.cantidad_total} {mat.unidad || 'unidad'} × ${(mat.precio_unitario || 0).toLocaleString('es-CO')} = 
+                                <span className="font-semibold ml-1">
+                                  ${(mat.costo_total || (mat.cantidad_total * (mat.precio_unitario || 0))).toLocaleString('es-CO')}
+                                </span>
+                                <span className="text-xs text-gray-500 ml-2">
+                                  ({mat.cantidad_por_unidad} por unidad × {resultado.cantidadItem || 15})
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                {(mat.cantidad_por_unidad || 0)} {mat.unidad || 'unidad'} × ${(mat.precio_unitario || 0).toLocaleString('es-CO')} = 
+                                <span className="font-semibold ml-1">
+                                  ${((mat.cantidad_por_unidad || 0) * (mat.precio_unitario || 0)).toLocaleString('es-CO')}
+                                </span>
+                              </>
+                            )}
                           </p>
                         </div>
                       ))}
@@ -349,20 +549,34 @@ export default function ActualizarCotizacionPage() {
                 )}
                 {resultado.totales && (
                   <div className="mt-3 pt-3 border-t border-green-200">
-                    <p className="text-gray-700 font-medium mb-2">Nuevos Totales:</p>
+                    <p className="text-gray-700 font-medium mb-2">Totales Cotizados (mantiene original):</p>
                     <div className="space-y-1 text-sm">
                       <p className="text-gray-600">
-                        Subtotal: <span className="font-semibold">${resultado.totales.subtotal.toLocaleString('es-CO')}</span>
+                        Subtotal: <span className="font-semibold">${(resultado.totales.subtotal || 0).toLocaleString('es-CO')}</span>
                       </p>
                       <p className="text-gray-600">
-                        Descuento: <span className="font-semibold">${resultado.totales.descuento.toLocaleString('es-CO')}</span>
-                      </p>
-                      <p className="text-gray-600">
-                        IVA: <span className="font-semibold">${resultado.totales.iva.toLocaleString('es-CO')}</span>
+                        IVA: <span className="font-semibold">${(resultado.totales.iva || 0).toLocaleString('es-CO')}</span>
                       </p>
                       <p className="text-gray-700 font-bold text-lg">
-                        Total: ${resultado.totales.total.toLocaleString('es-CO')}
+                        Total Cotizado: ${(resultado.totales.total || resultado.totalCotizado || 0).toLocaleString('es-CO')}
                       </p>
+                    </div>
+                  </div>
+                )}
+                {resultado.costoMaterialesReal !== undefined && (
+                  <div className="mt-3 pt-3 border-t border-blue-200">
+                    <p className="text-blue-700 font-medium mb-2">Costos Reales (hasta ahora):</p>
+                    <div className="space-y-1 text-sm">
+                      <p className="text-gray-600">
+                        Costo Materiales Real (×{resultado.cantidadItem || 15} unidades): <span className="font-semibold text-blue-600">${(resultado.costoMaterialesReal || 0).toLocaleString('es-CO')}</span>
+                      </p>
+                      {resultado.utilidadReal !== undefined && (
+                        <p className="text-gray-700 font-bold text-lg">
+                          Utilidad Real: <span className={resultado.utilidadReal >= 0 ? 'text-green-600' : 'text-red-600'}>
+                            ${(resultado.utilidadReal || 0).toLocaleString('es-CO')}
+                          </span>
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}

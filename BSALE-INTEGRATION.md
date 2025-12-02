@@ -151,3 +151,5 @@ Sincroniza todas las facturas sin `bsale_document_id`.
 - Los enlaces apuntan a `https://www.bsale.cl/document/{id}`
 - La sincronización es unidireccional: del sistema hacia Bsale (solo lectura)
 
+
+

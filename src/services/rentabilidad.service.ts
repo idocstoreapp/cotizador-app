@@ -79,6 +79,18 @@ export interface ComparacionPresupuestoReal {
  * Obtiene el resumen de costos reales de una cotización
  */
 export async function obtenerResumenCostosReales(cotizacionId: string): Promise<ResumenCostosReales> {
+  // Obtener la cotización para saber la cantidad del item
+  const cotizacion = await obtenerCotizacionPorId(cotizacionId);
+  
+  // Obtener la cantidad del item (los gastos reales están registrados para 1 unidad)
+  let cantidadItem = 1;
+  if (cotizacion?.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0) {
+    const itemConCantidad = cotizacion.items.find((item: any) => item.cantidad && item.cantidad > 1);
+    if (itemConCantidad) {
+      cantidadItem = itemConCantidad.cantidad;
+    }
+  }
+  
   const [
     gastosMateriales,
     manoObra,
@@ -91,13 +103,21 @@ export async function obtenerResumenCostosReales(cotizacionId: string): Promise<
     obtenerTransportesRealesPorCotizacion(cotizacionId)
   ]);
 
-  const totalMateriales = gastosMateriales.reduce((sum, g) => {
+  // IMPORTANTE: Los gastos reales están registrados para 1 unidad
+  // Necesitamos multiplicarlos por la cantidad del item
+  const totalMaterialesPorUnidad = gastosMateriales.reduce((sum, g) => {
     return sum + (g.cantidad_real * g.precio_unitario_real);
   }, 0);
+  const totalMateriales = totalMaterialesPorUnidad * cantidadItem;
 
-  const totalManoObra = manoObra.reduce((sum, m) => sum + m.total_pagado, 0);
-  const totalGastosHormiga = gastosHormiga.reduce((sum, g) => sum + g.monto, 0);
-  const totalTransporte = transportes.reduce((sum, t) => sum + t.costo, 0);
+  const totalManoObraPorUnidad = manoObra.reduce((sum, m) => sum + m.total_pagado, 0);
+  const totalManoObra = totalManoObraPorUnidad * cantidadItem;
+  
+  const totalGastosHormigaPorUnidad = gastosHormiga.reduce((sum, g) => sum + g.monto, 0);
+  const totalGastosHormiga = totalGastosHormigaPorUnidad * cantidadItem;
+  
+  const totalTransportePorUnidad = transportes.reduce((sum, t) => sum + t.costo, 0);
+  const totalTransporte = totalTransportePorUnidad * cantidadItem;
 
   return {
     materiales: {
@@ -149,33 +169,67 @@ function calcularTotalDesdeItems(cotizacion: any): number {
 
 /**
  * Calcula subtotales de materiales y servicios desde los items
+ * IMPORTANTE: Multiplica por la cantidad del item
  */
 function calcularSubtotalesDesdeItems(cotizacion: any): {
   subtotalMateriales: number;
   subtotalServicios: number;
   costoBase: number;
 } {
+  console.log('🔧 [calcularSubtotalesDesdeItems] Iniciando cálculo...');
   let subtotalMateriales = 0;
   let subtotalServicios = 0;
 
   if (cotizacion.items && Array.isArray(cotizacion.items)) {
-    cotizacion.items.forEach((item: any) => {
-      // Calcular costo de materiales del item
+    cotizacion.items.forEach((item: any, itemIndex: number) => {
+      // Obtener la cantidad del item (por defecto 1)
+      const cantidadItem = item.cantidad || 1;
+      
+      console.log(`  📦 Item ${itemIndex + 1} "${item.nombre || 'Sin nombre'}": cantidad = ${cantidadItem}`);
+      
+      // IMPORTANTE: Los materiales en los items están guardados con cantidades POR UNIDAD
+      // Necesitamos multiplicar por la cantidad del item para obtener el total
       if (item.materiales && Array.isArray(item.materiales)) {
-        const costoMaterialesItem = item.materiales.reduce((sum: number, mat: any) => {
-          return sum + ((mat.cantidad || 0) * (mat.precio_unitario || 0));
-        }, 0);
-        subtotalMateriales += costoMaterialesItem;
+        // Calcular costo de materiales del item
+        let costoMaterialesItemPorUnidad = 0;
+        item.materiales.forEach((mat: any, matIndex: number) => {
+          const cantidadMat = mat.cantidad || 0;
+          const precioUnitario = mat.precio_unitario || 0;
+          const costoMat = cantidadMat * precioUnitario;
+          costoMaterialesItemPorUnidad += costoMat;
+          console.log(`      Material ${matIndex + 1} "${mat.material_nombre || mat.nombre || 'Sin nombre'}":`);
+          console.log(`        - Cantidad por unidad: ${cantidadMat} ${mat.unidad || 'unidad'}`);
+          console.log(`        - Precio unitario: $${precioUnitario.toLocaleString('es-CO')}`);
+          console.log(`        - Costo por unidad: $${costoMat.toLocaleString('es-CO')}`);
+        });
+        
+        const costoMaterialesItemTotal = costoMaterialesItemPorUnidad * cantidadItem;
+        console.log(`    - Materiales por unidad (suma): $${costoMaterialesItemPorUnidad.toLocaleString('es-CO')}`);
+        console.log(`    - Materiales total (×${cantidadItem} unidades): $${costoMaterialesItemTotal.toLocaleString('es-CO')}`);
+        // Multiplicar por la cantidad del item para obtener el costo total de materiales
+        subtotalMateriales += costoMaterialesItemTotal;
+      } else {
+        console.log(`    - Item sin materiales`);
       }
 
-      // Calcular costo de servicios del item
+      // IMPORTANTE: Los servicios en los items están guardados con horas POR UNIDAD
+      // Necesitamos multiplicar por la cantidad del item para obtener el total
       if (item.servicios && Array.isArray(item.servicios)) {
-        const costoServiciosItem = item.servicios.reduce((sum: number, serv: any) => {
+        const costoServiciosItemPorUnidad = item.servicios.reduce((sum: number, serv: any) => {
+          // serv.horas es las horas por unidad del item
           return sum + ((serv.horas || 0) * (serv.precio_por_hora || 0));
         }, 0);
-        subtotalServicios += costoServiciosItem;
+        const costoServiciosItemTotal = costoServiciosItemPorUnidad * cantidadItem;
+        console.log(`    - Servicios por unidad: $${costoServiciosItemPorUnidad.toLocaleString('es-CO')}`);
+        console.log(`    - Servicios total (×${cantidadItem}): $${costoServiciosItemTotal.toLocaleString('es-CO')}`);
+        // Multiplicar por la cantidad del item para obtener el costo total de servicios
+        subtotalServicios += costoServiciosItemTotal;
       }
     });
+    
+    console.log(`  📊 Totales calculados:`);
+    console.log(`    - Subtotal Materiales: $${subtotalMateriales.toLocaleString('es-CO')}`);
+    console.log(`    - Subtotal Servicios: $${subtotalServicios.toLocaleString('es-CO')}`);
   } else {
     // Fallback: usar valores guardados
     subtotalMateriales = cotizacion.subtotal_materiales || 0;
@@ -207,6 +261,15 @@ export async function obtenerComparacionPresupuestoReal(cotizacionId: string): P
   
   // Calcular subtotales desde items
   const { subtotalMateriales: subtotalMaterialesPresupuestado, subtotalServicios: subtotalServiciosPresupuestado, costoBase: costoBasePresupuestado } = calcularSubtotalesDesdeItems(cotizacion);
+  
+  // Debug: Log de valores calculados
+  console.log('🔍 [Rentabilidad] Valores calculados:');
+  console.log('  - Subtotal Materiales Presupuestado:', subtotalMaterialesPresupuestado);
+  console.log('  - Subtotal Servicios Presupuestado:', subtotalServiciosPresupuestado);
+  console.log('  - Costo Base Presupuestado:', costoBasePresupuestado);
+  console.log('  - Costos Reales Materiales:', costosReales.materiales.total);
+  console.log('  - Costos Reales Mano Obra:', costosReales.manoObra.total);
+  console.log('  - Costos Reales Total:', costosReales.totalReal);
 
   // Calcular IVA presupuestado
   const descuento = cotizacion.descuento || 0;
@@ -221,11 +284,13 @@ export async function obtenerComparacionPresupuestoReal(cotizacionId: string): P
   // Utilidad presupuestada = total - costo base - IVA
   const utilidadPresupuestada = totalPresupuestado - costoBasePresupuestado - ivaPresupuestado;
 
-  // Utilidad real = total cotizado - total real gastado
+  // Utilidad real = total cotizado - total real gastado (incluyendo todos los costos)
   const utilidadReal = totalPresupuestado - costosReales.totalReal;
 
-  // Diferencia
-  const diferencia = costosReales.totalReal - costoBasePresupuestado;
+  // Diferencia de costos base (solo materiales + servicios vs materiales + mano de obra)
+  // NO incluir gastos hormiga ni transporte porque no están presupuestados
+  const costoRealBase = costosReales.materiales.total + costosReales.manoObra.total;
+  const diferencia = costoRealBase - costoBasePresupuestado;
   const diferenciaPorcentaje = costoBasePresupuestado > 0
     ? (diferencia / costoBasePresupuestado) * 100
     : 0;

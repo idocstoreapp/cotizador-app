@@ -1,4 +1,4 @@
-so con los material/**
+/**
  * Componente Dashboard
  * Muestra diferentes vistas según el rol del usuario
  * Carga datos directamente sin usar React Query para evitar problemas de timing
@@ -120,8 +120,14 @@ export default function Dashboard({ usuario }: DashboardProps) {
     }
   }, [esAdmin, mesSeleccionado, añoSeleccionado]);
 
-  // Función auxiliar para calcular total desde items
+  // Función auxiliar para obtener el total de la cotización
+  // IMPORTANTE: Usa siempre el total guardado para evitar inconsistencias
   const calcularTotalDesdeItems = (cotizacion: any): number => {
+    // Siempre usar el total guardado (precio cotizado original)
+    // No recalcular desde items porque pueden tener materiales modificados
+    return cotizacion.total || 0;
+    
+    /* Código anterior comentado - no recalcular desde items
     if (cotizacion.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0) {
       const subtotal = cotizacion.items.reduce((sum: number, item: any) => {
         return sum + (item.precio_total || 0);
@@ -134,6 +140,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
       return subtotalConDescuento + iva;
     }
     return cotizacion.total || 0;
+    */
   };
 
   // Calcular estadísticas del mes seleccionado (fallback si no hay estadisticasDashboard)
