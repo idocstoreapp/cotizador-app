@@ -25,7 +25,9 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
     pago_por_hora: 0,
     fecha: new Date().toISOString().split('T')[0],
     comprobante: null as File | null,
-    notas: ''
+    notas: '',
+    alcance_gasto: 'unidad' as 'unidad' | 'parcial' | 'total',
+    cantidad_items_aplicados: 1
   });
   const [guardando, setGuardando] = useState(false);
 
@@ -72,7 +74,9 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
           pago_por_hora: formData.pago_por_hora,
           fecha: formData.fecha,
           comprobante_url: comprobanteUrl,
-          notas: formData.notas || undefined
+          notas: formData.notas || undefined,
+          alcance_gasto: formData.alcance_gasto,
+          cantidad_items_aplicados: formData.alcance_gasto === 'parcial' ? formData.cantidad_items_aplicados : undefined
         });
       } else {
         await crearManoObraReal({
@@ -82,7 +86,9 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
           pago_por_hora: formData.pago_por_hora,
           fecha: formData.fecha,
           comprobante_url: comprobanteUrl,
-          notas: formData.notas || undefined
+          notas: formData.notas || undefined,
+          alcance_gasto: formData.alcance_gasto,
+          cantidad_items_aplicados: formData.alcance_gasto === 'parcial' ? formData.cantidad_items_aplicados : undefined
         });
       }
 
@@ -96,7 +102,9 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
         pago_por_hora: 0,
         fecha: new Date().toISOString().split('T')[0],
         comprobante: null,
-        notas: ''
+        notas: '',
+        alcance_gasto: 'unidad',
+        cantidad_items_aplicados: 1
       });
     } catch (error: any) {
       console.error('Error al guardar:', error);
@@ -127,7 +135,9 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
       pago_por_hora: registro.pago_por_hora,
       fecha: registro.fecha,
       comprobante: null,
-      notas: registro.notas || ''
+      notas: registro.notas || '',
+      alcance_gasto: registro.alcance_gasto || 'unidad',
+      cantidad_items_aplicados: registro.cantidad_items_aplicados || 1
     });
     setMostrarModal(true);
   };
@@ -141,10 +151,26 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
     }
   }
   
-  // IMPORTANTE: Los registros de mano de obra están para 1 unidad
-  // Necesitamos multiplicarlos por la cantidad del item
-  const totalPagadoPorUnidad = registros.reduce((sum, r) => sum + r.total_pagado, 0);
-  const totalPagado = totalPagadoPorUnidad * cantidadItem;
+  // IMPORTANTE: Calcular total considerando el alcance_gasto de cada registro
+  const totalPagado = registros.reduce((sum, r) => {
+    const costoPorUnidad = r.total_pagado || 0;
+    let multiplicador = 1;
+    
+    if (r.alcance_gasto === 'unidad') {
+      multiplicador = cantidadItem;
+    } else if (r.alcance_gasto === 'parcial') {
+      multiplicador = r.cantidad_items_aplicados || 1;
+    } else if (r.alcance_gasto === 'total') {
+      multiplicador = 1;
+    } else {
+      // Por defecto: multiplicar por cantidadItem
+      multiplicador = cantidadItem;
+    }
+    
+    return sum + (costoPorUnidad * multiplicador);
+  }, 0);
+  
+  const totalPagadoPorUnidad = totalPagado / cantidadItem;
   
   const totalHoras = registros.reduce((sum, r) => sum + r.horas_trabajadas, 0);
 
@@ -242,7 +268,9 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
                                 pago_por_hora: serv.precio_por_hora,
                                 fecha: new Date().toISOString().split('T')[0],
                                 comprobante: null,
-                                notas: `Desde presupuesto: ${serv.servicio_nombre} - ${serv.item_nombre}`
+                                notas: `Desde presupuesto: ${serv.servicio_nombre} - ${serv.item_nombre}`,
+                                alcance_gasto: 'unidad',
+                                cantidad_items_aplicados: 1
                               });
                               setMostrarModal(true);
                             }}
@@ -320,7 +348,9 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
               pago_por_hora: 0,
               fecha: new Date().toISOString().split('T')[0],
               comprobante: null,
-              notas: ''
+              notas: '',
+              alcance_gasto: 'unidad',
+              cantidad_items_aplicados: 1
             });
             setMostrarModal(true);
           }}
@@ -475,6 +505,71 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
                   </p>
                 </div>
               )}
+
+              {/* Selector de alcance del gasto */}
+              <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
+                <label className="block text-sm font-semibold text-gray-900 mb-3">
+                  📊 ¿Este gasto aplica a qué cantidad de items?
+                </label>
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="alcance"
+                      value="unidad"
+                      checked={formData.alcance_gasto === 'unidad'}
+                      onChange={(e) => setFormData({ ...formData, alcance_gasto: 'unidad' })}
+                      className="w-4 h-4 text-indigo-600"
+                    />
+                    <div>
+                      <span className="font-medium text-gray-900">Por 1 unidad (item)</span>
+                      <p className="text-xs text-gray-600">El sistema multiplicará este gasto por {cantidadItem} items</p>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="alcance"
+                      value="parcial"
+                      checked={formData.alcance_gasto === 'parcial'}
+                      onChange={(e) => setFormData({ ...formData, alcance_gasto: 'parcial' })}
+                      className="w-4 h-4 text-indigo-600"
+                    />
+                    <div className="flex-1">
+                      <span className="font-medium text-gray-900">Por cantidad parcial</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="number"
+                          min="1"
+                          max={cantidadItem}
+                          value={formData.cantidad_items_aplicados}
+                          onChange={(e) => setFormData({ ...formData, cantidad_items_aplicados: parseInt(e.target.value) || 1 })}
+                          disabled={formData.alcance_gasto !== 'parcial'}
+                          className="w-20 px-2 py-1 border border-gray-300 rounded text-sm disabled:bg-gray-100"
+                        />
+                        <span className="text-xs text-gray-600">de {cantidadItem} items totales</span>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1">El sistema usará este gasto tal cual (sin multiplicar)</p>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="alcance"
+                      value="total"
+                      checked={formData.alcance_gasto === 'total'}
+                      onChange={(e) => setFormData({ ...formData, alcance_gasto: 'total' })}
+                      className="w-4 h-4 text-indigo-600"
+                    />
+                    <div>
+                      <span className="font-medium text-gray-900">Por el total de items ({cantidadItem})</span>
+                      <p className="text-xs text-gray-600">El sistema usará este gasto tal cual (sin multiplicar) - ya incluye todos los items</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
             </div>
 
             <div className="flex gap-3 mt-6">

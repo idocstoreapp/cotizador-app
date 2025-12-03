@@ -22,6 +22,8 @@ export async function crearGastoReal(gasto: {
   proveedor?: string;
   numero_factura?: string;
   notas?: string;
+  alcance_gasto?: 'unidad' | 'parcial' | 'total';
+  cantidad_items_aplicados?: number;
 }): Promise<GastoRealMaterial> {
   const { data, error } = await supabase
     .from('gastos_reales_materiales')
@@ -39,6 +41,8 @@ export async function crearGastoReal(gasto: {
       proveedor: gasto.proveedor || null,
       numero_factura: gasto.numero_factura || null,
       notas: gasto.notas || null,
+      alcance_gasto: gasto.alcance_gasto || 'unidad',
+      cantidad_items_aplicados: gasto.cantidad_items_aplicados || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     })
@@ -90,6 +94,8 @@ export async function actualizarGastoReal(
     proveedor: string;
     numero_factura: string;
     notas: string;
+    alcance_gasto: 'unidad' | 'parcial' | 'total';
+    cantidad_items_aplicados: number;
   }>
 ): Promise<GastoRealMaterial> {
   const { data, error } = await supabase

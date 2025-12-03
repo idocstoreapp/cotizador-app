@@ -14,6 +14,8 @@ export async function crearGastoHormiga(gasto: {
   fecha: string;
   factura_url?: string;
   evidencia_url?: string;
+  alcance_gasto?: 'unidad' | 'parcial' | 'total';
+  cantidad_items_aplicados?: number;
 }): Promise<GastoHormiga> {
   const { data, error } = await supabase
     .from('gastos_hormiga')
@@ -24,6 +26,8 @@ export async function crearGastoHormiga(gasto: {
       fecha: gasto.fecha,
       factura_url: gasto.factura_url || null,
       evidencia_url: gasto.evidencia_url || null,
+      alcance_gasto: gasto.alcance_gasto || 'unidad',
+      cantidad_items_aplicados: gasto.cantidad_items_aplicados || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     })
@@ -59,6 +63,8 @@ export async function actualizarGastoHormiga(
     fecha: string;
     factura_url: string;
     evidencia_url: string;
+    alcance_gasto: 'unidad' | 'parcial' | 'total';
+    cantidad_items_aplicados: number;
   }>
 ): Promise<GastoHormiga> {
   const { data, error } = await supabase

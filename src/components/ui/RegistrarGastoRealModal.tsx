@@ -3,30 +3,48 @@
  * Permite registrar compras reales con fecha, proveedor y factura
  */
 import { useState } from 'react';
-import { crearGastoReal } from '../../services/gastos-reales.service';
+import { crearGastoReal, actualizarGastoReal } from '../../services/gastos-reales.service';
 import type { MaterialMueble } from '../../types/muebles';
 
 interface RegistrarGastoRealModalProps {
   material: MaterialMueble;
   cotizacionId: string;
   itemId: string;
+  cantidadItem?: number; // Cantidad total de items en la cotización
   onClose: () => void;
   onSuccess: () => void;
+  gastoExistente?: any; // Si se proporciona, es modo edición
 }
 
 export default function RegistrarGastoRealModal({
   material,
   cotizacionId,
   itemId,
+  cantidadItem = 1,
   onClose,
-  onSuccess
+  onSuccess,
+  gastoExistente
 }: RegistrarGastoRealModalProps) {
-  const [cantidadReal, setCantidadReal] = useState<number>(material.cantidad || 0);
-  const [precioUnitarioReal, setPrecioUnitarioReal] = useState<number>(material.precio_unitario || 0);
-  const [fechaCompra, setFechaCompra] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [proveedor, setProveedor] = useState<string>('');
-  const [numeroFactura, setNumeroFactura] = useState<string>('');
-  const [notas, setNotas] = useState<string>('');
+  const esModoEdicion = !!gastoExistente;
+  
+  const [cantidadReal, setCantidadReal] = useState<number>(
+    gastoExistente?.cantidad_real || material.cantidad || 0
+  );
+  const [precioUnitarioReal, setPrecioUnitarioReal] = useState<number>(
+    gastoExistente?.precio_unitario_real || material.precio_unitario || 0
+  );
+  const [fechaCompra, setFechaCompra] = useState<string>(
+    gastoExistente?.fecha_compra || new Date().toISOString().split('T')[0]
+  );
+  const [proveedor, setProveedor] = useState<string>(gastoExistente?.proveedor || '');
+  const [numeroFactura, setNumeroFactura] = useState<string>(gastoExistente?.numero_factura || '');
+  const [notas, setNotas] = useState<string>(gastoExistente?.notas || '');
+  const [alcanceGasto, setAlcanceGasto] = useState<'unidad' | 'parcial' | 'total'>(
+    gastoExistente?.alcance_gasto || 'unidad'
+  );
+  const [cantidadItemsAplicados, setCantidadItemsAplicados] = useState<number>(
+    gastoExistente?.cantidad_items_aplicados || 1
+  );
   const [guardando, setGuardando] = useState(false);
 
   const cantidadPresupuestada = material.cantidad || 0;
@@ -48,30 +66,54 @@ export default function RegistrarGastoRealModal({
       return;
     }
 
+    if (alcanceGasto === 'parcial' && (cantidadItemsAplicados < 1 || cantidadItemsAplicados > cantidadItem)) {
+      alert(`La cantidad de items aplicados debe estar entre 1 y ${cantidadItem}`);
+      return;
+    }
+
     try {
       setGuardando(true);
-      await crearGastoReal({
-        cotizacion_id: cotizacionId,
-        item_id: itemId,
-        material_id: material.material_id,
-        material_nombre: material.material_nombre || 'Material',
-        cantidad_presupuestada: cantidadPresupuestada,
-        cantidad_real: cantidadReal,
-        precio_unitario_presupuestado: precioPresupuestado,
-        precio_unitario_real: precioUnitarioReal,
-        unidad: material.unidad || 'unidad',
-        fecha_compra: fechaCompra,
-        proveedor: proveedor || undefined,
-        numero_factura: numeroFactura || undefined,
-        notas: notas || undefined
-      });
+      
+      if (esModoEdicion && gastoExistente?.id) {
+        // Modo edición
+        await actualizarGastoReal(gastoExistente.id, {
+          cantidad_real: cantidadReal,
+          precio_unitario_real: precioUnitarioReal,
+          fecha_compra: fechaCompra,
+          proveedor: proveedor || undefined,
+          numero_factura: numeroFactura || undefined,
+          notas: notas || undefined,
+          alcance_gasto: alcanceGasto,
+          cantidad_items_aplicados: alcanceGasto === 'parcial' ? cantidadItemsAplicados : undefined
+        });
+        alert('✅ Gasto real actualizado exitosamente');
+      } else {
+        // Modo creación
+        await crearGastoReal({
+          cotizacion_id: cotizacionId,
+          item_id: itemId,
+          material_id: material.material_id,
+          material_nombre: material.material_nombre || 'Material',
+          cantidad_presupuestada: cantidadPresupuestada,
+          cantidad_real: cantidadReal,
+          precio_unitario_presupuestado: precioPresupuestado,
+          precio_unitario_real: precioUnitarioReal,
+          unidad: material.unidad || 'unidad',
+          fecha_compra: fechaCompra,
+          proveedor: proveedor || undefined,
+          numero_factura: numeroFactura || undefined,
+          notas: notas || undefined,
+          alcance_gasto: alcanceGasto,
+          cantidad_items_aplicados: alcanceGasto === 'parcial' ? cantidadItemsAplicados : undefined
+        });
+        alert('✅ Gasto real registrado exitosamente');
+      }
 
-      alert('✅ Gasto real registrado exitosamente');
       onSuccess();
       onClose();
     } catch (error: any) {
-      console.error('Error al registrar gasto real:', error);
-      alert('❌ Error al registrar gasto real: ' + (error.message || 'Error desconocido'));
+      console.error('Error al guardar gasto real:', error);
+      alert('❌ Error al guardar gasto real: ' + (error.message || 'Error desconocido'));
     } finally {
       setGuardando(false);
     }
@@ -82,7 +124,9 @@ export default function RegistrarGastoRealModal({
       <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
-          <h2 className="text-xl font-bold text-gray-900">Registrar Gasto Real</h2>
+          <h2 className="text-xl font-bold text-gray-900">
+            {esModoEdicion ? '✏️ Editar Gasto Real' : 'Registrar Gasto Real'}
+          </h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 text-2xl"
@@ -212,6 +256,71 @@ export default function RegistrarGastoRealModal({
                 placeholder="Notas adicionales sobre la compra..."
               />
             </div>
+
+            {/* Selector de alcance del gasto */}
+            <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
+              <label className="block text-sm font-semibold text-gray-900 mb-3">
+                📊 ¿Este gasto aplica a qué cantidad de items?
+              </label>
+              <div className="space-y-3">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="alcance"
+                    value="unidad"
+                    checked={alcanceGasto === 'unidad'}
+                    onChange={(e) => setAlcanceGasto('unidad')}
+                    className="w-4 h-4 text-indigo-600"
+                  />
+                  <div>
+                    <span className="font-medium text-gray-900">Por 1 unidad (item)</span>
+                    <p className="text-xs text-gray-600">El sistema multiplicará este gasto por {cantidadItem} items</p>
+                  </div>
+                </label>
+                
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="alcance"
+                    value="parcial"
+                    checked={alcanceGasto === 'parcial'}
+                    onChange={(e) => setAlcanceGasto('parcial')}
+                    className="w-4 h-4 text-indigo-600"
+                  />
+                  <div className="flex-1">
+                    <span className="font-medium text-gray-900">Por cantidad parcial</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="number"
+                        min="1"
+                        max={cantidadItem}
+                        value={cantidadItemsAplicados}
+                        onChange={(e) => setCantidadItemsAplicados(parseInt(e.target.value) || 1)}
+                        disabled={alcanceGasto !== 'parcial'}
+                        className="w-20 px-2 py-1 border border-gray-300 rounded text-sm disabled:bg-gray-100"
+                      />
+                      <span className="text-xs text-gray-600">de {cantidadItem} items totales</span>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-1">El sistema usará este gasto tal cual (sin multiplicar)</p>
+                  </div>
+                </label>
+                
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="alcance"
+                    value="total"
+                    checked={alcanceGasto === 'total'}
+                    onChange={(e) => setAlcanceGasto('total')}
+                    className="w-4 h-4 text-indigo-600"
+                  />
+                  <div>
+                    <span className="font-medium text-gray-900">Por el total de items ({cantidadItem})</span>
+                    <p className="text-xs text-gray-600">El sistema usará este gasto tal cual (sin multiplicar) - ya incluye todos los items</p>
+                  </div>
+                </label>
+              </div>
+            </div>
           </div>
 
           {/* Resumen comparativo */}
@@ -247,7 +356,7 @@ export default function RegistrarGastoRealModal({
               disabled={guardando || cantidadReal <= 0 || precioUnitarioReal <= 0}
               className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-medium py-3 px-6 rounded-lg transition-colors"
             >
-              {guardando ? 'Guardando...' : '💾 Registrar Gasto Real'}
+              {guardando ? 'Guardando...' : esModoEdicion ? '💾 Actualizar Gasto Real' : '💾 Registrar Gasto Real'}
             </button>
             <button
               onClick={onClose}

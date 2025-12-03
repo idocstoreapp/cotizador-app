@@ -32,38 +32,50 @@ interface MuebleDB {
  */
 function convertirMuebleDB(muebleDB: MuebleDB): Mueble {
   // Parsear opciones_disponibles - asegurar que sea un objeto válido
-  let opcionesDisponibles = {
+  let opcionesDisponibles: any = {
     colores: [] as string[],
     materiales: [] as string[],
     encimeras: [] as string[],
     canteados: [] as string[]
   };
 
+  console.log(`🔄 [convertirMuebleDB] Convirtiendo mueble: ${muebleDB.nombre}`);
+  console.log(`🔄 [convertirMuebleDB] opciones_disponibles raw:`, muebleDB.opciones_disponibles);
+  console.log(`🔄 [convertirMuebleDB] opciones_disponibles type:`, typeof muebleDB.opciones_disponibles);
+
   if (muebleDB.opciones_disponibles) {
     if (typeof muebleDB.opciones_disponibles === 'string') {
       try {
-        opcionesDisponibles = JSON.parse(muebleDB.opciones_disponibles);
+        const parsed = JSON.parse(muebleDB.opciones_disponibles);
+        console.log(`✅ [convertirMuebleDB] Parseado desde string:`, parsed);
+        opcionesDisponibles = parsed;
       } catch (e) {
-        console.warn('Error al parsear opciones_disponibles:', e);
+        console.warn('❌ Error al parsear opciones_disponibles desde string:', e);
       }
     } else if (typeof muebleDB.opciones_disponibles === 'object') {
+      console.log(`✅ [convertirMuebleDB] Es objeto, procesando directamente`);
       opcionesDisponibles = {
         colores: Array.isArray(muebleDB.opciones_disponibles.colores) 
           ? muebleDB.opciones_disponibles.colores 
-          : [],
+          : (muebleDB.opciones_disponibles.colores ? [muebleDB.opciones_disponibles.colores] : []),
         materiales: Array.isArray(muebleDB.opciones_disponibles.materiales) 
           ? muebleDB.opciones_disponibles.materiales 
-          : [],
+          : (muebleDB.opciones_disponibles.materiales ? [muebleDB.opciones_disponibles.materiales] : []),
         encimeras: Array.isArray(muebleDB.opciones_disponibles.encimeras) 
           ? muebleDB.opciones_disponibles.encimeras 
-          : [],
+          : (muebleDB.opciones_disponibles.encimeras ? [muebleDB.opciones_disponibles.encimeras] : []),
         canteados: Array.isArray(muebleDB.opciones_disponibles.canteados) 
           ? muebleDB.opciones_disponibles.canteados 
-          : [],
+          : (muebleDB.opciones_disponibles.canteados ? [muebleDB.opciones_disponibles.canteados] : []),
         // Preservar opciones_personalizadas si existen
         opciones_personalizadas: muebleDB.opciones_disponibles.opciones_personalizadas || undefined
       };
+      console.log(`✅ [convertirMuebleDB] Opciones procesadas:`, opcionesDisponibles);
+    } else {
+      console.warn(`⚠️ [convertirMuebleDB] opciones_disponibles tiene tipo inesperado:`, typeof muebleDB.opciones_disponibles);
     }
+  } else {
+    console.warn(`⚠️ [convertirMuebleDB] No hay opciones_disponibles para ${muebleDB.nombre}`);
   }
 
   // Parsear imagenes_por_variante - asegurar que sea un array válido
@@ -353,6 +365,8 @@ export async function obtenerMueblePorId(id: string): Promise<Mueble | null> {
  */
 export async function obtenerMueblesPorCategoria(categoria: Mueble['categoria']): Promise<Mueble[]> {
   try {
+    console.log(`🔍 [muebles.service] Obteniendo muebles de categoría: ${categoria}`);
+    
     const { data, error } = await supabase
       .from('muebles')
       .select('*')
@@ -360,13 +374,55 @@ export async function obtenerMueblesPorCategoria(categoria: Mueble['categoria'])
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error al obtener muebles por categoría:', error);
+      console.error('❌ Error al obtener muebles por categoría:', error);
       return mueblesEjemplo.filter(m => m.categoria === categoria);
     }
 
-    return data ? data.map(convertirMuebleDB) : [];
+    if (!data || data.length === 0) {
+      console.log(`⚠️ [muebles.service] No se encontraron muebles de categoría ${categoria}`);
+      return mueblesEjemplo.filter(m => m.categoria === categoria);
+    }
+
+    console.log(`✅ [muebles.service] Se encontraron ${data.length} muebles de categoría ${categoria}`);
+    
+    // Log detallado de los datos crudos antes de convertir
+    data.forEach((muebleDB, index) => {
+      console.log(`📦 [muebles.service] Mueble ${index + 1}:`, {
+        id: muebleDB.id,
+        nombre: muebleDB.nombre,
+        categoria: muebleDB.categoria,
+        opciones_disponibles_raw: muebleDB.opciones_disponibles,
+        opciones_disponibles_type: typeof muebleDB.opciones_disponibles,
+        tiene_colores: Array.isArray(muebleDB.opciones_disponibles?.colores),
+        colores_count: Array.isArray(muebleDB.opciones_disponibles?.colores) 
+          ? muebleDB.opciones_disponibles.colores.length 
+          : 0,
+        tiene_materiales: Array.isArray(muebleDB.opciones_disponibles?.materiales),
+        materiales_count: Array.isArray(muebleDB.opciones_disponibles?.materiales) 
+          ? muebleDB.opciones_disponibles.materiales.length 
+          : 0
+      });
+    });
+
+    const mueblesConvertidos = data.map(convertirMuebleDB);
+    
+    // Log después de convertir
+    mueblesConvertidos.forEach((mueble, index) => {
+      console.log(`✨ [muebles.service] Mueble convertido ${index + 1}:`, {
+        id: mueble.id,
+        nombre: mueble.nombre,
+        colores: mueble.opciones_disponibles?.colores?.length || 0,
+        materiales: mueble.opciones_disponibles?.materiales?.length || 0,
+        encimeras: mueble.opciones_disponibles?.encimeras?.length || 0,
+        canteados: mueble.opciones_disponibles?.canteados?.length || 0,
+        valores_colores: mueble.opciones_disponibles?.colores || [],
+        valores_materiales: mueble.opciones_disponibles?.materiales || []
+      });
+    });
+
+    return mueblesConvertidos;
   } catch (error) {
-    console.error('Error en obtenerMueblesPorCategoria:', error);
+    console.error('❌ Error en obtenerMueblesPorCategoria:', error);
     return mueblesEjemplo.filter(m => m.categoria === categoria);
   }
 }

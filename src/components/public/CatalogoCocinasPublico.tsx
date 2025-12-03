@@ -8,16 +8,23 @@ import { obtenerMueblesPorCategoria } from '../../services/muebles.service';
 import ProductDetailPublico from './ProductDetailPublico';
 import type { Mueble } from '../../types/muebles';
 
-// Crear QueryClient para el componente público
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
-      staleTime: 5 * 60 * 1000
-    }
+// Crear QueryClient para el componente público (singleton)
+let queryClientInstance: QueryClient | null = null;
+
+function getQueryClient() {
+  if (!queryClientInstance) {
+    queryClientInstance = new QueryClient({
+      defaultOptions: {
+        queries: {
+          refetchOnWindowFocus: false,
+          retry: 1,
+          staleTime: 5 * 60 * 1000
+        }
+      }
+    });
   }
-});
+  return queryClientInstance;
+}
 
 function CatalogoCocinasPublicoContent() {
   const [muebleSeleccionado, setMuebleSeleccionado] = useState<Mueble | null>(null);
@@ -109,7 +116,7 @@ function CatalogoCocinasPublicoContent() {
 // Componente wrapper con QueryProvider
 export default function CatalogoCocinasPublico() {
   return (
-    <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={getQueryClient()}>
       <CatalogoCocinasPublicoContent />
     </QueryClientProvider>
   );

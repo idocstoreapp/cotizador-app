@@ -13,6 +13,8 @@ export async function crearTransporteReal(transporte: {
   costo: number;
   fecha: string;
   factura_url?: string;
+  alcance_gasto?: 'unidad' | 'parcial' | 'total';
+  cantidad_items_aplicados?: number;
 }): Promise<TransporteReal> {
   const { data, error } = await supabase
     .from('transporte_real')
@@ -22,6 +24,8 @@ export async function crearTransporteReal(transporte: {
       costo: transporte.costo,
       fecha: transporte.fecha,
       factura_url: transporte.factura_url || null,
+      alcance_gasto: transporte.alcance_gasto || 'unidad',
+      cantidad_items_aplicados: transporte.cantidad_items_aplicados || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     })
@@ -56,19 +60,44 @@ export async function actualizarTransporteReal(
     costo: number;
     fecha: string;
     factura_url: string;
+    alcance_gasto: 'unidad' | 'parcial' | 'total';
+    cantidad_items_aplicados: number;
   }>
 ): Promise<TransporteReal> {
+  console.log('💾 [transporte-real.service] Actualizando transporte ID:', id);
+  console.log('💾 [transporte-real.service] Updates:', updates);
+  
+  // Asegurar que alcance_gasto se envíe correctamente (incluso si es undefined, enviarlo como null)
+  const updateData: any = {
+    ...updates,
+    updated_at: new Date().toISOString()
+  };
+  
+  // Si alcance_gasto no está definido, no lo incluyamos (dejar que la BD use el default)
+  if (updates.alcance_gasto === undefined) {
+    delete updateData.alcance_gasto;
+  }
+  
+  // Si cantidad_items_aplicados es undefined y alcance_gasto no es parcial, enviar null
+  if (updates.alcance_gasto !== 'parcial' && updates.cantidad_items_aplicados === undefined) {
+    updateData.cantidad_items_aplicados = null;
+  }
+  
+  console.log('💾 [transporte-real.service] UpdateData final:', updateData);
+  
   const { data, error } = await supabase
     .from('transporte_real')
-    .update({
-      ...updates,
-      updated_at: new Date().toISOString()
-    })
+    .update(updateData)
     .eq('id', id)
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error('❌ [transporte-real.service] Error al actualizar:', error);
+    throw error;
+  }
+  
+  console.log('✅ [transporte-real.service] Transporte actualizado:', data);
   return data as TransporteReal;
 }
 

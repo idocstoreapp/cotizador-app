@@ -22,7 +22,9 @@ export default function GastosHormigaTab({ cotizacionId, cotizacion, onUpdate }:
     monto: 0,
     fecha: new Date().toISOString().split('T')[0],
     factura: null as File | null,
-    evidencia: null as File | null
+    evidencia: null as File | null,
+    alcance_gasto: 'unidad' as 'unidad' | 'parcial' | 'total',
+    cantidad_items_aplicados: 1
   });
   const [guardando, setGuardando] = useState(false);
 
@@ -68,7 +70,9 @@ export default function GastosHormigaTab({ cotizacionId, cotizacion, onUpdate }:
           monto: formData.monto,
           fecha: formData.fecha,
           factura_url: facturaUrl,
-          evidencia_url: evidenciaUrl
+          evidencia_url: evidenciaUrl,
+          alcance_gasto: formData.alcance_gasto,
+          cantidad_items_aplicados: formData.alcance_gasto === 'parcial' ? formData.cantidad_items_aplicados : undefined
         });
       } else {
         await crearGastoHormiga({
@@ -77,7 +81,9 @@ export default function GastosHormigaTab({ cotizacionId, cotizacion, onUpdate }:
           monto: formData.monto,
           fecha: formData.fecha,
           factura_url: facturaUrl,
-          evidencia_url: evidenciaUrl
+          evidencia_url: evidenciaUrl,
+          alcance_gasto: formData.alcance_gasto,
+          cantidad_items_aplicados: formData.alcance_gasto === 'parcial' ? formData.cantidad_items_aplicados : undefined
         });
       }
 
@@ -90,7 +96,9 @@ export default function GastosHormigaTab({ cotizacionId, cotizacion, onUpdate }:
         monto: 0,
         fecha: new Date().toISOString().split('T')[0],
         factura: null,
-        evidencia: null
+        evidencia: null,
+        alcance_gasto: 'unidad',
+        cantidad_items_aplicados: 1
       });
     } catch (error: any) {
       console.error('Error al guardar:', error);
@@ -120,7 +128,9 @@ export default function GastosHormigaTab({ cotizacionId, cotizacion, onUpdate }:
       monto: gasto.monto,
       fecha: gasto.fecha,
       factura: null,
-      evidencia: null
+      evidencia: null,
+      alcance_gasto: gasto.alcance_gasto || 'unidad',
+      cantidad_items_aplicados: gasto.cantidad_items_aplicados || 1
     });
     setMostrarModal(true);
   };
@@ -134,10 +144,26 @@ export default function GastosHormigaTab({ cotizacionId, cotizacion, onUpdate }:
     }
   }
   
-  // IMPORTANTE: Los gastos hormiga están registrados para 1 unidad
-  // Necesitamos multiplicarlos por la cantidad del item
-  const totalPorUnidad = gastos.reduce((sum, g) => sum + g.monto, 0);
-  const total = totalPorUnidad * cantidadItem;
+  // IMPORTANTE: Calcular total considerando el alcance_gasto de cada gasto
+  const total = gastos.reduce((sum, g) => {
+    const costoPorUnidad = g.monto || 0;
+    let multiplicador = 1;
+    
+    if (g.alcance_gasto === 'unidad') {
+      multiplicador = cantidadItem;
+    } else if (g.alcance_gasto === 'parcial') {
+      multiplicador = g.cantidad_items_aplicados || 1;
+    } else if (g.alcance_gasto === 'total') {
+      multiplicador = 1;
+    } else {
+      // Por defecto: multiplicar por cantidadItem
+      multiplicador = cantidadItem;
+    }
+    
+    return sum + (costoPorUnidad * multiplicador);
+  }, 0);
+  
+  const totalPorUnidad = total / cantidadItem;
 
   // Extraer costos indirectos presupuestados desde gastos_extras de los items
   const costosIndirectosPresupuestados: Array<{
@@ -348,7 +374,9 @@ export default function GastosHormigaTab({ cotizacionId, cotizacion, onUpdate }:
               monto: 0,
               fecha: new Date().toISOString().split('T')[0],
               factura: null,
-              evidencia: null
+              evidencia: null,
+              alcance_gasto: 'unidad',
+              cantidad_items_aplicados: 1
             });
             setMostrarModal(true);
           }}
@@ -512,6 +540,71 @@ export default function GastosHormigaTab({ cotizacionId, cotizacion, onUpdate }:
                     Actual: <a href={editando.evidencia_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600">Ver evidencia</a>
                   </p>
                 )}
+              </div>
+
+              {/* Selector de alcance del gasto */}
+              <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
+                <label className="block text-sm font-semibold text-gray-900 mb-3">
+                  📊 ¿Este gasto aplica a qué cantidad de items?
+                </label>
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="alcance"
+                      value="unidad"
+                      checked={formData.alcance_gasto === 'unidad'}
+                      onChange={(e) => setFormData({ ...formData, alcance_gasto: 'unidad' })}
+                      className="w-4 h-4 text-indigo-600"
+                    />
+                    <div>
+                      <span className="font-medium text-gray-900">Por 1 unidad (item)</span>
+                      <p className="text-xs text-gray-600">El sistema multiplicará este gasto por {cantidadItem} items</p>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="alcance"
+                      value="parcial"
+                      checked={formData.alcance_gasto === 'parcial'}
+                      onChange={(e) => setFormData({ ...formData, alcance_gasto: 'parcial' })}
+                      className="w-4 h-4 text-indigo-600"
+                    />
+                    <div className="flex-1">
+                      <span className="font-medium text-gray-900">Por cantidad parcial</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="number"
+                          min="1"
+                          max={cantidadItem}
+                          value={formData.cantidad_items_aplicados}
+                          onChange={(e) => setFormData({ ...formData, cantidad_items_aplicados: parseInt(e.target.value) || 1 })}
+                          disabled={formData.alcance_gasto !== 'parcial'}
+                          className="w-20 px-2 py-1 border border-gray-300 rounded text-sm disabled:bg-gray-100"
+                        />
+                        <span className="text-xs text-gray-600">de {cantidadItem} items totales</span>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1">El sistema usará este gasto tal cual (sin multiplicar)</p>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="alcance"
+                      value="total"
+                      checked={formData.alcance_gasto === 'total'}
+                      onChange={(e) => setFormData({ ...formData, alcance_gasto: 'total' })}
+                      className="w-4 h-4 text-indigo-600"
+                    />
+                    <div>
+                      <span className="font-medium text-gray-900">Por el total de items ({cantidadItem})</span>
+                      <p className="text-xs text-gray-600">El sistema usará este gasto tal cual (sin multiplicar) - ya incluye todos los items</p>
+                    </div>
+                  </label>
+                </div>
               </div>
             </div>
 

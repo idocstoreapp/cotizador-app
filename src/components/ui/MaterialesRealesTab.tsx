@@ -244,6 +244,7 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
     material: MaterialMueble;
     itemId: string;
   } | null>(null);
+  const [gastoEditando, setGastoEditando] = useState<GastoRealMaterial | null>(null);
 
   useEffect(() => {
     cargarDatos();
@@ -350,8 +351,6 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
     }
   });
 
-  const totalPresupuestado = Array.from(materialesAgrupados.values()).reduce((sum, mat) => sum + mat.costo_total, 0);
-  
   // Obtener la cantidad del item (para multiplicar los gastos reales)
   // Los gastos reales están registrados para 1 unidad, pero el item puede tener múltiples unidades
   let cantidadItem = 1;
@@ -363,19 +362,52 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
     }
   }
   
+  // IMPORTANTE: totalPresupuestado ya está multiplicado por cantidadItem en materialesAgrupados
+  const totalPresupuestado = Array.from(materialesAgrupados.values()).reduce((sum, mat) => sum + mat.costo_total, 0);
+  
   // También calcular desde gastos reales registrados (para comparación)
+  // NOTA: cantidad_presupuestada en los gastos reales YA está multiplicada por cantidadItem cuando se registró
+  // Por lo tanto, NO debemos multiplicar de nuevo
   const totalPresupuestadoDesdeGastos = gastos.reduce((sum, g) => {
     return sum + (g.cantidad_presupuestada * g.precio_unitario_presupuestado);
   }, 0);
+  
+  // Debug: verificar cálculos
+  console.log('Materiales - cantidadItem:', cantidadItem);
+  console.log('Materiales - totalPresupuestado (desde items):', totalPresupuestado);
+  console.log('Materiales - totalPresupuestadoDesdeGastos:', totalPresupuestadoDesdeGastos);
 
-  // IMPORTANTE: Los gastos reales están registrados para 1 unidad
-  // Necesitamos multiplicarlos por la cantidad del item para obtener el total real
-  const totalRealPorUnidad = gastos.reduce((sum, g) => {
-    return sum + (g.cantidad_real * g.precio_unitario_real);
+  // IMPORTANTE: Calcular total real considerando el alcance_gasto de cada gasto
+  const totalReal = gastos.reduce((sum, g) => {
+    const costoPorUnidad = g.cantidad_real * g.precio_unitario_real;
+    let multiplicador = 1;
+    
+    // Debug: verificar el alcance_gasto guardado
+    console.log('Material:', g.material_nombre, 'alcance_gasto:', g.alcance_gasto, 'costoPorUnidad:', costoPorUnidad);
+    
+    if (g.alcance_gasto === 'unidad') {
+      // Por 1 unidad: multiplicar por cantidad total de items
+      multiplicador = cantidadItem;
+    } else if (g.alcance_gasto === 'parcial') {
+      // Parcial: usar cantidad_items_aplicados directamente
+      multiplicador = g.cantidad_items_aplicados || 1;
+    } else if (g.alcance_gasto === 'total') {
+      // Total: no multiplicar (ya incluye todos los items)
+      multiplicador = 1;
+    } else {
+      // Por defecto (gastos antiguos sin alcance_gasto): NO multiplicar (asumir que ya es total)
+      // Cambio: asumir que los gastos antiguos son "total" para no duplicar
+      multiplicador = 1;
+    }
+    
+    const costoTotal = costoPorUnidad * multiplicador;
+    console.log('  -> multiplicador:', multiplicador, 'costoTotal:', costoTotal);
+    return sum + costoTotal;
   }, 0);
   
-  // Multiplicar por la cantidad del item para obtener el total real
-  const totalReal = totalRealPorUnidad * cantidadItem;
+  const totalRealPorUnidad = cantidadItem > 0 ? totalReal / cantidadItem : totalReal;
+  
+  console.log('Materiales - totalReal:', totalReal);
 
   const diferencia = totalReal - totalPresupuestado;
   const diferenciaPorcentaje = totalPresupuestado > 0
@@ -408,11 +440,16 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
           <p className="text-xl font-bold text-blue-600">${totalPresupuestado.toLocaleString('es-CO')}</p>
         </div>
         <div className="bg-green-50 p-4 rounded-lg">
-          <p className="text-sm text-gray-600">Real (×{cantidadItem} unidades)</p>
+          <p className="text-sm text-gray-600">Real</p>
           <p className="text-xl font-bold text-green-600">${totalReal.toLocaleString('es-CO')}</p>
-          {cantidadItem > 1 && (
+          {cantidadItem > 1 && gastos.some(g => g.alcance_gasto === 'unidad' || !g.alcance_gasto) && (
             <p className="text-xs text-gray-500 mt-1">
-              ${totalRealPorUnidad.toLocaleString('es-CO')} por unidad
+              ${totalRealPorUnidad.toLocaleString('es-CO')} por unidad (×{cantidadItem})
+            </p>
+          )}
+          {gastos.some(g => g.alcance_gasto === 'total') && (
+            <p className="text-xs text-blue-600 mt-1">
+              ✓ Incluye gastos por total de items
             </p>
           )}
         </div>
@@ -580,12 +617,42 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
                       {new Date(gasto.fecha_compra).toLocaleDateString('es-CO')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <button
-                        onClick={() => handleEliminar(gasto.id)}
-                        className="text-red-600 hover:text-red-800 text-sm"
-                      >
-                        Eliminar
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            // Buscar el material correspondiente para el modal
+                            const materialParaModal: MaterialMueble = {
+                              material_id: gasto.material_id,
+                              material_nombre: gasto.material_nombre,
+                              cantidad: gasto.cantidad_presupuestada,
+                              precio_unitario: gasto.precio_unitario_presupuestado,
+                              unidad: gasto.unidad,
+                              material_tipo: undefined
+                            };
+                            setMaterialRegistrando({
+                              material: materialParaModal,
+                              itemId: gasto.item_id
+                            });
+                            setGastoEditando(gasto);
+                          }}
+                          className="text-indigo-600 hover:text-indigo-800 text-sm"
+                        >
+                          ✏️ Editar
+                        </button>
+                        <button
+                          onClick={() => handleEliminar(gasto.id)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          🗑️ Eliminar
+                        </button>
+                      </div>
+                      {gasto.alcance_gasto && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Alcance: {gasto.alcance_gasto === 'unidad' ? '1 unidad' : 
+                                   gasto.alcance_gasto === 'parcial' ? `${gasto.cantidad_items_aplicados || 0} items` :
+                                   'Total'}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
@@ -595,17 +662,23 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
         </div>
       )}
 
-      {/* Modal de registrar gasto */}
+      {/* Modal de registrar/editar gasto */}
       {materialRegistrando && (
         <RegistrarGastoRealModal
           material={materialRegistrando.material}
           cotizacionId={cotizacionId}
           itemId={materialRegistrando.itemId}
-          onClose={() => setMaterialRegistrando(null)}
+          cantidadItem={cantidadItem}
+          gastoExistente={gastoEditando || undefined}
+          onClose={() => {
+            setMaterialRegistrando(null);
+            setGastoEditando(null);
+          }}
           onSuccess={() => {
             cargarDatos();
             onUpdate();
             setMaterialRegistrando(null);
+            setGastoEditando(null);
           }}
         />
       )}

@@ -15,6 +15,8 @@ export async function crearManoObraReal(manoObra: {
   fecha: string;
   comprobante_url?: string;
   notas?: string;
+  alcance_gasto?: 'unidad' | 'parcial' | 'total';
+  cantidad_items_aplicados?: number;
 }): Promise<ManoObraReal> {
   const total_pagado = manoObra.horas_trabajadas * manoObra.pago_por_hora;
 
@@ -29,6 +31,8 @@ export async function crearManoObraReal(manoObra: {
       fecha: manoObra.fecha,
       comprobante_url: manoObra.comprobante_url || null,
       notas: manoObra.notas || null,
+      alcance_gasto: manoObra.alcance_gasto || 'unidad',
+      cantidad_items_aplicados: manoObra.cantidad_items_aplicados || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     })
@@ -78,6 +82,8 @@ export async function actualizarManoObraReal(
     fecha: string;
     comprobante_url: string;
     notas: string;
+    alcance_gasto: 'unidad' | 'parcial' | 'total';
+    cantidad_items_aplicados: number;
   }>
 ): Promise<ManoObraReal> {
   // Si se actualizan horas o pago, recalcular total

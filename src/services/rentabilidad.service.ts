@@ -103,21 +103,84 @@ export async function obtenerResumenCostosReales(cotizacionId: string): Promise<
     obtenerTransportesRealesPorCotizacion(cotizacionId)
   ]);
 
-  // IMPORTANTE: Los gastos reales están registrados para 1 unidad
-  // Necesitamos multiplicarlos por la cantidad del item
-  const totalMaterialesPorUnidad = gastosMateriales.reduce((sum, g) => {
-    return sum + (g.cantidad_real * g.precio_unitario_real);
+  // IMPORTANTE: Calcular totales considerando el alcance_gasto de cada gasto
+  const totalMateriales = gastosMateriales.reduce((sum, g) => {
+    const costoPorUnidad = g.cantidad_real * g.precio_unitario_real;
+    let multiplicador = 1;
+    
+    if (g.alcance_gasto === 'unidad') {
+      multiplicador = cantidadItem;
+    } else if (g.alcance_gasto === 'parcial') {
+      multiplicador = g.cantidad_items_aplicados || 1;
+    } else if (g.alcance_gasto === 'total') {
+      multiplicador = 1;
+    } else {
+      // Por defecto (gastos antiguos sin alcance_gasto): asumir total
+      multiplicador = 1;
+    }
+    
+    return sum + (costoPorUnidad * multiplicador);
   }, 0);
-  const totalMateriales = totalMaterialesPorUnidad * cantidadItem;
 
-  const totalManoObraPorUnidad = manoObra.reduce((sum, m) => sum + m.total_pagado, 0);
-  const totalManoObra = totalManoObraPorUnidad * cantidadItem;
+  const totalManoObra = manoObra.reduce((sum, m) => {
+    const costoPorUnidad = m.total_pagado || 0;
+    let multiplicador = 1;
+    
+    if (m.alcance_gasto === 'unidad') {
+      multiplicador = cantidadItem;
+    } else if (m.alcance_gasto === 'parcial') {
+      multiplicador = m.cantidad_items_aplicados || 1;
+    } else if (m.alcance_gasto === 'total') {
+      multiplicador = 1;
+    } else {
+      // Por defecto: asumir total
+      multiplicador = 1;
+    }
+    
+    return sum + (costoPorUnidad * multiplicador);
+  }, 0);
   
-  const totalGastosHormigaPorUnidad = gastosHormiga.reduce((sum, g) => sum + g.monto, 0);
-  const totalGastosHormiga = totalGastosHormigaPorUnidad * cantidadItem;
+  const totalGastosHormiga = gastosHormiga.reduce((sum, g) => {
+    const costoPorUnidad = g.monto || 0;
+    let multiplicador = 1;
+    
+    if (g.alcance_gasto === 'unidad') {
+      multiplicador = cantidadItem;
+    } else if (g.alcance_gasto === 'parcial') {
+      multiplicador = g.cantidad_items_aplicados || 1;
+    } else if (g.alcance_gasto === 'total') {
+      multiplicador = 1;
+    } else {
+      // Por defecto: asumir total
+      multiplicador = 1;
+    }
+    
+    return sum + (costoPorUnidad * multiplicador);
+  }, 0);
   
-  const totalTransportePorUnidad = transportes.reduce((sum, t) => sum + t.costo, 0);
-  const totalTransporte = totalTransportePorUnidad * cantidadItem;
+  const totalTransporte = transportes.reduce((sum, t) => {
+    const costoPorUnidad = t.costo || 0;
+    let multiplicador = 1;
+    
+    if (t.alcance_gasto === 'unidad') {
+      multiplicador = cantidadItem;
+    } else if (t.alcance_gasto === 'parcial') {
+      multiplicador = t.cantidad_items_aplicados || 1;
+    } else if (t.alcance_gasto === 'total') {
+      multiplicador = 1;
+    } else {
+      // Por defecto: asumir total
+      multiplicador = 1;
+    }
+    
+    return sum + (costoPorUnidad * multiplicador);
+  }, 0);
+  
+  console.log('📊 [rentabilidad.service] Costos calculados con alcance_gasto:');
+  console.log('  - Materiales:', totalMateriales);
+  console.log('  - Mano Obra:', totalManoObra);
+  console.log('  - Gastos Hormiga:', totalGastosHormiga);
+  console.log('  - Transporte:', totalTransporte);
 
   return {
     materiales: {
@@ -180,16 +243,37 @@ function calcularSubtotalesDesdeItems(cotizacion: any): {
   let subtotalMateriales = 0;
   let subtotalServicios = 0;
 
-  if (cotizacion.items && Array.isArray(cotizacion.items)) {
+  // PRIORIDAD 1: Usar materiales de la raíz de la cotización si están disponibles
+  // Estos materiales ya tienen las cantidades totales (multiplicadas por la cantidad del item)
+  if (cotizacion.materiales && Array.isArray(cotizacion.materiales) && cotizacion.materiales.length > 0) {
+    console.log('📦 Usando materiales de la raíz de la cotización (cantidades totales)');
+    subtotalMateriales = cotizacion.materiales.reduce((sum: number, mat: any) => {
+      const cantidad = mat.cantidad || 0;
+      const precioUnitario = mat.precio_unitario || 0;
+      const costo = cantidad * precioUnitario;
+      console.log(`  - ${mat.material_id || 'Material'}: ${cantidad} × $${precioUnitario.toLocaleString('es-CO')} = $${costo.toLocaleString('es-CO')}`);
+      return sum + costo;
+    }, 0);
+    console.log(`  ✅ Subtotal Materiales (desde raíz): $${subtotalMateriales.toLocaleString('es-CO')}`);
+  } else if (cotizacion.items && Array.isArray(cotizacion.items)) {
+    // PRIORIDAD 2: Calcular desde items (multiplicar por cantidad del item)
+    console.log(`📋 Total de items: ${cotizacion.items.length}`);
     cotizacion.items.forEach((item: any, itemIndex: number) => {
       // Obtener la cantidad del item (por defecto 1)
-      const cantidadItem = item.cantidad || 1;
+      let cantidadItem = item.cantidad;
+      if (!cantidadItem || cantidadItem <= 0) {
+        cantidadItem = item.cantidad_item || item.cantidadItem || 1;
+      }
+      if (!cantidadItem || cantidadItem <= 0) {
+        cantidadItem = 1;
+      }
       
       console.log(`  📦 Item ${itemIndex + 1} "${item.nombre || 'Sin nombre'}": cantidad = ${cantidadItem}`);
       
       // IMPORTANTE: Los materiales en los items están guardados con cantidades POR UNIDAD
       // Necesitamos multiplicar por la cantidad del item para obtener el total
       if (item.materiales && Array.isArray(item.materiales)) {
+        console.log(`    📦 Total de materiales en item: ${item.materiales.length}`);
         // Calcular costo de materiales del item
         let costoMaterialesItemPorUnidad = 0;
         item.materiales.forEach((mat: any, matIndex: number) => {
@@ -197,10 +281,6 @@ function calcularSubtotalesDesdeItems(cotizacion: any): {
           const precioUnitario = mat.precio_unitario || 0;
           const costoMat = cantidadMat * precioUnitario;
           costoMaterialesItemPorUnidad += costoMat;
-          console.log(`      Material ${matIndex + 1} "${mat.material_nombre || mat.nombre || 'Sin nombre'}":`);
-          console.log(`        - Cantidad por unidad: ${cantidadMat} ${mat.unidad || 'unidad'}`);
-          console.log(`        - Precio unitario: $${precioUnitario.toLocaleString('es-CO')}`);
-          console.log(`        - Costo por unidad: $${costoMat.toLocaleString('es-CO')}`);
         });
         
         const costoMaterialesItemTotal = costoMaterialesItemPorUnidad * cantidadItem;
@@ -208,8 +288,6 @@ function calcularSubtotalesDesdeItems(cotizacion: any): {
         console.log(`    - Materiales total (×${cantidadItem} unidades): $${costoMaterialesItemTotal.toLocaleString('es-CO')}`);
         // Multiplicar por la cantidad del item para obtener el costo total de materiales
         subtotalMateriales += costoMaterialesItemTotal;
-      } else {
-        console.log(`    - Item sin materiales`);
       }
 
       // IMPORTANTE: Los servicios en los items están guardados con horas POR UNIDAD
@@ -226,15 +304,37 @@ function calcularSubtotalesDesdeItems(cotizacion: any): {
         subtotalServicios += costoServiciosItemTotal;
       }
     });
-    
-    console.log(`  📊 Totales calculados:`);
-    console.log(`    - Subtotal Materiales: $${subtotalMateriales.toLocaleString('es-CO')}`);
-    console.log(`    - Subtotal Servicios: $${subtotalServicios.toLocaleString('es-CO')}`);
-  } else {
-    // Fallback: usar valores guardados
-    subtotalMateriales = cotizacion.subtotal_materiales || 0;
-    subtotalServicios = cotizacion.subtotal_servicios || 0;
   }
+
+  // PRIORIDAD 3: Usar servicios de la raíz de la cotización si están disponibles
+  if (cotizacion.servicios && Array.isArray(cotizacion.servicios) && cotizacion.servicios.length > 0) {
+    console.log('🔧 Usando servicios de la raíz de la cotización (horas totales)');
+    const costoServiciosDesdeRaiz = cotizacion.servicios.reduce((sum: number, serv: any) => {
+      const horas = serv.horas || 0;
+      const precioPorHora = serv.precio_por_hora || 0;
+      const costo = horas * precioPorHora;
+      return sum + costo;
+    }, 0);
+    // Solo usar si no se calculó desde items
+    if (subtotalServicios === 0) {
+      subtotalServicios = costoServiciosDesdeRaiz;
+      console.log(`  ✅ Subtotal Servicios (desde raíz): $${subtotalServicios.toLocaleString('es-CO')}`);
+    }
+  }
+
+  // Fallback: usar valores guardados en la base de datos
+  if (subtotalMateriales === 0) {
+    subtotalMateriales = cotizacion.subtotal_materiales || 0;
+    console.log(`⚠️ Usando subtotal_materiales de DB: $${subtotalMateriales.toLocaleString('es-CO')}`);
+  }
+  if (subtotalServicios === 0) {
+    subtotalServicios = cotizacion.subtotal_servicios || 0;
+    console.log(`⚠️ Usando subtotal_servicios de DB: $${subtotalServicios.toLocaleString('es-CO')}`);
+  }
+    
+  console.log(`  📊 Totales calculados:`);
+  console.log(`    - Subtotal Materiales: $${subtotalMateriales.toLocaleString('es-CO')}`);
+  console.log(`    - Subtotal Servicios: $${subtotalServicios.toLocaleString('es-CO')}`);
 
   const costoBase = subtotalMateriales + subtotalServicios;
 

@@ -21,7 +21,9 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
     tipo_descripcion: '',
     costo: 0,
     fecha: new Date().toISOString().split('T')[0],
-    factura: null as File | null
+    factura: null as File | null,
+    alcance_gasto: 'unidad' as 'unidad' | 'parcial' | 'total',
+    cantidad_items_aplicados: 1
   });
   const [guardando, setGuardando] = useState(false);
 
@@ -33,6 +35,13 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
     try {
       setCargando(true);
       const transportesData = await obtenerTransportesRealesPorCotizacion(cotizacionId);
+      console.log('📦 Transportes cargados desde BD:', transportesData.map(t => ({
+        id: t.id,
+        tipo: t.tipo_descripcion,
+        costo: t.costo,
+        alcance_gasto: t.alcance_gasto,
+        cantidad_items_aplicados: t.cantidad_items_aplicados
+      })));
       setTransportes(transportesData);
     } catch (error: any) {
       console.error('Error al cargar datos:', error);
@@ -58,19 +67,26 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
       }
 
       if (editando) {
-        await actualizarTransporteReal(editando.id, {
+        const updates = {
           tipo_descripcion: formData.tipo_descripcion,
           costo: formData.costo,
           fecha: formData.fecha,
-          factura_url: facturaUrl
-        });
+          factura_url: facturaUrl,
+          alcance_gasto: formData.alcance_gasto,
+          cantidad_items_aplicados: formData.alcance_gasto === 'parcial' ? formData.cantidad_items_aplicados : undefined
+        };
+        console.log('🔧 Actualizando transporte:', editando.id);
+        console.log('📝 Datos a guardar:', updates);
+        await actualizarTransporteReal(editando.id, updates);
       } else {
         await crearTransporteReal({
           cotizacion_id: cotizacionId,
           tipo_descripcion: formData.tipo_descripcion,
           costo: formData.costo,
           fecha: formData.fecha,
-          factura_url: facturaUrl
+          factura_url: facturaUrl,
+          alcance_gasto: formData.alcance_gasto,
+          cantidad_items_aplicados: formData.alcance_gasto === 'parcial' ? formData.cantidad_items_aplicados : undefined
         });
       }
 
@@ -82,7 +98,9 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
         tipo_descripcion: '',
         costo: 0,
         fecha: new Date().toISOString().split('T')[0],
-        factura: null
+        factura: null,
+        alcance_gasto: 'unidad',
+        cantidad_items_aplicados: 1
       });
     } catch (error: any) {
       console.error('Error al guardar:', error);
@@ -106,13 +124,18 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
   };
 
   const handleEditar = (transporte: TransporteReal) => {
+    console.log('✏️ Editando transporte:', transporte);
+    console.log('✏️ alcance_gasto actual:', transporte.alcance_gasto);
     setEditando(transporte);
     setFormData({
       tipo_descripcion: transporte.tipo_descripcion,
       costo: transporte.costo,
       fecha: transporte.fecha,
-      factura: null
+      factura: null,
+      alcance_gasto: transporte.alcance_gasto || 'unidad',
+      cantidad_items_aplicados: transporte.cantidad_items_aplicados || 1
     });
+    console.log('✏️ formData.alcance_gasto inicializado a:', transporte.alcance_gasto || 'unidad');
     setMostrarModal(true);
   };
 
@@ -125,10 +148,35 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
     }
   }
   
-  // IMPORTANTE: Los transportes están registrados para 1 unidad
-  // Necesitamos multiplicarlos por la cantidad del item
-  const totalPorUnidad = transportes.reduce((sum, t) => sum + t.costo, 0);
-  const total = totalPorUnidad * cantidadItem;
+  // IMPORTANTE: Calcular total considerando el alcance_gasto de cada transporte
+  const total = transportes.reduce((sum, t) => {
+    const costoPorUnidad = t.costo || 0;
+    let multiplicador = 1;
+    
+    // Debug: verificar el alcance_gasto guardado
+    console.log('Transporte:', t.tipo_descripcion, 'alcance_gasto:', t.alcance_gasto, 'costo:', costoPorUnidad);
+    
+    if (t.alcance_gasto === 'unidad') {
+      // Por 1 unidad: multiplicar por cantidad total de items
+      multiplicador = cantidadItem;
+    } else if (t.alcance_gasto === 'parcial') {
+      // Parcial: usar cantidad_items_aplicados directamente
+      multiplicador = t.cantidad_items_aplicados || 1;
+    } else if (t.alcance_gasto === 'total') {
+      // Total: no multiplicar (ya incluye todos los items)
+      multiplicador = 1;
+    } else {
+      // Por defecto (gastos antiguos sin alcance_gasto): NO multiplicar (asumir que ya es total)
+      // Cambio: asumir que los gastos antiguos son "total" para no duplicar
+      multiplicador = 1;
+    }
+    
+    const costoTotal = costoPorUnidad * multiplicador;
+    console.log('  -> multiplicador:', multiplicador, 'costoTotal:', costoTotal);
+    return sum + costoTotal;
+  }, 0);
+  
+  const totalPorUnidad = cantidadItem > 0 ? total / cantidadItem : total;
 
   // Extraer transporte presupuestado desde gastos_extras de los items
   const transportePresupuestado: Array<{
@@ -212,7 +260,9 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
                                 tipo_descripcion: trans.concepto,
                                 costo: trans.monto,
                                 fecha: new Date().toISOString().split('T')[0],
-                                factura: null
+                                factura: null,
+                                alcance_gasto: 'unidad',
+                                cantidad_items_aplicados: 1
                               });
                               setMostrarModal(true);
                             }}
@@ -278,9 +328,14 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
         <div className="bg-green-50 p-4 rounded-lg">
           <p className="text-sm text-gray-600">Real</p>
           <p className="text-xl font-bold text-green-600">${total.toLocaleString('es-CO')}</p>
-          {cantidadItem > 1 && (
+          {cantidadItem > 1 && transportes.some(t => t.alcance_gasto === 'unidad' || !t.alcance_gasto) && (
             <p className="text-xs text-gray-500 mt-1">
               ${totalPorUnidad.toLocaleString('es-CO')} por unidad (×{cantidadItem})
+            </p>
+          )}
+          {transportes.some(t => t.alcance_gasto === 'total') && (
+            <p className="text-xs text-blue-600 mt-1">
+              ✓ Incluye gastos por total de items
             </p>
           )}
         </div>
@@ -310,7 +365,9 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
               tipo_descripcion: '',
               costo: 0,
               fecha: new Date().toISOString().split('T')[0],
-              factura: null
+              factura: null,
+              alcance_gasto: 'unidad',
+              cantidad_items_aplicados: 1
             });
             setMostrarModal(true);
           }}
@@ -338,13 +395,40 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {transportes.map((transporte) => (
+              {transportes.map((transporte) => {
+                // Calcular el costo total considerando el alcance
+                const costoPorUnidad = transporte.costo || 0;
+                let multiplicador = 1;
+                if (transporte.alcance_gasto === 'unidad') {
+                  multiplicador = cantidadItem;
+                } else if (transporte.alcance_gasto === 'parcial') {
+                  multiplicador = transporte.cantidad_items_aplicados || 1;
+                } else if (transporte.alcance_gasto === 'total') {
+                  multiplicador = 1;
+                } else {
+                  multiplicador = 1; // Por defecto: asumir total
+                }
+                const costoTotal = costoPorUnidad * multiplicador;
+                
+                return (
                 <tr key={transporte.id}>
                   <td className="px-6 py-4">
                     <div className="text-sm font-medium text-gray-900">{transporte.tipo_descripcion}</div>
+                    {transporte.alcance_gasto && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Alcance: {transporte.alcance_gasto === 'unidad' ? `1 unidad (×${cantidadItem})` : 
+                                 transporte.alcance_gasto === 'parcial' ? `${transporte.cantidad_items_aplicados || 0} items` :
+                                 'Total'}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap font-medium">
-                    ${transporte.costo.toLocaleString('es-CO')}
+                    ${costoTotal.toLocaleString('es-CO')}
+                    {multiplicador > 1 && (
+                      <div className="text-xs text-gray-500 font-normal">
+                        ${costoPorUnidad.toLocaleString('es-CO')} × {multiplicador}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {new Date(transporte.fecha).toLocaleDateString('es-CO')}
@@ -380,7 +464,8 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
                     </div>
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>
@@ -446,6 +531,82 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
                     Actual: <a href={editando.factura_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600">Ver factura</a>
                   </p>
                 )}
+              </div>
+
+              {/* Selector de alcance del gasto */}
+              <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
+                <label className="block text-sm font-semibold text-gray-900 mb-3">
+                  📊 ¿Este gasto aplica a qué cantidad de items?
+                </label>
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="alcance"
+                      value="unidad"
+                      checked={formData.alcance_gasto === 'unidad'}
+                      onChange={(e) => {
+                        console.log('🔄 Cambiando alcance_gasto a: unidad');
+                        setFormData({ ...formData, alcance_gasto: 'unidad' });
+                      }}
+                      className="w-4 h-4 text-indigo-600"
+                    />
+                    <div>
+                      <span className="font-medium text-gray-900">Por 1 unidad (item) - Se multiplicará</span>
+                      <p className="text-xs text-gray-600">⚠️ El sistema multiplicará este gasto por {cantidadItem} items</p>
+                      <p className="text-xs text-red-600 font-semibold mt-1">Resultado: ${formData.costo.toLocaleString('es-CO')} × {cantidadItem} = ${(formData.costo * cantidadItem).toLocaleString('es-CO')}</p>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="alcance"
+                      value="parcial"
+                      checked={formData.alcance_gasto === 'parcial'}
+                      onChange={(e) => {
+                        console.log('🔄 Cambiando alcance_gasto a: parcial');
+                        setFormData({ ...formData, alcance_gasto: 'parcial' });
+                      }}
+                      className="w-4 h-4 text-indigo-600"
+                    />
+                    <div className="flex-1">
+                      <span className="font-medium text-gray-900">Por cantidad parcial</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="number"
+                          min="1"
+                          max={cantidadItem}
+                          value={formData.cantidad_items_aplicados}
+                          onChange={(e) => setFormData({ ...formData, cantidad_items_aplicados: parseInt(e.target.value) || 1 })}
+                          disabled={formData.alcance_gasto !== 'parcial'}
+                          className="w-20 px-2 py-1 border border-gray-300 rounded text-sm disabled:bg-gray-100"
+                        />
+                        <span className="text-xs text-gray-600">de {cantidadItem} items totales</span>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1">El sistema usará este gasto tal cual (sin multiplicar)</p>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="alcance"
+                      value="total"
+                      checked={formData.alcance_gasto === 'total'}
+                      onChange={(e) => {
+                        console.log('🔄 Cambiando alcance_gasto a: total');
+                        setFormData({ ...formData, alcance_gasto: 'total' });
+                      }}
+                      className="w-4 h-4 text-indigo-600"
+                    />
+                    <div>
+                      <span className="font-medium text-gray-900">Por el total de items ({cantidadItem}) - NO se multiplica</span>
+                      <p className="text-xs text-gray-600">✅ El sistema usará este gasto tal cual (sin multiplicar) - ya incluye todos los items</p>
+                      <p className="text-xs text-green-600 font-semibold mt-1">Resultado: ${formData.costo.toLocaleString('es-CO')} (sin multiplicar)</p>
+                    </div>
+                  </label>
+                </div>
               </div>
             </div>
 

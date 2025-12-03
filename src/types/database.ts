@@ -255,6 +255,8 @@ export interface GastoRealMaterial {
   proveedor?: string; // Nombre del proveedor
   numero_factura?: string; // Número de factura o comprobante
   notas?: string; // Notas adicionales
+  alcance_gasto?: 'unidad' | 'parcial' | 'total'; // Indica si el gasto es por 1 unidad, parcial o total
+  cantidad_items_aplicados?: number; // Cantidad de items a los que aplica (solo para alcance_gasto = parcial)
   created_at: string;
   updated_at: string;
   // Relaciones
@@ -274,6 +276,8 @@ export interface ManoObraReal {
   fecha: string; // Fecha del trabajo
   comprobante_url?: string; // URL del comprobante
   notas?: string;
+  alcance_gasto?: 'unidad' | 'parcial' | 'total'; // Indica si el gasto es por 1 unidad, parcial o total
+  cantidad_items_aplicados?: number; // Cantidad de items a los que aplica (solo para alcance_gasto = parcial)
   created_at: string;
   updated_at: string;
   // Relaciones
@@ -289,6 +293,8 @@ export interface GastoHormiga {
   fecha: string;
   factura_url?: string;
   evidencia_url?: string;
+  alcance_gasto?: 'unidad' | 'parcial' | 'total'; // Indica si el gasto es por 1 unidad, parcial o total
+  cantidad_items_aplicados?: number; // Cantidad de items a los que aplica (solo para alcance_gasto = parcial)
   created_at: string;
   updated_at: string;
   // Relaciones
@@ -303,6 +309,8 @@ export interface TransporteReal {
   costo: number;
   fecha: string;
   factura_url?: string;
+  alcance_gasto?: 'unidad' | 'parcial' | 'total'; // Indica si el gasto es por 1 unidad, parcial o total
+  cantidad_items_aplicados?: number; // Cantidad de items a los que aplica (solo para alcance_gasto = parcial)
   created_at: string;
   updated_at: string;
   // Relaciones
