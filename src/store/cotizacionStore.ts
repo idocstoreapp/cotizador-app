@@ -298,6 +298,15 @@ export const useCotizacionStore = create<CotizacionStore>()(
 
   // Limpiar cotización
   limpiarCotizacion: () => {
+    console.log('🧹 Limpiando cotización...');
+    // Primero limpiar el localStorage explícitamente
+    try {
+      localStorage.removeItem('cotizacion-storage');
+      console.log('✅ localStorage limpiado');
+    } catch (error) {
+      console.error('❌ Error al limpiar localStorage:', error);
+    }
+    // Luego limpiar el estado
     set({
       items: [],
       subtotal: 0,
@@ -305,6 +314,7 @@ export const useCotizacionStore = create<CotizacionStore>()(
       iva: 0,
       total: 0
     });
+    console.log('✅ Estado del store limpiado');
   },
 
   // Recalcular totales

@@ -162,10 +162,45 @@ export default function CotizacionPage() {
         alert(`⚠️ Cotización ${numero} guardada, pero hubo un error al generar el PDF:\n\n${errorMsg}\n\nRevisa la consola para más detalles.`);
       }
 
-      // Limpiar el carrito después de guardar
+      // Limpiar el carrito después de guardar exitosamente
+      console.log('🧹 Limpiando carrito después de guardar cotización...');
+      console.log('📦 Estado antes de limpiar:', {
+        itemsCount: items.length,
+        subtotal,
+        total
+      });
+      
+      // Limpiar el store (esto también limpia el localStorage)
       useCotizacionStore.getState().limpiarCotizacion();
+      
+      // Limpiar los datos del formulario
       setDatosCliente({ nombre: '', telefono: '', email: '', direccion: '' });
       setEmpresaSeleccionada(null);
+      setVendedorSeleccionado('');
+      
+      // Verificar que se limpió correctamente después de un breve delay
+      // Esto es necesario porque el middleware de persistencia puede restaurar el estado
+      setTimeout(() => {
+        const estadoActual = useCotizacionStore.getState();
+        console.log('✅ Estado después de limpiar:', {
+          itemsCount: estadoActual.items.length,
+          subtotal: estadoActual.subtotal,
+          total: estadoActual.total
+        });
+        
+        // Si aún hay items, forzar limpieza nuevamente
+        if (estadoActual.items.length > 0) {
+          console.warn('⚠️ El carrito no se limpió correctamente, forzando limpieza nuevamente...');
+          // Limpiar localStorage explícitamente
+          try {
+            localStorage.removeItem('cotizacion-storage');
+          } catch (e) {
+            console.error('Error al limpiar localStorage:', e);
+          }
+          // Limpiar el store nuevamente
+          useCotizacionStore.getState().limpiarCotizacion();
+        }
+      }, 300);
     } catch (error: any) {
       console.error('❌ Error al guardar cotización:', error);
       console.error('Detalles del error:', {
