@@ -27,6 +27,7 @@ export default function GastosHormigaTab({ cotizacionId, cotizacion, onUpdate }:
     cantidad_items_aplicados: 1
   });
   const [guardando, setGuardando] = useState(false);
+  const [detailsMenuOpen, setDetailsMenuOpen] = useState<string | null>(null);
 
   useEffect(() => {
     cargarDatos();
@@ -339,13 +340,13 @@ export default function GastosHormigaTab({ cotizacionId, cotizacion, onUpdate }:
       </div>
 
       {/* Resumen */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-blue-50 p-4 rounded-lg">
           <p className="text-sm text-gray-600">Presupuestado</p>
           <p className="text-xl font-bold text-blue-600">${totalPresupuestado.toLocaleString('es-CO')}</p>
         </div>
         <div className="bg-green-50 p-4 rounded-lg">
-          <p className="text-sm text-gray-600">Real (Hormiga) (×{cantidadItem} unidades)</p>
+          <p className="text-sm text-gray-600">Real (Hormiga) {cantidadItem > 1 && `(×${cantidadItem} unidades)`}</p>
           <p className="text-xl font-bold text-green-600">${total.toLocaleString('es-CO')}</p>
           {cantidadItem > 1 && (
             <p className="text-xs text-gray-500 mt-1">
@@ -392,37 +393,49 @@ export default function GastosHormigaTab({ cotizacionId, cotizacion, onUpdate }:
           <p className="text-gray-500">No hay gastos hormiga registrados</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descripción</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Monto</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Archivos</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {gastos.map((gasto) => (
-                <tr key={gasto.id}>
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-900">{gasto.descripcion}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap font-medium">
-                    ${gasto.monto.toLocaleString('es-CO')}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {new Date(gasto.fecha).toLocaleDateString('es-CO')}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex gap-2">
+        <>
+          {/* Vista móvil - Cards */}
+          <div className="lg:hidden space-y-3">
+            {gastos.map((gasto) => (
+              <div key={gasto.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500 mb-0.5">Descripción</div>
+                    <div className="text-sm font-semibold text-gray-900">{gasto.descripcion}</div>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-200 pt-2 mt-2 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">Monto:</span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      ${gasto.monto.toLocaleString('es-CO')}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">Fecha:</span>
+                    <span className="text-sm text-gray-700">
+                      {new Date(gasto.fecha).toLocaleDateString('es-CO')}
+                    </span>
+                  </div>
+                  {gasto.alcance_gasto && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Alcance:</span>
+                      <span className="text-xs text-gray-700">
+                        {gasto.alcance_gasto === 'unidad' ? '1 unidad' : 
+                         gasto.alcance_gasto === 'parcial' ? `${gasto.cantidad_items_aplicados || 0} items` :
+                         'Total'}
+                      </span>
+                    </div>
+                  )}
+                  {(gasto.factura_url || gasto.evidencia_url) && (
+                    <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
                       {gasto.factura_url && (
                         <a
                           href={gasto.factura_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-indigo-600 hover:text-indigo-800 text-sm"
+                          className="text-xs text-indigo-600 hover:text-indigo-800"
                         >
                           📄 Factura
                         </a>
@@ -432,37 +445,141 @@ export default function GastosHormigaTab({ cotizacionId, cotizacion, onUpdate }:
                           href={gasto.evidencia_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-indigo-600 hover:text-indigo-800 text-sm"
+                          className="text-xs text-indigo-600 hover:text-indigo-800"
                         >
                           📷 Evidencia
                         </a>
                       )}
-                      {!gasto.factura_url && !gasto.evidencia_url && (
-                        <span className="text-gray-400 text-sm">-</span>
-                      )}
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEditar(gasto)}
-                        className="text-indigo-600 hover:text-indigo-800 text-sm"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleEliminar(gasto.id)}
-                        className="text-red-600 hover:text-red-800 text-sm"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  </td>
+                  )}
+                </div>
+
+                <div className="flex gap-2 pt-2 border-t border-gray-100 mt-2">
+                  <button
+                    onClick={() => {
+                      handleEditar(gasto);
+                      setDetailsMenuOpen(null);
+                    }}
+                    className="flex-1 px-3 py-2 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition"
+                  >
+                    ✏️ Editar
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleEliminar(gasto.id);
+                      setDetailsMenuOpen(null);
+                    }}
+                    className="flex-1 px-3 py-2 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition"
+                  >
+                    🗑️ Eliminar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Vista desktop - Tabla simplificada */}
+          <div className="hidden lg:block overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descripción</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Monto</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Más Info</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {gastos.map((gasto) => (
+                  <tr key={gasto.id}>
+                    <td className="px-4 py-4">
+                      <div className="text-sm font-medium text-gray-900">{gasto.descripcion}</div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap font-medium">
+                      ${gasto.monto.toLocaleString('es-CO')}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      {new Date(gasto.fecha).toLocaleDateString('es-CO')}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="relative">
+                        <button
+                          onClick={() => setDetailsMenuOpen(detailsMenuOpen === gasto.id ? null : gasto.id)}
+                          className="text-gray-600 hover:text-gray-900 p-1"
+                          title="Más información"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                          </svg>
+                        </button>
+                        {detailsMenuOpen === gasto.id && (
+                          <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                            <div className="py-2">
+                              {(gasto.factura_url || gasto.evidencia_url) && (
+                                <div className="px-4 py-2 text-xs">
+                                  <span className="text-gray-500">Archivos:</span>
+                                  <div className="flex flex-col gap-1 mt-1">
+                                    {gasto.factura_url && (
+                                      <a
+                                        href={gasto.factura_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm text-indigo-600 hover:text-indigo-800"
+                                      >
+                                        📄 Factura
+                                      </a>
+                                    )}
+                                    {gasto.evidencia_url && (
+                                      <a
+                                        href={gasto.evidencia_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm text-indigo-600 hover:text-indigo-800"
+                                      >
+                                        📷 Evidencia
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                              {gasto.alcance_gasto && (
+                                <div className="px-4 py-2 text-xs border-t border-gray-100">
+                                  <span className="text-gray-500">Alcance:</span>
+                                  <div className="text-sm text-gray-900 mt-1">
+                                    {gasto.alcance_gasto === 'unidad' ? '1 unidad' : 
+                                     gasto.alcance_gasto === 'parcial' ? `${gasto.cantidad_items_aplicados || 0} items` :
+                                     'Total'}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEditar(gasto)}
+                          className="text-indigo-600 hover:text-indigo-800 text-sm"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleEliminar(gasto.id)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Modal */}

@@ -4,9 +4,10 @@
  * Usa @sparticuz/chromium para compatibilidad con Vercel/serverless
  */
 import type { APIRoute } from 'astro';
-import { renderQuoteToHTML } from '../../utils/renderQuoteToHTML';
 import { supabase } from '../../utils/supabase';
 import { convertirLogoABase64 } from '../../utils/convertirLogoABase64';
+// Importar renderQuoteToHTML dinámicamente para evitar problemas de empaquetado
+let renderQuoteToHTML: any = null;
 
 // Importar dinámicamente según el entorno
 async function getPuppeteer() {
@@ -84,6 +85,18 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     console.log('🎨 Renderizando HTML...');
+    
+    // Cargar renderQuoteToHTML dinámicamente solo cuando se necesite (en el servidor)
+    if (!renderQuoteToHTML) {
+      try {
+        const renderModule = await import('../../utils/renderQuoteToHTML');
+        renderQuoteToHTML = renderModule.renderQuoteToHTML;
+        console.log('✅ renderQuoteToHTML cargado dinámicamente');
+      } catch (importError: any) {
+        console.error('❌ Error al importar renderQuoteToHTML:', importError);
+        throw new Error(`Error al cargar renderQuoteToHTML: ${importError.message || importError}`);
+      }
+    }
     
     // Convertir logo a base64 si está disponible (para que Puppeteer pueda renderizarlo)
     let logoBase64 = companyLogo;

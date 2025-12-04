@@ -30,6 +30,7 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
     cantidad_items_aplicados: 1
   });
   const [guardando, setGuardando] = useState(false);
+  const [detailsMenuOpen, setDetailsMenuOpen] = useState<string | null>(null);
 
   useEffect(() => {
     cargarDatos();
@@ -312,14 +313,14 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
       )}
 
       {/* Resumen */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-blue-50 p-4 rounded-lg">
           <p className="text-sm text-gray-600">Total Horas</p>
-          <p className="text-2xl font-bold text-blue-600">{totalHoras.toFixed(2)}</p>
+          <p className="text-xl sm:text-2xl font-bold text-blue-600">{totalHoras.toFixed(2)}</p>
         </div>
         <div className="bg-green-50 p-4 rounded-lg">
-          <p className="text-sm text-gray-600">Total Pagado (×{cantidadItem} unidades)</p>
-          <p className="text-2xl font-bold text-green-600">${totalPagado.toLocaleString('es-CO')}</p>
+          <p className="text-sm text-gray-600">Total Pagado {cantidadItem > 1 && `(×${cantidadItem} unidades)`}</p>
+          <p className="text-xl sm:text-2xl font-bold text-green-600">${totalPagado.toLocaleString('es-CO')}</p>
           {cantidadItem > 1 && (
             <p className="text-xs text-gray-500 mt-1">
               ${totalPagadoPorUnidad.toLocaleString('es-CO')} por unidad
@@ -328,11 +329,11 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
         </div>
         <div className="bg-purple-50 p-4 rounded-lg">
           <p className="text-sm text-gray-600">Registros</p>
-          <p className="text-2xl font-bold text-purple-600">{registros.length}</p>
+          <p className="text-xl sm:text-2xl font-bold text-purple-600">{registros.length}</p>
         </div>
         <div className="bg-blue-50 p-4 rounded-lg">
           <p className="text-sm text-gray-600">Presupuestado</p>
-          <p className="text-2xl font-bold text-blue-600">${totalPresupuestado.toLocaleString('es-CO')}</p>
+          <p className="text-xl sm:text-2xl font-bold text-blue-600">${totalPresupuestado.toLocaleString('es-CO')}</p>
           <p className="text-xs text-gray-500">{horasPresupuestadas.toFixed(2)} horas</p>
         </div>
       </div>
@@ -360,57 +361,177 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
         </button>
       </div>
 
-      {/* Tabla */}
+      {/* Vista móvil - Cards */}
       {registros.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <p className="text-gray-500">No hay registros de mano de obra real</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trabajador</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Horas</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pago/Hora</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {registros.map((registro) => (
-                <tr key={registro.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {registro.trabajador
-                      ? `${registro.trabajador.nombre || ''} ${registro.trabajador.apellido || ''}`.trim() || registro.trabajador.email || 'Sin nombre'
-                      : 'No asignado'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">{registro.horas_trabajadas}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">${registro.pago_por_hora.toLocaleString('es-CO')}</td>
-                  <td className="px-6 py-4 whitespace-nowrap font-medium">${registro.total_pagado.toLocaleString('es-CO')}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{new Date(registro.fecha).toLocaleDateString('es-CO')}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEditar(registro)}
-                        className="text-indigo-600 hover:text-indigo-800 text-sm"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleEliminar(registro.id)}
-                        className="text-red-600 hover:text-red-800 text-sm"
-                      >
-                        Eliminar
-                      </button>
+        <>
+          <div className="lg:hidden space-y-3">
+            {registros.map((registro) => (
+              <div key={registro.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500 mb-0.5">Trabajador</div>
+                    <div className="text-sm font-semibold text-gray-900">
+                      {registro.trabajador
+                        ? `${registro.trabajador.nombre || ''} ${registro.trabajador.apellido || ''}`.trim() || registro.trabajador.email || 'Sin nombre'
+                        : 'No asignado'}
                     </div>
-                  </td>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-200 pt-2 mt-2 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">Horas:</span>
+                    <span className="text-sm font-medium text-gray-900">{registro.horas_trabajadas}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">Pago/hora:</span>
+                    <span className="text-sm text-gray-900">${registro.pago_por_hora.toLocaleString('es-CO')}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">Total:</span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      ${registro.total_pagado.toLocaleString('es-CO')}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">Fecha:</span>
+                    <span className="text-sm text-gray-700">
+                      {new Date(registro.fecha).toLocaleDateString('es-CO')}
+                    </span>
+                  </div>
+                  {registro.alcance_gasto && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Alcance:</span>
+                      <span className="text-xs text-gray-700">
+                        {registro.alcance_gasto === 'unidad' ? '1 unidad' : 
+                         registro.alcance_gasto === 'parcial' ? `${registro.cantidad_items_aplicados || 0} items` :
+                         'Total'}
+                      </span>
+                    </div>
+                  )}
+                  {registro.notas && (
+                    <div className="pt-2 border-t border-gray-100">
+                      <span className="text-xs text-gray-500">Notas:</span>
+                      <p className="text-xs text-gray-700 mt-1">{registro.notas}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2 pt-2 border-t border-gray-100 mt-2">
+                  <button
+                    onClick={() => {
+                      handleEditar(registro);
+                      setDetailsMenuOpen(null);
+                    }}
+                    className="flex-1 px-3 py-2 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition"
+                  >
+                    ✏️ Editar
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleEliminar(registro.id);
+                      setDetailsMenuOpen(null);
+                    }}
+                    className="flex-1 px-3 py-2 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition"
+                  >
+                    🗑️ Eliminar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Vista desktop - Tabla simplificada */}
+          <div className="hidden lg:block overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trabajador</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Horas</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pago/Hora</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Más Info</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {registros.map((registro) => (
+                  <tr key={registro.id}>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      {registro.trabajador
+                        ? `${registro.trabajador.nombre || ''} ${registro.trabajador.apellido || ''}`.trim() || registro.trabajador.email || 'Sin nombre'
+                        : 'No asignado'}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">{registro.horas_trabajadas}</td>
+                    <td className="px-4 py-4 whitespace-nowrap">${registro.pago_por_hora.toLocaleString('es-CO')}</td>
+                    <td className="px-4 py-4 whitespace-nowrap font-medium">${registro.total_pagado.toLocaleString('es-CO')}</td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="relative">
+                        <button
+                          onClick={() => setDetailsMenuOpen(detailsMenuOpen === registro.id ? null : registro.id)}
+                          className="text-gray-600 hover:text-gray-900 p-1"
+                          title="Más información"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                          </svg>
+                        </button>
+                        {detailsMenuOpen === registro.id && (
+                          <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                            <div className="py-2">
+                              <div className="px-4 py-2 text-xs">
+                                <span className="text-gray-500">Fecha:</span>
+                                <div className="text-sm text-gray-900 mt-1">
+                                  {new Date(registro.fecha).toLocaleDateString('es-CO')}
+                                </div>
+                              </div>
+                              {registro.alcance_gasto && (
+                                <div className="px-4 py-2 text-xs border-t border-gray-100">
+                                  <span className="text-gray-500">Alcance:</span>
+                                  <div className="text-sm text-gray-900 mt-1">
+                                    {registro.alcance_gasto === 'unidad' ? '1 unidad' : 
+                                     registro.alcance_gasto === 'parcial' ? `${registro.cantidad_items_aplicados || 0} items` :
+                                     'Total'}
+                                  </div>
+                                </div>
+                              )}
+                              {registro.notas && (
+                                <div className="px-4 py-2 text-xs border-t border-gray-100">
+                                  <span className="text-gray-500">Notas:</span>
+                                  <div className="text-sm text-gray-900 mt-1">{registro.notas}</div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEditar(registro)}
+                          className="text-indigo-600 hover:text-indigo-800 text-sm"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleEliminar(registro.id)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Modal */}

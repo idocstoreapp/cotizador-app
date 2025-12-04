@@ -50,6 +50,9 @@ export interface ComparacionPresupuestoReal {
   utilidadPresupuestada: number;
   utilidadReal: number;
   diferenciaUtilidad: number;
+  // IVA
+  ivaPresupuestado: number;
+  ivaReal: number;
   // Desglose por categoría
   materiales: {
     presupuestado: number;
@@ -371,7 +374,7 @@ export async function obtenerComparacionPresupuestoReal(cotizacionId: string): P
   console.log('  - Costos Reales Mano Obra:', costosReales.manoObra.total);
   console.log('  - Costos Reales Total:', costosReales.totalReal);
 
-  // Calcular IVA presupuestado
+  // Calcular IVA presupuestado (valor fijo e inamovible)
   const descuento = cotizacion.descuento || 0;
   const subtotal = cotizacion.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0
     ? cotizacion.items.reduce((sum: number, item: any) => sum + (item.precio_total || 0), 0)
@@ -384,8 +387,23 @@ export async function obtenerComparacionPresupuestoReal(cotizacionId: string): P
   // Utilidad presupuestada = total - costo base - IVA
   const utilidadPresupuestada = totalPresupuestado - costoBasePresupuestado - ivaPresupuestado;
 
-  // Utilidad real = total cotizado - total real gastado (incluyendo todos los costos)
-  const utilidadReal = totalPresupuestado - costosReales.totalReal;
+  // IVA real = IVA presupuestado (valor fijo, no se calcula desde facturas)
+  // Las facturas son solo registro administrativo, no afectan los cálculos
+  const ivaReal = ivaPresupuestado;
+
+  // Total real gastado = costos reales + IVA presupuestado
+  // El IVA presupuestado se suma al total real gastado
+  const totalRealGastado = costosReales.totalReal + ivaReal;
+
+  // Utilidad real = total cotizado - total real gastado (incluyendo IVA)
+  // El IVA se resta de la utilidad porque es parte del costo real
+  const utilidadReal = totalPresupuestado - totalRealGastado;
+  
+  console.log('💰 [Rentabilidad] Cálculos con IVA:');
+  console.log('  - IVA Presupuestado (fijo):', ivaPresupuestado);
+  console.log('  - IVA Real (igual al presupuestado):', ivaReal);
+  console.log('  - Total Real Gastado (con IVA):', totalRealGastado);
+  console.log('  - Utilidad Real (después de IVA):', utilidadReal);
 
   // Diferencia de costos base (solo materiales + servicios vs materiales + mano de obra)
   // NO incluir gastos hormiga ni transporte porque no están presupuestados
@@ -405,12 +423,14 @@ export async function obtenerComparacionPresupuestoReal(cotizacionId: string): P
     totalPresupuestado,
     subtotalMaterialesPresupuestado,
     subtotalServiciosPresupuestado,
-    totalReal: costosReales.totalReal,
+    totalReal: totalRealGastado, // Incluye IVA real
     diferencia,
     diferenciaPorcentaje,
     utilidadPresupuestada,
-    utilidadReal,
+    utilidadReal, // Ya incluye la resta del IVA
     diferenciaUtilidad: utilidadReal - utilidadPresupuestada,
+    ivaPresupuestado,
+    ivaReal,
     materiales: {
       presupuestado: subtotalMaterialesPresupuestado,
       real: costosReales.materiales.total,

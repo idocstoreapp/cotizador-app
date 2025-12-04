@@ -159,8 +159,8 @@ export default function ListaGastosFijos() {
 
       {/* Filtros */}
       <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">🔍 Filtros</h3>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">🔍 Filtros</h3>
           <button
             onClick={handleLimpiarFiltros}
             className="text-sm text-indigo-600 hover:text-indigo-800"
@@ -169,7 +169,7 @@ export default function ListaGastosFijos() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Mes y Año */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Mes</label>
@@ -288,77 +288,164 @@ export default function ListaGastosFijos() {
         </button>
       </div>
 
-      {/* Tabla */}
+      {/* Vista móvil - Cards */}
       {gastos.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <p className="text-gray-500">No hay gastos fijos registrados con los filtros aplicados</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoría</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descripción</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Monto</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Proveedor</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Método Pago</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {gastos.map((gasto) => (
-                <tr key={gasto.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(gasto.date).toLocaleDateString('es-CO')}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {gasto.category ? (
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-indigo-100 text-indigo-800">
-                        {gasto.category.name}
-                      </span>
-                    ) : (
-                      <span className="text-sm text-gray-400">Sin categoría</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-900">{gasto.description}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap font-medium">
-                    ${gasto.amount.toLocaleString('es-CO')}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {gasto.provider || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {gasto.payment_method ? (
-                      <span className="capitalize">{gasto.payment_method}</span>
-                    ) : (
-                      '-'
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEditar(gasto)}
-                        className="text-indigo-600 hover:text-indigo-800 text-sm"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleEliminar(gasto.id)}
-                        className="text-red-600 hover:text-red-800 text-sm"
-                      >
-                        Eliminar
-                      </button>
+        <>
+          <div className="lg:hidden space-y-3">
+            {gastos.map((gasto) => (
+              <div key={gasto.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500 mb-0.5">Descripción</div>
+                    <div className="text-sm font-semibold text-gray-900">{gasto.description}</div>
+                  </div>
+                  {gasto.category && (
+                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-indigo-100 text-indigo-800">
+                      {gasto.category.name}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="border-t border-gray-200 pt-2 mt-2 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">Monto:</span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      ${gasto.amount.toLocaleString('es-CO')}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">Fecha:</span>
+                    <span className="text-sm text-gray-700">
+                      {new Date(gasto.date).toLocaleDateString('es-CO')}
+                    </span>
+                  </div>
+                  {gasto.provider && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Proveedor:</span>
+                      <span className="text-sm text-gray-700">{gasto.provider}</span>
                     </div>
-                  </td>
+                  )}
+                  {gasto.payment_method && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Método pago:</span>
+                      <span className="text-sm text-gray-700 capitalize">{gasto.payment_method}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2 pt-2 border-t border-gray-100 mt-2">
+                  <button
+                    onClick={() => handleEditar(gasto)}
+                    className="flex-1 px-3 py-2 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition"
+                  >
+                    ✏️ Editar
+                  </button>
+                  <button
+                    onClick={() => handleEliminar(gasto.id)}
+                    className="flex-1 px-3 py-2 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition"
+                  >
+                    🗑️ Eliminar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Vista desktop - Tabla simplificada */}
+          <div className="hidden lg:block overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoría</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descripción</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Monto</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Más Info</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {gastos.map((gasto) => (
+                  <tr key={gasto.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(gasto.date).toLocaleDateString('es-CO')}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      {gasto.category ? (
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-indigo-100 text-indigo-800">
+                          {gasto.category.name}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-400">Sin categoría</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="text-sm font-medium text-gray-900">{gasto.description}</div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap font-medium">
+                      ${gasto.amount.toLocaleString('es-CO')}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="relative">
+                        <button
+                          onClick={() => {
+                            const menuId = `menu-${gasto.id}`;
+                            const menu = document.getElementById(menuId);
+                            if (menu) {
+                              menu.classList.toggle('hidden');
+                            }
+                          }}
+                          className="text-gray-600 hover:text-gray-900 p-1"
+                          title="Más información"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                          </svg>
+                        </button>
+                        <div id={`menu-${gasto.id}`} className="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                          <div className="py-2">
+                            {gasto.provider && (
+                              <div className="px-4 py-2 text-xs">
+                                <span className="text-gray-500">Proveedor:</span>
+                                <div className="text-sm text-gray-900 mt-1">{gasto.provider}</div>
+                              </div>
+                            )}
+                            {gasto.payment_method && (
+                              <div className="px-4 py-2 text-xs border-t border-gray-100">
+                                <span className="text-gray-500">Método pago:</span>
+                                <div className="text-sm text-gray-900 mt-1 capitalize">{gasto.payment_method}</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEditar(gasto)}
+                          className="text-indigo-600 hover:text-indigo-800 text-sm"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleEliminar(gasto.id)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Modal de editar/crear */}

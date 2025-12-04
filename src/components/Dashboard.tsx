@@ -9,6 +9,7 @@ import { obtenerMateriales } from '../services/materiales.service';
 import { obtenerServicios } from '../services/servicios.service';
 import { obtenerEstadisticasRentabilidad } from '../services/rentabilidad.service';
 import { obtenerEstadisticasDashboard } from '../services/dashboard-stats.service';
+import DashboardVendedor from './DashboardVendedor';
 import type { UserProfile, Cotizacion, Material, Servicio } from '../types/database';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -18,6 +19,12 @@ interface DashboardProps {
 
 export default function Dashboard({ usuario }: DashboardProps) {
   const esAdmin = usuario.role === 'admin';
+  const esVendedor = usuario.role === 'vendedor';
+  
+  // Si es vendedor, mostrar dashboard específico
+  if (esVendedor) {
+    return <DashboardVendedor usuario={usuario} />;
+  }
   const [estadisticasRentabilidad, setEstadisticasRentabilidad] = useState<any>(null);
   const [cargandoRentabilidad, setCargandoRentabilidad] = useState(false);
   const [estadisticasDashboard, setEstadisticasDashboard] = useState<any>(null);
@@ -333,7 +340,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
               </div>
             </div>
 
-            {/* Costos Totales del Mes */}
+            {/* Costos Totales del Mes - Dividido en 2 partes */}
             <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-red-500">
               <div className="p-5">
                 <div className="flex items-center">
@@ -348,7 +355,20 @@ export default function Dashboard({ usuario }: DashboardProps) {
                       <dd className="text-2xl font-bold text-red-600">
                         ${(estadisticasDashboard?.costosTotalesMes ?? 0).toLocaleString('es-CO')}
                       </dd>
-                      <p className="text-xs text-gray-400 mt-1">Gastos registrados en proyectos</p>
+                      <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-gray-200">
+                        <div>
+                          <p className="text-xs text-gray-500">Materiales + Mano Obra</p>
+                          <p className="text-sm font-semibold text-orange-600">
+                            ${((estadisticasDashboard?.gastosMaterialesMes ?? 0) + (estadisticasDashboard?.gastosManoObraMes ?? 0)).toLocaleString('es-CO')}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">IVA (Utilidades)</p>
+                          <p className="text-sm font-semibold text-indigo-600">
+                            ${(estadisticasDashboard?.ivaRealMes ?? 0).toLocaleString('es-CO')}
+                          </p>
+                        </div>
+                      </div>
                     </dl>
                   </div>
                 </div>

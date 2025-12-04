@@ -17,6 +17,7 @@ export default function Layout({ children, currentPath }: LayoutProps) {
   const [usuario, setUsuario] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [verificandoSesion, setVerificandoSesion] = useState(true);
   const itemsCotizacion = useCotizacionStore(state => state.items);
 
@@ -334,7 +335,8 @@ export default function Layout({ children, currentPath }: LayoutProps) {
           ]
         : esVendedor
         ? [
-            // Vendedores solo pueden cotizar
+            // Vendedores: Dashboard, Catálogo, Cotización, Historial
+            { path: '/dashboard', label: 'Dashboard', icon: '📊' },
             { path: '/catalogo', label: 'Catálogo', icon: '📚' },
             { path: '/cotizacion', label: 'Cotización', icon: '📝' },
             { path: '/cotizaciones', label: 'Mis Cotizaciones', icon: '📋' }
@@ -348,32 +350,54 @@ export default function Layout({ children, currentPath }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
+      {/* Overlay móvil */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
         className={`${
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        } ${
           sidebarOpen ? 'w-64' : 'w-20'
-        } bg-white shadow-lg transition-all duration-300 flex flex-col`}
+        } fixed lg:static inset-y-0 left-0 bg-white shadow-lg transition-all duration-300 flex flex-col z-50`}
       >
         {/* Logo */}
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-              </svg>
+        <div className="p-4 sm:p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+              </div>
+              {sidebarOpen && (
+                <h1 className="text-lg font-bold text-gray-900">Sistema de Cotizaciones</h1>
+              )}
             </div>
-            {sidebarOpen && (
-              <h1 className="text-lg font-bold text-gray-900">Sistema de Cotizaciones</h1>
-            )}
+            {/* Botón cerrar móvil */}
+            <button
+              onClick={() => setMobileMenuOpen(false)}
+              className="lg:hidden text-gray-500 hover:text-gray-700"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
         </div>
 
         {/* Menú */}
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           {menuItems.map((item) => (
             <a
               key={item.path}
               href={item.path}
+              onClick={() => setMobileMenuOpen(false)}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                 currentPath === item.path
                   ? 'bg-indigo-50 text-indigo-600 font-medium'
@@ -406,22 +430,31 @@ export default function Layout({ children, currentPath }: LayoutProps) {
       </aside>
 
       {/* Contenido principal */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col lg:ml-0">
         {/* Topbar */}
         <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="px-6 py-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">
+          <div className="px-4 sm:px-6 py-4 flex items-center justify-between">
+            {/* Botón menú hamburguesa móvil */}
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="lg:hidden p-2 text-gray-600 hover:text-gray-900"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div className="flex-1">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
                 {menuItems.find(item => item.path === currentPath)?.label || 'Dashboard'}
               </h2>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               {/* Carrito */}
               <a
                 href="/cotizacion"
                 className="relative p-2 text-gray-600 hover:text-gray-900"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
                 {itemsCotizacion.length > 0 && (
@@ -431,32 +464,40 @@ export default function Layout({ children, currentPath }: LayoutProps) {
                 )}
               </a>
 
-              {/* Usuario */}
-              <div className="flex items-center gap-3">
-                <div className="text-right">
+              {/* Usuario - Ocultar texto en móvil muy pequeño */}
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="hidden sm:block text-right">
                   <p className="text-sm font-medium text-gray-900">
                     {usuario.nombre || usuario.email}
                   </p>
                   <p className="text-xs text-gray-500 capitalize">{usuario.role}</p>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                  <span className="text-sm font-medium text-indigo-600">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                  <span className="text-xs sm:text-sm font-medium text-indigo-600">
                     {(usuario.nombre || usuario.email).charAt(0).toUpperCase()}
                   </span>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="text-gray-600 hover:text-gray-900 text-sm"
+                  className="hidden sm:block text-gray-600 hover:text-gray-900 text-sm"
                 >
                   Cerrar Sesión
                 </button>
+                {/* Menú dropdown móvil para usuario */}
+                <div className="sm:hidden relative">
+                  <button className="p-1 text-gray-600 hover:text-gray-900">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </header>
 
         {/* Contenido */}
-            <main className="flex-1 p-6 overflow-y-auto">
+            <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
               <UserProvider usuario={usuario}>
                 {children}
               </UserProvider>

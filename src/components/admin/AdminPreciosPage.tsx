@@ -3,7 +3,7 @@
  * Permite modificar precios de materiales, servicios, muebles y variantes
  * VERSIÓN SIN REACT QUERY - Carga datos directamente
  */
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useUser } from '../../contexts/UserContext';
 import { obtenerUsuarioActual } from '../../services/auth.service';
 import { obtenerMateriales, actualizarMaterial, crearMaterial, eliminarMaterial } from '../../services/materiales.service';
@@ -434,43 +434,162 @@ export default function AdminPreciosPage() {
       case 'materiales':
         return (
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900">Materiales</h2>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Materiales</h2>
               <button
                 onClick={() => setMostrarModalNuevoMaterial(true)}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+                className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center justify-center gap-2 text-sm sm:text-base"
               >
                 <span>+</span> Agregar Material
               </button>
             </div>
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unidad</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precio Unitario</th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Acciones</th>
-                  </tr>
-                </thead>
+            
+            {/* Vista móvil - Cards */}
+            <div className="lg:hidden space-y-3">
+              {loadingMateriales ? (
+                <div className="text-center py-8 text-gray-500">Cargando materiales...</div>
+              ) : materiales.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">No hay materiales disponibles</div>
+              ) : (
+                materiales.map((material) => (
+                  <div key={material.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                    {editandoId === material.id ? (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1 block">Nombre</label>
+                          <input
+                            type="text"
+                            value={valoresEditando.nombre || material.nombre}
+                            onChange={(e) => setValoresEditando({ ...valoresEditando, nombre: e.target.value })}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1 block">Tipo</label>
+                          <input
+                            type="text"
+                            value={valoresEditando.tipo || material.tipo}
+                            onChange={(e) => setValoresEditando({ ...valoresEditando, tipo: e.target.value })}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1 block">Unidad</label>
+                          <select
+                            value={valoresEditando.unidad || material.unidad}
+                            onChange={(e) => setValoresEditando({ ...valoresEditando, unidad: e.target.value })}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                          >
+                            <option value="unidad">Unidad</option>
+                            <option value="m2">m²</option>
+                            <option value="m">m</option>
+                            <option value="kg">kg</option>
+                            <option value="litro">Litro</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1 block">Precio Unitario</label>
+                          <input
+                            type="number"
+                            value={valoresEditando.costo_unitario !== undefined ? valoresEditando.costo_unitario : material.costo_unitario}
+                            onChange={(e) => setValoresEditando({ ...valoresEditando, costo_unitario: parseFloat(e.target.value) || 0 })}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                            min="0"
+                            step="100"
+                          />
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                          <button
+                            onClick={() => guardarMaterial(material.id)}
+                            disabled={guardandoMaterial}
+                            className="flex-1 px-3 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50"
+                          >
+                            Guardar
+                          </button>
+                          <button
+                            onClick={cancelarEdicion}
+                            className="flex-1 px-3 py-2 bg-gray-300 text-gray-700 text-sm rounded hover:bg-gray-400"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="text-xs text-gray-500 mb-0.5">Nombre</div>
+                            <div className="text-sm font-semibold text-gray-900">{material.nombre}</div>
+                          </div>
+                        </div>
+                        <div className="border-t border-gray-200 pt-2 mt-2 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500">Tipo:</span>
+                            <span className="text-sm text-gray-700">{material.tipo}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500">Unidad:</span>
+                            <span className="text-sm text-gray-700">{material.unidad}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500">Precio Unitario:</span>
+                            <span className="text-sm font-semibold text-gray-900">
+                              ${material.costo_unitario.toLocaleString('es-CO')}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-2 border-t border-gray-100 mt-2">
+                          <button
+                            onClick={() => iniciarEdicion(material.id, { costo_unitario: material.costo_unitario, nombre: material.nombre, tipo: material.tipo, unidad: material.unidad, proveedor: material.proveedor })}
+                            className="flex-1 px-3 py-2 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition"
+                          >
+                            ✏️ Editar
+                          </button>
+                          <button
+                            onClick={() => handleEliminarMaterial(material.id, material.nombre)}
+                            disabled={eliminandoMaterial === material.id}
+                            className="flex-1 px-3 py-2 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition disabled:opacity-50"
+                          >
+                            {eliminandoMaterial === material.id ? 'Eliminando...' : '🗑️ Eliminar'}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Vista desktop - Tabla */}
+            <div className="hidden lg:block bg-white rounded-lg shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unidad</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precio Unitario</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                    </tr>
+                  </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {loadingMateriales ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                      <td colSpan={5} className="px-4 py-4 text-center text-gray-500">
                         Cargando materiales...
                       </td>
                     </tr>
                   ) : materiales.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                      <td colSpan={5} className="px-4 py-4 text-center text-gray-500">
                         No hay materiales disponibles
                       </td>
                     </tr>
                   ) : (
                     materiales.map((material) => (
                       <tr key={material.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4 whitespace-nowrap">
                           {editandoId === material.id ? (
                             <input
                               type="text"
@@ -482,7 +601,7 @@ export default function AdminPreciosPage() {
                             <span className="text-sm font-medium text-gray-900">{material.nombre}</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4 whitespace-nowrap">
                           {editandoId === material.id ? (
                             <input
                               type="text"
@@ -494,7 +613,7 @@ export default function AdminPreciosPage() {
                             <span className="text-sm text-gray-500">{material.tipo}</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4 whitespace-nowrap">
                           {editandoId === material.id ? (
                             <select
                               value={valoresEditando.unidad || material.unidad}
@@ -511,7 +630,7 @@ export default function AdminPreciosPage() {
                             <span className="text-sm text-gray-500">{material.unidad}</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4 whitespace-nowrap">
                           {editandoId === material.id ? (
                             <input
                               type="number"
@@ -527,7 +646,7 @@ export default function AdminPreciosPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <td className="px-4 py-4 whitespace-nowrap text-center">
                           {editandoId === material.id ? (
                             <div className="flex gap-2 justify-center">
                               <button
@@ -574,43 +693,158 @@ export default function AdminPreciosPage() {
       case 'servicios':
         return (
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900">Servicios / Mano de Obra</h2>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Servicios / Mano de Obra</h2>
               <button
                 onClick={() => setMostrarModalNuevoServicio(true)}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+                className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center justify-center gap-2 text-sm sm:text-base"
               >
                 <span>+</span> Agregar Servicio
               </button>
             </div>
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            
+            {/* Vista móvil - Cards */}
+            <div className="lg:hidden space-y-3">
+              {loadingServicios ? (
+                <div className="text-center py-8 text-gray-500">Cargando servicios...</div>
+              ) : servicios.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">No hay servicios disponibles</div>
+              ) : (
+                servicios.map((servicio) => (
+                  <div key={servicio.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                    {editandoId === servicio.id ? (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1 block">Nombre</label>
+                          <input
+                            type="text"
+                            value={valoresEditando.nombre || servicio.nombre}
+                            onChange={(e) => setValoresEditando({ ...valoresEditando, nombre: e.target.value })}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1 block">Descripción</label>
+                          <input
+                            type="text"
+                            value={valoresEditando.descripcion || servicio.descripcion}
+                            onChange={(e) => setValoresEditando({ ...valoresEditando, descripcion: e.target.value })}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1 block">Precio por Hora</label>
+                          <input
+                            type="number"
+                            value={valoresEditando.precio_por_hora !== undefined ? valoresEditando.precio_por_hora : servicio.precio_por_hora}
+                            onChange={(e) => setValoresEditando({ ...valoresEditando, precio_por_hora: parseFloat(e.target.value) || 0 })}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                            min="0"
+                            step="1000"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1 block">Horas Estimadas</label>
+                          <input
+                            type="number"
+                            value={valoresEditando.horas_estimadas !== undefined ? valoresEditando.horas_estimadas : servicio.horas_estimadas}
+                            onChange={(e) => setValoresEditando({ ...valoresEditando, horas_estimadas: parseFloat(e.target.value) || 0 })}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                            min="0"
+                            step="0.5"
+                          />
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                          <button
+                            onClick={() => guardarServicio(servicio.id)}
+                            disabled={guardandoServicio}
+                            className="flex-1 px-3 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50"
+                          >
+                            Guardar
+                          </button>
+                          <button
+                            onClick={cancelarEdicion}
+                            className="flex-1 px-3 py-2 bg-gray-300 text-gray-700 text-sm rounded hover:bg-gray-400"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="text-xs text-gray-500 mb-0.5">Nombre</div>
+                            <div className="text-sm font-semibold text-gray-900">{servicio.nombre}</div>
+                          </div>
+                        </div>
+                        <div className="border-t border-gray-200 pt-2 mt-2 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500">Descripción:</span>
+                            <span className="text-sm text-gray-700">{servicio.descripcion || 'N/A'}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500">Precio por Hora:</span>
+                            <span className="text-sm font-semibold text-gray-900">
+                              ${servicio.precio_por_hora.toLocaleString('es-CO')}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500">Horas Estimadas:</span>
+                            <span className="text-sm text-gray-700">{servicio.horas_estimadas || 0}</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-2 border-t border-gray-100 mt-2">
+                          <button
+                            onClick={() => iniciarEdicion(servicio.id, { nombre: servicio.nombre, descripcion: servicio.descripcion, precio_por_hora: servicio.precio_por_hora, horas_estimadas: servicio.horas_estimadas })}
+                            className="flex-1 px-3 py-2 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition"
+                          >
+                            ✏️ Editar
+                          </button>
+                          <button
+                            onClick={() => handleEliminarServicio(servicio.id, servicio.nombre)}
+                            disabled={eliminandoServicio === servicio.id}
+                            className="flex-1 px-3 py-2 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition disabled:opacity-50"
+                          >
+                            {eliminandoServicio === servicio.id ? 'Eliminando...' : '🗑️ Eliminar'}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Vista desktop - Tabla */}
+            <div className="hidden lg:block bg-white rounded-lg shadow-sm overflow-hidden">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descripción</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precio por Hora</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Horas Estimadas</th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descripción</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precio por Hora</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Horas Estimadas</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {loadingServicios ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                      <td colSpan={5} className="px-4 py-4 text-center text-gray-500">
                         Cargando servicios...
                       </td>
                     </tr>
                   ) : servicios.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                      <td colSpan={5} className="px-4 py-4 text-center text-gray-500">
                         No hay servicios disponibles
                       </td>
                     </tr>
                   ) : (
                     servicios.map((servicio) => (
                       <tr key={servicio.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4 whitespace-nowrap">
                           {editandoId === servicio.id ? (
                             <input
                               type="text"
@@ -622,7 +856,7 @@ export default function AdminPreciosPage() {
                             <span className="text-sm font-medium text-gray-900">{servicio.nombre}</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4 whitespace-nowrap">
                           {editandoId === servicio.id ? (
                             <input
                               type="text"
@@ -634,7 +868,7 @@ export default function AdminPreciosPage() {
                             <span className="text-sm text-gray-500">{servicio.descripcion || 'N/A'}</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4 whitespace-nowrap">
                           {editandoId === servicio.id ? (
                             <input
                               type="number"
@@ -650,7 +884,7 @@ export default function AdminPreciosPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4 whitespace-nowrap">
                           {editandoId === servicio.id ? (
                             <input
                               type="number"
@@ -664,7 +898,7 @@ export default function AdminPreciosPage() {
                             <span className="text-sm text-gray-500">{servicio.horas_estimadas}h</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <td className="px-4 py-4 whitespace-nowrap text-center">
                           {editandoId === servicio.id ? (
                             <div className="flex gap-2 justify-center">
                               <button
@@ -711,90 +945,166 @@ export default function AdminPreciosPage() {
       case 'muebles':
         return (
           <div className="space-y-4">
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoría</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precio Base</th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {loadingMuebles ? (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
-                        Cargando muebles...
-                      </td>
-                    </tr>
-                  ) : muebles.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
-                        No hay muebles disponibles
-                      </td>
-                    </tr>
-                  ) : (
-                    muebles.map((mueble) => (
-                      <tr key={mueble.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-sm font-medium text-gray-900">{mueble.nombre}</span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{mueble.categoria}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {editandoId === mueble.id ? (
-                            <input
-                              type="number"
-                              value={valoresEditando.precio_base !== undefined ? valoresEditando.precio_base : mueble.precio_base}
-                              onChange={(e) => setValoresEditando({ ...valoresEditando, precio_base: parseFloat(e.target.value) || 0 })}
-                              className="w-32 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
-                              min="0"
-                              step="1000"
-                            />
-                          ) : (
-                            <span className="text-sm font-medium text-gray-900">
+            {/* Vista móvil - Cards */}
+            <div className="lg:hidden space-y-3">
+              {loadingMuebles ? (
+                <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">Cargando muebles...</div>
+              ) : muebles.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">No hay muebles disponibles</div>
+              ) : (
+                muebles.map((mueble) => (
+                  <div key={mueble.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                    {editandoId === mueble.id ? (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1 block">Precio Base</label>
+                          <input
+                            type="number"
+                            value={valoresEditando.precio_base !== undefined ? valoresEditando.precio_base : mueble.precio_base}
+                            onChange={(e) => setValoresEditando({ ...valoresEditando, precio_base: parseFloat(e.target.value) || 0 })}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                            min="0"
+                            step="1000"
+                          />
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                          <button
+                            onClick={() => guardarMueble(mueble.id)}
+                            disabled={guardandoMueble}
+                            className="flex-1 px-3 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50"
+                          >
+                            Guardar
+                          </button>
+                          <button
+                            onClick={cancelarEdicion}
+                            className="flex-1 px-3 py-2 bg-gray-300 text-gray-700 text-sm rounded hover:bg-gray-400"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="text-xs text-gray-500 mb-0.5">Nombre</div>
+                            <div className="text-sm font-semibold text-gray-900">{mueble.nombre}</div>
+                          </div>
+                        </div>
+                        <div className="border-t border-gray-200 pt-2 mt-2 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500">Categoría:</span>
+                            <span className="text-sm text-gray-700 capitalize">{mueble.categoria}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500">Precio Base:</span>
+                            <span className="text-sm font-semibold text-gray-900">
                               ${mueble.precio_base.toLocaleString('es-CO')}
                             </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          {editandoId === mueble.id ? (
-                            <div className="flex gap-2 justify-center">
-                              <button
-                                onClick={() => guardarMueble(mueble.id)}
-                                disabled={guardandoMueble}
-                                className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
-                              >
-                                Guardar
-                              </button>
-                              <button
-                                onClick={cancelarEdicion}
-                                className="px-3 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
-                              >
-                                Cancelar
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => iniciarEdicion(mueble.id, { precio_base: mueble.precio_base })}
-                              className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700"
-                            >
-                              Editar
-                            </button>
-                          )}
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-2 border-t border-gray-100 mt-2">
+                          <button
+                            onClick={() => iniciarEdicion(mueble.id, { precio_base: mueble.precio_base })}
+                            className="flex-1 px-3 py-2 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition"
+                          >
+                            ✏️ Editar
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Vista desktop - Tabla */}
+            <div className="hidden lg:block bg-white rounded-lg shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoría</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precio Base</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {loadingMuebles ? (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-4 text-center text-gray-500">
+                          Cargando muebles...
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : muebles.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-4 text-center text-gray-500">
+                          No hay muebles disponibles
+                        </td>
+                      </tr>
+                    ) : (
+                      muebles.map((mueble) => (
+                        <tr key={mueble.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-4 whitespace-nowrap">
+                            <span className="text-sm font-medium text-gray-900">{mueble.nombre}</span>
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{mueble.categoria}</td>
+                          <td className="px-4 py-4 whitespace-nowrap">
+                            {editandoId === mueble.id ? (
+                              <input
+                                type="number"
+                                value={valoresEditando.precio_base !== undefined ? valoresEditando.precio_base : mueble.precio_base}
+                                onChange={(e) => setValoresEditando({ ...valoresEditando, precio_base: parseFloat(e.target.value) || 0 })}
+                                className="w-32 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                                min="0"
+                                step="1000"
+                              />
+                            ) : (
+                              <span className="text-sm font-medium text-gray-900">
+                                ${mueble.precio_base.toLocaleString('es-CO')}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-center">
+                            {editandoId === mueble.id ? (
+                              <div className="flex gap-2 justify-center">
+                                <button
+                                  onClick={() => guardarMueble(mueble.id)}
+                                  disabled={guardandoMueble}
+                                  className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
+                                >
+                                  Guardar
+                                </button>
+                                <button
+                                  onClick={cancelarEdicion}
+                                  className="px-3 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => iniciarEdicion(mueble.id, { precio_base: mueble.precio_base })}
+                                className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700"
+                              >
+                                Editar
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         );
 
       case 'variantes':
         return (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {loadingMuebles ? (
               <div className="text-center py-12">
                 <p className="text-gray-500">Cargando muebles...</p>
@@ -804,16 +1114,15 @@ export default function AdminPreciosPage() {
                 <p className="text-gray-500">No hay muebles disponibles</p>
               </div>
             ) : (
-              muebles
-                .filter(mueble => {
+              <div className="space-y-4">
+                {muebles.filter((mueble) => {
                   const opciones = mueble.opciones_disponibles?.opciones_personalizadas;
                   return opciones && (
                     (opciones.tipo_cocina && opciones.tipo_cocina.length > 0) ||
                     (opciones.material_puertas && opciones.material_puertas.length > 0) ||
                     (opciones.tipo_topes && opciones.tipo_topes.length > 0)
                   );
-                })
-                .map((mueble) => {
+                }).map((mueble) => {
                   const opcionesPersonalizadas = mueble.opciones_disponibles?.opciones_personalizadas || {};
                   const tiposVariantes = Object.keys(opcionesPersonalizadas).filter(
                     key => opcionesPersonalizadas[key] && (opcionesPersonalizadas[key] as any)?.length > 0
@@ -822,8 +1131,8 @@ export default function AdminPreciosPage() {
                   if (tiposVariantes.length === 0) return null;
 
                   return (
-                    <div key={mueble.id} className="bg-white rounded-lg shadow-sm p-6">
-                      <h3 className="text-lg font-bold text-gray-900 mb-4">{mueble.nombre}</h3>
+                    <div key={mueble.id} className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4">{mueble.nombre}</h3>
                       {tiposVariantes.map((tipoVariante) => {
                         const variantes = opcionesPersonalizadas[tipoVariante] || [];
                         const nombreTipo = tipoVariante === 'tipo_cocina' ? 'Tipo de Cocina' :
@@ -831,7 +1140,7 @@ export default function AdminPreciosPage() {
                                           tipoVariante === 'tipo_topes' ? 'Tipo de Topes' : tipoVariante;
 
                         return (
-                          <div key={tipoVariante} className="mb-6">
+                          <div key={tipoVariante} className="mb-4 sm:mb-6">
                             <h4 className="text-sm font-semibold text-gray-700 mb-3">{nombreTipo}</h4>
                             <div className="space-y-2">
                               {variantes.map((variante: OpcionPersonalizada, index: number) => {
@@ -839,8 +1148,8 @@ export default function AdminPreciosPage() {
                                 const estaEditando = editandoId === editandoKey;
 
                                 return (
-                                  <div key={index} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                                    <div className="flex-1">
+                                  <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-3 bg-gray-50 rounded-lg">
+                                    <div className="flex-1 w-full sm:w-auto">
                                       {estaEditando ? (
                                         <input
                                           type="text"
@@ -852,7 +1161,7 @@ export default function AdminPreciosPage() {
                                         <span className="text-sm font-medium text-gray-900">{variante.nombre}</span>
                                       )}
                                     </div>
-                                    <div className="w-32">
+                                    <div className="w-full sm:w-32">
                                       {estaEditando ? (
                                         <input
                                           type="number"
@@ -869,7 +1178,7 @@ export default function AdminPreciosPage() {
                                         </span>
                                       )}
                                     </div>
-                                    <div className="w-24">
+                                    <div className="w-full sm:w-24">
                                       {estaEditando ? (
                                         <input
                                           type="number"
@@ -886,7 +1195,7 @@ export default function AdminPreciosPage() {
                                         </span>
                                       )}
                                     </div>
-                                    <div>
+                                    <div className="w-full sm:w-auto">
                                       {estaEditando ? (
                                         <div className="flex gap-2">
                                           <button
@@ -894,13 +1203,13 @@ export default function AdminPreciosPage() {
                                               guardarVariante(mueble.id, tipoVariante, variante.nombre, valoresEditando);
                                             }}
                                             disabled={guardandoMueble}
-                                            className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
+                                            className="flex-1 sm:flex-none px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
                                           >
                                             Guardar
                                           </button>
                                           <button
                                             onClick={cancelarEdicion}
-                                            className="px-3 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
+                                            className="flex-1 sm:flex-none px-3 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
                                           >
                                             Cancelar
                                           </button>
@@ -912,7 +1221,7 @@ export default function AdminPreciosPage() {
                                             precio_adicional: variante.precio_adicional,
                                             multiplicador: variante.multiplicador
                                           })}
-                                          className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700"
+                                          className="w-full sm:w-auto px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700"
                                         >
                                           Editar
                                         </button>
@@ -927,7 +1236,8 @@ export default function AdminPreciosPage() {
                       })}
                     </div>
                   );
-                })
+                }).filter(item => item !== null)}
+              </div>
             )}
           </div>
         );
@@ -1019,16 +1329,16 @@ export default function AdminPreciosPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 max-w-full overflow-x-hidden">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Administración de Precios</h1>
-        <p className="text-gray-600 mt-1">Modifica precios de materiales, servicios, muebles y variantes</p>
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Administración de Precios</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-1">Modifica precios de materiales, servicios, muebles y variantes</p>
       </div>
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
-        <div className="flex gap-1 overflow-x-auto">
+        <div className="flex gap-1 overflow-x-auto scrollbar-hide">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -1038,14 +1348,15 @@ export default function AdminPreciosPage() {
                 setEditandoId(null);
                 setValoresEditando({});
               }}
-              className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+              className={`px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 tabActual === tab.id
                   ? 'border-indigo-600 text-indigo-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
               <span className="mr-1">{tab.icon}</span>
-              {tab.label}
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
             </button>
           ))}
         </div>

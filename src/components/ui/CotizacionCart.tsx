@@ -90,8 +90,112 @@ export default function CotizacionCart({ onGenerarPDF, cotizacionId }: Cotizacio
         </div>
       </div>
 
-      {/* Tabla de items */}
-      <div className="overflow-x-auto mb-6">
+      {/* Vista móvil - Cards */}
+      <div className="lg:hidden space-y-3 mb-6">
+        {items.map((item) => (
+          <div key={item.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                    item.tipo === 'catalogo' 
+                      ? 'bg-blue-100 text-blue-800' 
+                      : 'bg-green-100 text-green-800'
+                  }`}>
+                    {item.tipo === 'catalogo' ? '📦 Catálogo' : '✏️ Manual'}
+                  </span>
+                </div>
+                {item.tipo === 'catalogo' ? (
+                  <>
+                    <p className="font-semibold text-gray-900 text-sm">{item.mueble?.nombre}</p>
+                    {item.opciones.color && (
+                      <p className="text-xs text-gray-500 mt-1">Color: {item.opciones.color}</p>
+                    )}
+                    {item.opciones.material && (
+                      <p className="text-xs text-gray-500">Material: {item.opciones.material}</p>
+                    )}
+                    {item.medidas && (
+                      <p className="text-xs text-gray-500">
+                        Medidas: {item.medidas.ancho}×{item.medidas.alto}×{item.medidas.profundidad} cm
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="font-semibold text-gray-900 text-sm">{item.nombre}</p>
+                    {item.descripcion && (
+                      <p className="text-xs text-gray-500 mt-1">{item.descripcion}</p>
+                    )}
+                    {item.medidas && (
+                      <p className="text-xs text-gray-500">
+                        Medidas: {item.medidas.ancho}×{item.medidas.alto}×{item.medidas.profundidad} cm
+                      </p>
+                    )}
+                    {item.materiales && item.materiales.length > 0 && (
+                      <p className="text-xs text-gray-500">
+                        {item.materiales.length} material(es) • {item.dias_fabricacion || 'N/A'} días
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+            
+            <div className="border-t border-gray-200 pt-2 mt-2 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-500">Cantidad:</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => actualizarCantidad(item.id, item.cantidad - 1)}
+                    className="w-7 h-7 rounded border border-gray-300 hover:bg-gray-50 flex items-center justify-center text-sm"
+                  >
+                    −
+                  </button>
+                  <span className="w-10 text-center text-sm font-medium">{item.cantidad}</span>
+                  <button
+                    onClick={() => actualizarCantidad(item.id, item.cantidad + 1)}
+                    className="w-7 h-7 rounded border border-gray-300 hover:bg-gray-50 flex items-center justify-center text-sm"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-500">Precio unitario:</span>
+                <span className="text-sm font-medium text-gray-900">
+                  ${item.precio_unitario.toLocaleString('es-CO')}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-500">Total:</span>
+                <span className="text-sm font-semibold text-gray-900">
+                  ${item.precio_total.toLocaleString('es-CO')}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2 border-t border-gray-100 mt-2">
+              {item.tipo === 'manual' && (
+                <button
+                  onClick={() => setItemEditando(item.id)}
+                  className="flex-1 px-3 py-2 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition"
+                >
+                  ✏️ Editar
+                </button>
+              )}
+              <button
+                onClick={() => eliminarItem(item.id)}
+                className="flex-1 px-3 py-2 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition"
+              >
+                🗑️ Eliminar
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Vista desktop - Tabla */}
+      <div className="hidden lg:block overflow-x-auto mb-6">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>

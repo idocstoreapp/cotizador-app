@@ -21,7 +21,8 @@ export interface EstadisticasDashboard {
   gastosManoObraMes: number;
   gastosHormigaMes: number;
   gastosTransporteMes: number;
-  costosTotalesMes: number; // Suma de todos los costos
+  ivaRealMes: number; // IVA real desde facturas
+  costosTotalesMes: number; // Suma de todos los costos (incluye IVA)
   
   // Financiero del mes - GANANCIA REAL
   gananciaMes: number; // Ventas - Costos Totales
@@ -505,10 +506,33 @@ export async function obtenerEstadisticasDashboard(mes?: number, año?: number):
       }))
   });
 
-  // COSTOS TOTALES = Materiales + Mano de Obra + Gastos Hormiga + Transporte
-  const costosTotalesMes = gastosMaterialesMes + gastosManoObraMes + gastosHormigaMes + gastosTransporteMes;
+  // ====== CALCULAR IVA PRESUPUESTADO DEL MES ======
+  // El IVA real = IVA presupuestado (valor fijo, no se calcula desde facturas)
+  // Las facturas son solo registro administrativo, no afectan los cálculos
+  let ivaRealMes = 0;
+  try {
+    // Calcular IVA presupuestado de todas las cotizaciones aceptadas del mes
+    cotizacionesAceptadas.forEach(cotizacion => {
+      const descuento = (cotizacion as any).descuento || 0;
+      const subtotal = cotizacion.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0
+        ? cotizacion.items.reduce((sum: number, item: any) => sum + (item.precio_total || 0), 0)
+        : ((cotizacion as any).subtotal || 0);
+      const descuentoMonto = subtotal * (descuento / 100);
+      const subtotalConDescuento = subtotal - descuentoMonto;
+      const ivaPorcentaje = (cotizacion as any).iva_porcentaje || 19;
+      const ivaPresupuestado = subtotalConDescuento * (ivaPorcentaje / 100);
+      ivaRealMes += ivaPresupuestado;
+    });
+    
+    console.log('💰 [Dashboard] IVA Real del mes (presupuestado):', ivaRealMes);
+  } catch (error) {
+    console.warn('⚠️ [Dashboard] Error al calcular IVA presupuestado:', error);
+  }
 
-  // GANANCIA REAL = Ventas - Costos Totales
+  // COSTOS TOTALES = Materiales + Mano de Obra + Gastos Hormiga + Transporte + IVA Presupuestado
+  const costosTotalesMes = gastosMaterialesMes + gastosManoObraMes + gastosHormigaMes + gastosTransporteMes + ivaRealMes;
+
+  // GANANCIA REAL = Ventas - Costos Totales (incluye IVA)
   const gananciaMes = ventasTotalesMes - costosTotalesMes;
   
   // Margen de ganancia %
@@ -823,6 +847,7 @@ export async function obtenerEstadisticasDashboard(mes?: number, año?: number):
     gastosHormigaMes,
     gastosTransporteMes,
     costosTotalesMes,
+    ivaRealMes,
     gananciaMes,
     margenGananciaMes,
     variacionCotizaciones,

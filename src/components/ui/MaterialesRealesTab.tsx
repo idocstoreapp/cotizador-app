@@ -245,6 +245,7 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
     itemId: string;
   } | null>(null);
   const [gastoEditando, setGastoEditando] = useState<GastoRealMaterial | null>(null);
+  const [detailsMenuOpen, setDetailsMenuOpen] = useState<string | null>(null);
 
   useEffect(() => {
     cargarDatos();
@@ -560,106 +561,242 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Material</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cantidad</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precio Unit.</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Proveedor</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {gastos.map((gasto) => {
-                const totalGasto = gasto.cantidad_real * gasto.precio_unitario_real;
-                const totalPresupuestadoGasto = gasto.cantidad_presupuestada * gasto.precio_unitario_presupuestado;
-                const diferenciaGasto = totalGasto - totalPresupuestadoGasto;
+        <>
+          {/* Vista móvil - Cards */}
+          <div className="lg:hidden space-y-3">
+            {gastos.map((gasto) => {
+              const totalGasto = gasto.cantidad_real * gasto.precio_unitario_real;
+              const totalPresupuestadoGasto = gasto.cantidad_presupuestada * gasto.precio_unitario_presupuestado;
+              const diferenciaGasto = totalGasto - totalPresupuestadoGasto;
 
-                return (
-                  <tr key={gasto.id}>
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900">{gasto.material_nombre}</div>
+              return (
+                <div key={gasto.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <div className="text-xs text-gray-500 mb-0.5">Material</div>
+                      <div className="text-sm font-semibold text-gray-900">{gasto.material_nombre}</div>
                       {gasto.numero_factura && (
-                        <div className="text-xs text-gray-500">Fact: {gasto.numero_factura}</div>
+                        <div className="text-xs text-gray-500 mt-1">Fact: {gasto.numero_factura}</div>
                       )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm">
-                        <span className="text-gray-900">{gasto.cantidad_real}</span>
-                        <span className="text-gray-500"> / {gasto.cantidad_presupuestada}</span>
-                        <span className="text-xs text-gray-400"> {gasto.unidad}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm">
-                        <span className="text-gray-900">${gasto.precio_unitario_real.toLocaleString('es-CO')}</span>
-                        <span className="text-gray-500 text-xs"> / ${gasto.precio_unitario_presupuestado.toLocaleString('es-CO')}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium">
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-2 mt-2 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Cantidad:</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        {gasto.cantidad_real} / {gasto.cantidad_presupuestada} {gasto.unidad}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Precio unitario:</span>
+                      <span className="text-sm text-gray-900">
+                        ${gasto.precio_unitario_real.toLocaleString('es-CO')} / ${gasto.precio_unitario_presupuestado.toLocaleString('es-CO')}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Total:</span>
+                      <span className="text-sm font-semibold text-gray-900">
                         ${totalGasto.toLocaleString('es-CO')}
-                      </div>
-                      {diferenciaGasto !== 0 && (
-                        <div className={`text-xs ${diferenciaGasto > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      </span>
+                    </div>
+                    {diferenciaGasto !== 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Diferencia:</span>
+                        <span className={`text-xs font-medium ${diferenciaGasto > 0 ? 'text-red-600' : 'text-green-600'}`}>
                           {diferenciaGasto > 0 ? '+' : ''}${diferenciaGasto.toLocaleString('es-CO')}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {gasto.proveedor || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(gasto.fecha_compra).toLocaleDateString('es-CO')}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            // Buscar el material correspondiente para el modal
-                            const materialParaModal: MaterialMueble = {
-                              material_id: gasto.material_id,
-                              material_nombre: gasto.material_nombre,
-                              cantidad: gasto.cantidad_presupuestada,
-                              precio_unitario: gasto.precio_unitario_presupuestado,
-                              unidad: gasto.unidad,
-                              material_tipo: undefined
-                            };
-                            setMaterialRegistrando({
-                              material: materialParaModal,
-                              itemId: gasto.item_id
-                            });
-                            setGastoEditando(gasto);
-                          }}
-                          className="text-indigo-600 hover:text-indigo-800 text-sm"
-                        >
-                          ✏️ Editar
-                        </button>
-                        <button
-                          onClick={() => handleEliminar(gasto.id)}
-                          className="text-red-600 hover:text-red-800 text-sm"
-                        >
-                          🗑️ Eliminar
-                        </button>
+                        </span>
                       </div>
-                      {gasto.alcance_gasto && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          Alcance: {gasto.alcance_gasto === 'unidad' ? '1 unidad' : 
-                                   gasto.alcance_gasto === 'parcial' ? `${gasto.cantidad_items_aplicados || 0} items` :
-                                   'Total'}
+                    )}
+                    {gasto.proveedor && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Proveedor:</span>
+                        <span className="text-sm text-gray-700">{gasto.proveedor}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Fecha:</span>
+                      <span className="text-sm text-gray-700">
+                        {new Date(gasto.fecha_compra).toLocaleDateString('es-CO')}
+                      </span>
+                    </div>
+                    {gasto.alcance_gasto && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Alcance:</span>
+                        <span className="text-xs text-gray-700">
+                          {gasto.alcance_gasto === 'unidad' ? '1 unidad' : 
+                           gasto.alcance_gasto === 'parcial' ? `${gasto.cantidad_items_aplicados || 0} items` :
+                           'Total'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 pt-2 border-t border-gray-100 mt-2">
+                    <button
+                      onClick={() => {
+                        const materialParaModal: MaterialMueble = {
+                          material_id: gasto.material_id,
+                          material_nombre: gasto.material_nombre,
+                          cantidad: gasto.cantidad_presupuestada,
+                          precio_unitario: gasto.precio_unitario_presupuestado,
+                          unidad: gasto.unidad,
+                          material_tipo: undefined
+                        };
+                        setMaterialRegistrando({
+                          material: materialParaModal,
+                          itemId: gasto.item_id
+                        });
+                        setGastoEditando(gasto);
+                        setDetailsMenuOpen(null);
+                      }}
+                      className="flex-1 px-3 py-2 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition"
+                    >
+                      ✏️ Editar
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleEliminar(gasto.id);
+                        setDetailsMenuOpen(null);
+                      }}
+                      className="flex-1 px-3 py-2 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition"
+                    >
+                      🗑️ Eliminar
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Vista desktop - Tabla simplificada */}
+          <div className="hidden lg:block overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Material</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cantidad</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precio Unit.</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Más Info</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {gastos.map((gasto) => {
+                  const totalGasto = gasto.cantidad_real * gasto.precio_unitario_real;
+                  const totalPresupuestadoGasto = gasto.cantidad_presupuestada * gasto.precio_unitario_presupuestado;
+                  const diferenciaGasto = totalGasto - totalPresupuestadoGasto;
+
+                  return (
+                    <tr key={gasto.id}>
+                      <td className="px-4 py-4">
+                        <div className="text-sm font-medium text-gray-900">{gasto.material_nombre}</div>
+                        {gasto.numero_factura && (
+                          <div className="text-xs text-gray-500">Fact: {gasto.numero_factura}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div className="text-sm">
+                          <span className="text-gray-900">{gasto.cantidad_real}</span>
+                          <span className="text-gray-500"> / {gasto.cantidad_presupuestada}</span>
+                          <span className="text-xs text-gray-400"> {gasto.unidad}</span>
                         </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div className="text-sm">
+                          <span className="text-gray-900">${gasto.precio_unitario_real.toLocaleString('es-CO')}</span>
+                          <span className="text-gray-500 text-xs"> / ${gasto.precio_unitario_presupuestado.toLocaleString('es-CO')}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium">
+                          ${totalGasto.toLocaleString('es-CO')}
+                        </div>
+                        {diferenciaGasto !== 0 && (
+                          <div className={`text-xs ${diferenciaGasto > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            {diferenciaGasto > 0 ? '+' : ''}${diferenciaGasto.toLocaleString('es-CO')}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div className="relative">
+                          <button
+                            onClick={() => setDetailsMenuOpen(detailsMenuOpen === gasto.id ? null : gasto.id)}
+                            className="text-gray-600 hover:text-gray-900 p-1"
+                            title="Más información"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                            </svg>
+                          </button>
+                          {detailsMenuOpen === gasto.id && (
+                            <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                              <div className="py-2">
+                                {gasto.proveedor && (
+                                  <div className="px-4 py-2 text-xs">
+                                    <span className="text-gray-500">Proveedor:</span>
+                                    <div className="text-sm text-gray-900 mt-1">{gasto.proveedor}</div>
+                                  </div>
+                                )}
+                                <div className="px-4 py-2 text-xs border-t border-gray-100">
+                                  <span className="text-gray-500">Fecha:</span>
+                                  <div className="text-sm text-gray-900 mt-1">
+                                    {new Date(gasto.fecha_compra).toLocaleDateString('es-CO')}
+                                  </div>
+                                </div>
+                                {gasto.alcance_gasto && (
+                                  <div className="px-4 py-2 text-xs border-t border-gray-100">
+                                    <span className="text-gray-500">Alcance:</span>
+                                    <div className="text-sm text-gray-900 mt-1">
+                                      {gasto.alcance_gasto === 'unidad' ? '1 unidad' : 
+                                       gasto.alcance_gasto === 'parcial' ? `${gasto.cantidad_items_aplicados || 0} items` :
+                                       'Total'}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              const materialParaModal: MaterialMueble = {
+                                material_id: gasto.material_id,
+                                material_nombre: gasto.material_nombre,
+                                cantidad: gasto.cantidad_presupuestada,
+                                precio_unitario: gasto.precio_unitario_presupuestado,
+                                unidad: gasto.unidad,
+                                material_tipo: undefined
+                              };
+                              setMaterialRegistrando({
+                                material: materialParaModal,
+                                itemId: gasto.item_id
+                              });
+                              setGastoEditando(gasto);
+                            }}
+                            className="text-indigo-600 hover:text-indigo-800 text-sm"
+                          >
+                            ✏️ Editar
+                          </button>
+                          <button
+                            onClick={() => handleEliminar(gasto.id)}
+                            className="text-red-600 hover:text-red-800 text-sm"
+                          >
+                            🗑️ Eliminar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Modal de registrar/editar gasto */}

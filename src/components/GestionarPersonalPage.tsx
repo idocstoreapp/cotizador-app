@@ -37,6 +37,18 @@ function CrearEditarUsuarioModal({
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Actualizar formData cuando cambia el usuario
+  useEffect(() => {
+    console.log('🔄 [Modal] Usuario cambió:', usuario);
+    setFormData({
+      nombre: usuario?.nombre || '',
+      apellido: usuario?.apellido || '',
+      email: usuario?.email || '',
+      password: '',
+      especialidad: usuario?.especialidad || ''
+    });
+  }, [usuario]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -238,6 +250,7 @@ export default function GestionarPersonalPage() {
   const [mostrarModal, setMostrarModal] = useState(false);
   const [usuarioEditando, setUsuarioEditando] = useState<UserProfile | null>(null);
   const [tipoModal, setTipoModal] = useState<'vendedor' | 'trabajador_taller'>('vendedor');
+  const [actionsMenuOpen, setActionsMenuOpen] = useState<{ tipo: 'vendedor' | 'trabajador_taller', id: string } | null>(null);
 
   // Usar usuario del contexto o cargar directamente
   const usuario = contextoUsuario.usuario || usuarioLocal;
@@ -287,56 +300,175 @@ export default function GestionarPersonalPage() {
     }
   }, [usuario?.id, esAdmin]);
 
-  const cargarDatos = async () => {
+  const cargarDatos = async (forzarRecarga = false) => {
     try {
+      console.log('🔄 [GestionarPersonal] Cargando datos...', forzarRecarga ? '(forzado)' : '');
       setCargando(true);
+      
+      // Si es una recarga forzada, limpiar primero los estados
+      if (forzarRecarga) {
+        setVendedores([]);
+        setTrabajadores([]);
+        // Pequeño delay para asegurar que el estado se actualice
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      
       const [vendedoresData, trabajadoresData] = await Promise.all([
         obtenerVendedores(),
         obtenerTrabajadoresTaller()
       ]);
+      
+      console.log('📊 [GestionarPersonal] Vendedores cargados:', vendedoresData.length);
+      console.log('📊 [GestionarPersonal] Trabajadores cargados:', trabajadoresData.length);
+      console.log('📋 [GestionarPersonal] IDs de vendedores:', vendedoresData.map(v => v.id));
+      console.log('📋 [GestionarPersonal] IDs de trabajadores:', trabajadoresData.map(t => t.id));
+      
       setVendedores(vendedoresData);
       setTrabajadores(trabajadoresData);
+      console.log('✅ [GestionarPersonal] Datos actualizados en el estado');
     } catch (error) {
-      console.error('Error al cargar personal:', error);
+      console.error('❌ [GestionarPersonal] Error al cargar personal:', error);
       alert('Error al cargar personal');
     } finally {
       setCargando(false);
     }
   };
 
-  const handleEliminar = async (usuarioId: string, tipo: 'vendedor' | 'trabajador_taller') => {
+  const handleEliminar = async (usuarioId: string, tipo: 'vendedor' | 'trabajador_taller', e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    
+    console.log('🗑️ [GestionarPersonal] Intentando eliminar usuario:', usuarioId, tipo);
+    
     if (!confirm('¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer.')) {
+      console.log('❌ [GestionarPersonal] Usuario canceló la eliminación');
       return;
     }
 
     try {
-      // Eliminar de auth.users (esto requiere permisos de admin en Supabase)
-      // Por ahora, solo eliminamos el perfil
-      const { error } = await supabase
+      console.log('🔄 [GestionarPersonal] Eliminando usuario:', usuarioId, tipo);
+      
+      // Verificar que el usuario existe antes de eliminar
+      const { data: usuarioExistente, error: errorVerificacion } = await supabase
+        .from('perfiles')
+        .select('id, nombre, apellido, role, email')
+        .eq('id', usuarioId)
+        .single();
+      
+      console.log('🔍 [GestionarPersonal] Usuario encontrado:', usuarioExistente);
+      
+      if (errorVerificacion) {
+        console.error('❌ [GestionarPersonal] Error al verificar usuario:', errorVerificacion);
+        throw new Error('No se pudo verificar el usuario: ' + errorVerificacion.message);
+      }
+      
+      if (!usuarioExistente) {
+        throw new Error('Usuario no encontrado');
+      }
+      
+      // Si es vendedor, también eliminar de auth.users usando API endpoint
+      if (tipo === 'vendedor' || usuarioExistente.role === 'vendedor') {
+        console.log('👤 [GestionarPersonal] Es vendedor, eliminando de auth.users también...');
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            throw new Error('No estás autenticado');
+          }
+          
+          const response = await fetch('/api/eliminar-vendedor', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ usuarioId })
+          });
+          
+          const result = await response.json();
+          
+          if (!response.ok) {
+            console.error('❌ [GestionarPersonal] Error al eliminar de auth.users:', result.error);
+            // Continuar para intentar eliminar el perfil de todas formas
+          } else {
+            console.log('✅ [GestionarPersonal] Vendedor eliminado de auth.users');
+          }
+        } catch (authError: any) {
+          console.warn('⚠️ [GestionarPersonal] Error al eliminar de auth.users, continuando con perfil:', authError);
+          // Continuar para eliminar el perfil de todas formas
+        }
+      }
+      
+      // Eliminar el perfil de la tabla perfiles
+      console.log('🗑️ [GestionarPersonal] Ejecutando DELETE en perfiles...');
+      const { data, error } = await supabase
         .from('perfiles')
         .delete()
-        .eq('id', usuarioId);
+        .eq('id', usuarioId)
+        .select();
 
-      if (error) throw error;
+      console.log('📊 [GestionarPersonal] Resultado de eliminación:', { data, error });
+      console.log('📊 [GestionarPersonal] Data eliminada:', JSON.stringify(data, null, 2));
+      console.log('📊 [GestionarPersonal] Error completo:', JSON.stringify(error, null, 2));
 
-      // Recargar datos
-      await cargarDatos();
+      if (error) {
+        console.error('❌ [GestionarPersonal] Error de Supabase:', error);
+        console.error('❌ [GestionarPersonal] Código de error:', error.code);
+        console.error('❌ [GestionarPersonal] Mensaje de error:', error.message);
+        console.error('❌ [GestionarPersonal] Detalles de error:', error.details);
+        console.error('❌ [GestionarPersonal] Hint de error:', error.hint);
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        console.warn('⚠️ [GestionarPersonal] No se eliminó ningún registro. Verificar políticas RLS.');
+        throw new Error('No se pudo eliminar el usuario. Verifica que tengas permisos de administrador y que la política RLS de DELETE esté configurada.');
+      }
+
+      console.log('✅ [GestionarPersonal] Usuario eliminado exitosamente');
+      console.log('📊 [GestionarPersonal] Datos eliminados:', data);
+      
+      // Actualizar el estado inmediatamente para reflejar el cambio
+      if (tipo === 'vendedor') {
+        setVendedores(prev => {
+          const nuevos = prev.filter(v => v.id !== usuarioId);
+          console.log('🔄 [GestionarPersonal] Estado de vendedores actualizado:', prev.length, '->', nuevos.length);
+          return nuevos;
+        });
+      } else {
+        setTrabajadores(prev => {
+          const nuevos = prev.filter(t => t.id !== usuarioId);
+          console.log('🔄 [GestionarPersonal] Estado de trabajadores actualizado:', prev.length, '->', nuevos.length);
+          return nuevos;
+        });
+      }
+      
+      // Esperar un momento para que el estado se actualice
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // También recargar datos desde el servidor para asegurar sincronización (forzado)
+      await cargarDatos(true);
     } catch (error: any) {
-      console.error('Error al eliminar usuario:', error);
+      console.error('❌ [GestionarPersonal] Error al eliminar usuario:', error);
       alert('Error al eliminar usuario: ' + (error.message || 'Error desconocido'));
     }
   };
 
-  const handleAbrirModalCrear = (tipo: 'vendedor' | 'trabajador_taller') => {
+  const handleAbrirModalCrear = (tipo: 'vendedor' | 'trabajador_taller', e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     setTipoModal(tipo);
     setUsuarioEditando(null);
     setMostrarModal(true);
   };
 
-  const handleAbrirModalEditar = (usuario: UserProfile, tipo: 'vendedor' | 'trabajador_taller') => {
+  const handleAbrirModalEditar = (usuario: UserProfile, tipo: 'vendedor' | 'trabajador_taller', e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    console.log('✏️ [GestionarPersonal] Abriendo modal de edición:', usuario.id, tipo);
     setTipoModal(tipo);
     setUsuarioEditando(usuario);
     setMostrarModal(true);
+    console.log('✅ [GestionarPersonal] Modal abierto, mostrarModal:', true);
   };
 
   // Si aún no se ha cargado el usuario, mostrar loading
@@ -409,46 +541,98 @@ export default function GestionarPersonalPage() {
               <p className="text-gray-500">No hay vendedores registrados</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre Completo</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {vendedores.map((vendedor) => (
-                    <tr key={vendedor.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
+            <>
+              {/* Vista móvil - Cards */}
+              <div className="lg:hidden space-y-3 p-4">
+                {vendedores.map((vendedor) => (
+                  <div key={vendedor.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="text-xs text-gray-500 mb-0.5">Nombre</div>
+                        <div className="text-sm font-semibold text-gray-900">
                           {vendedor.nombre || ''} {vendedor.apellido || ''}
                         </div>
                         {vendedor.email && (
-                          <div className="text-xs text-gray-500">{vendedor.email}</div>
+                          <div className="text-xs text-gray-500 mt-1">{vendedor.email}</div>
                         )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleAbrirModalEditar(vendedor, 'vendedor')}
-                            className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-                          >
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => handleEliminar(vendedor.id, 'vendedor')}
-                            className="text-red-600 hover:text-red-800 text-sm font-medium"
-                          >
-                            Eliminar
-                          </button>
-                        </div>
-                      </td>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pt-2 border-t border-gray-100">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          handleAbrirModalEditar(vendedor, 'vendedor', e);
+                          setActionsMenuOpen(null);
+                        }}
+                        className="flex-1 px-3 py-2 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition"
+                      >
+                        ✏️ Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          handleEliminar(vendedor.id, 'vendedor', e);
+                          setActionsMenuOpen(null);
+                        }}
+                        className="flex-1 px-3 py-2 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition"
+                      >
+                        🗑️ Eliminar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Vista desktop - Tabla */}
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre Completo</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {vendedores.map((vendedor) => (
+                      <tr key={vendedor.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {vendedor.nombre || ''} {vendedor.apellido || ''}
+                          </div>
+                          {vendedor.email && (
+                            <div className="text-xs text-gray-500">{vendedor.email}</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                console.log('🖱️ [Vendedor] Click en Editar:', vendedor.id);
+                                handleAbrirModalEditar(vendedor, 'vendedor', e);
+                              }}
+                              className="text-indigo-600 hover:text-indigo-800 text-sm font-medium px-2 py-1 rounded hover:bg-indigo-50 transition-colors cursor-pointer"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                console.log('🖱️ [Vendedor] Click en Eliminar:', vendedor.id);
+                                handleEliminar(vendedor.id, 'vendedor', e);
+                              }}
+                              className="text-red-600 hover:text-red-800 text-sm font-medium px-2 py-1 rounded hover:bg-red-50 transition-colors cursor-pointer"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
 
@@ -477,52 +661,110 @@ export default function GestionarPersonalPage() {
               <p className="text-gray-500">No hay trabajadores de taller registrados</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre Completo</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Especialidad</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {trabajadores.map((trabajador) => (
-                    <tr key={trabajador.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
+            <>
+              {/* Vista móvil - Cards */}
+              <div className="lg:hidden space-y-3 p-4">
+                {trabajadores.map((trabajador) => (
+                  <div key={trabajador.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="text-xs text-gray-500 mb-0.5">Nombre</div>
+                        <div className="text-sm font-semibold text-gray-900">
                           {trabajador.nombre || ''} {trabajador.apellido || ''}
                         </div>
                         {trabajador.email && (
-                          <div className="text-xs text-gray-500">{trabajador.email}</div>
+                          <div className="text-xs text-gray-500 mt-1">{trabajador.email}</div>
                         )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">
-                          {trabajador.especialidad || 'Sin especialidad'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleAbrirModalEditar(trabajador, 'trabajador_taller')}
-                            className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-                          >
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => handleEliminar(trabajador.id, 'trabajador_taller')}
-                            className="text-red-600 hover:text-red-800 text-sm font-medium"
-                          >
-                            Eliminar
-                          </button>
-                        </div>
-                      </td>
+                      </div>
+                    </div>
+                    <div className="mb-2">
+                      <div className="text-xs text-gray-500 mb-0.5">Especialidad</div>
+                      <div className="text-sm text-gray-700">
+                        {trabajador.especialidad || 'Sin especialidad'}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pt-2 border-t border-gray-100">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          handleAbrirModalEditar(trabajador, 'trabajador_taller', e);
+                          setActionsMenuOpen(null);
+                        }}
+                        className="flex-1 px-3 py-2 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition"
+                      >
+                        ✏️ Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          handleEliminar(trabajador.id, 'trabajador_taller', e);
+                          setActionsMenuOpen(null);
+                        }}
+                        className="flex-1 px-3 py-2 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition"
+                      >
+                        🗑️ Eliminar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Vista desktop - Tabla */}
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre Completo</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Especialidad</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {trabajadores.map((trabajador) => (
+                      <tr key={trabajador.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {trabajador.nombre || ''} {trabajador.apellido || ''}
+                          </div>
+                          {trabajador.email && (
+                            <div className="text-xs text-gray-500">{trabajador.email}</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500">
+                            {trabajador.especialidad || 'Sin especialidad'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                console.log('🖱️ [Trabajador] Click en Editar:', trabajador.id);
+                                handleAbrirModalEditar(trabajador, 'trabajador_taller', e);
+                              }}
+                              className="text-indigo-600 hover:text-indigo-800 text-sm font-medium px-2 py-1 rounded hover:bg-indigo-50 transition-colors cursor-pointer"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                console.log('🖱️ [Trabajador] Click en Eliminar:', trabajador.id);
+                                handleEliminar(trabajador.id, 'trabajador_taller', e);
+                              }}
+                              className="text-red-600 hover:text-red-800 text-sm font-medium px-2 py-1 rounded hover:bg-red-50 transition-colors cursor-pointer"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </div>

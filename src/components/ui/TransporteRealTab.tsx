@@ -26,6 +26,7 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
     cantidad_items_aplicados: 1
   });
   const [guardando, setGuardando] = useState(false);
+  const [detailsMenuOpen, setDetailsMenuOpen] = useState<string | null>(null);
 
   useEffect(() => {
     cargarDatos();
@@ -320,7 +321,7 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
       </div>
 
       {/* Resumen */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-blue-50 p-4 rounded-lg">
           <p className="text-sm text-gray-600">Presupuestado</p>
           <p className="text-xl font-bold text-blue-600">${totalPresupuestado.toLocaleString('es-CO')}</p>
@@ -383,92 +384,212 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
           <p className="text-gray-500">No hay transportes registrados</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo/Descripción</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Costo</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Factura</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {transportes.map((transporte) => {
-                // Calcular el costo total considerando el alcance
-                const costoPorUnidad = transporte.costo || 0;
-                let multiplicador = 1;
-                if (transporte.alcance_gasto === 'unidad') {
-                  multiplicador = cantidadItem;
-                } else if (transporte.alcance_gasto === 'parcial') {
-                  multiplicador = transporte.cantidad_items_aplicados || 1;
-                } else if (transporte.alcance_gasto === 'total') {
-                  multiplicador = 1;
-                } else {
-                  multiplicador = 1; // Por defecto: asumir total
-                }
-                const costoTotal = costoPorUnidad * multiplicador;
-                
-                return (
-                <tr key={transporte.id}>
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-900">{transporte.tipo_descripcion}</div>
-                    {transporte.alcance_gasto && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        Alcance: {transporte.alcance_gasto === 'unidad' ? `1 unidad (×${cantidadItem})` : 
-                                 transporte.alcance_gasto === 'parcial' ? `${transporte.cantidad_items_aplicados || 0} items` :
-                                 'Total'}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap font-medium">
-                    ${costoTotal.toLocaleString('es-CO')}
-                    {multiplicador > 1 && (
-                      <div className="text-xs text-gray-500 font-normal">
-                        ${costoPorUnidad.toLocaleString('es-CO')} × {multiplicador}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {new Date(transporte.fecha).toLocaleDateString('es-CO')}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {transporte.factura_url ? (
-                      <a
-                        href={transporte.factura_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-600 hover:text-indigo-800 text-sm"
-                      >
-                        📄 Ver
-                      </a>
-                    ) : (
-                      <span className="text-gray-400 text-sm">-</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEditar(transporte)}
-                        className="text-indigo-600 hover:text-indigo-800 text-sm"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleEliminar(transporte.id)}
-                        className="text-red-600 hover:text-red-800 text-sm"
-                      >
-                        Eliminar
-                      </button>
+        <>
+          {/* Vista móvil - Cards */}
+          <div className="lg:hidden space-y-3">
+            {transportes.map((transporte) => {
+              const costoPorUnidad = transporte.costo || 0;
+              let multiplicador = 1;
+              if (transporte.alcance_gasto === 'unidad') {
+                multiplicador = cantidadItem;
+              } else if (transporte.alcance_gasto === 'parcial') {
+                multiplicador = transporte.cantidad_items_aplicados || 1;
+              } else if (transporte.alcance_gasto === 'total') {
+                multiplicador = 1;
+              } else {
+                multiplicador = 1;
+              }
+              const costoTotal = costoPorUnidad * multiplicador;
+
+              return (
+                <div key={transporte.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <div className="text-xs text-gray-500 mb-0.5">Tipo/Descripción</div>
+                      <div className="text-sm font-semibold text-gray-900">{transporte.tipo_descripcion}</div>
                     </div>
-                  </td>
-                </tr>
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-2 mt-2 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Costo:</span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        ${costoTotal.toLocaleString('es-CO')}
+                      </span>
+                    </div>
+                    {multiplicador > 1 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Desglose:</span>
+                        <span className="text-xs text-gray-700">
+                          ${costoPorUnidad.toLocaleString('es-CO')} × {multiplicador}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Fecha:</span>
+                      <span className="text-sm text-gray-700">
+                        {new Date(transporte.fecha).toLocaleDateString('es-CO')}
+                      </span>
+                    </div>
+                    {transporte.alcance_gasto && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Alcance:</span>
+                        <span className="text-xs text-gray-700">
+                          {transporte.alcance_gasto === 'unidad' ? `1 unidad (×${cantidadItem})` : 
+                           transporte.alcance_gasto === 'parcial' ? `${transporte.cantidad_items_aplicados || 0} items` :
+                           'Total'}
+                        </span>
+                      </div>
+                    )}
+                    {transporte.factura_url && (
+                      <div className="pt-2 border-t border-gray-100">
+                        <a
+                          href={transporte.factura_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-indigo-600 hover:text-indigo-800"
+                        >
+                          📄 Ver factura
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 pt-2 border-t border-gray-100 mt-2">
+                    <button
+                      onClick={() => {
+                        handleEditar(transporte);
+                        setDetailsMenuOpen(null);
+                      }}
+                      className="flex-1 px-3 py-2 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition"
+                    >
+                      ✏️ Editar
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleEliminar(transporte.id);
+                        setDetailsMenuOpen(null);
+                      }}
+                      className="flex-1 px-3 py-2 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition"
+                    >
+                      🗑️ Eliminar
+                    </button>
+                  </div>
+                </div>
               );
-              })}
-            </tbody>
-          </table>
-        </div>
+            })}
+          </div>
+
+          {/* Vista desktop - Tabla simplificada */}
+          <div className="hidden lg:block overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo/Descripción</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Costo</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Más Info</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {transportes.map((transporte) => {
+                  const costoPorUnidad = transporte.costo || 0;
+                  let multiplicador = 1;
+                  if (transporte.alcance_gasto === 'unidad') {
+                    multiplicador = cantidadItem;
+                  } else if (transporte.alcance_gasto === 'parcial') {
+                    multiplicador = transporte.cantidad_items_aplicados || 1;
+                  } else if (transporte.alcance_gasto === 'total') {
+                    multiplicador = 1;
+                  } else {
+                    multiplicador = 1;
+                  }
+                  const costoTotal = costoPorUnidad * multiplicador;
+                  
+                  return (
+                    <tr key={transporte.id}>
+                      <td className="px-4 py-4">
+                        <div className="text-sm font-medium text-gray-900">{transporte.tipo_descripcion}</div>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap font-medium">
+                        ${costoTotal.toLocaleString('es-CO')}
+                        {multiplicador > 1 && (
+                          <div className="text-xs text-gray-500 font-normal">
+                            ${costoPorUnidad.toLocaleString('es-CO')} × {multiplicador}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        {new Date(transporte.fecha).toLocaleDateString('es-CO')}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div className="relative">
+                          <button
+                            onClick={() => setDetailsMenuOpen(detailsMenuOpen === transporte.id ? null : transporte.id)}
+                            className="text-gray-600 hover:text-gray-900 p-1"
+                            title="Más información"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                            </svg>
+                          </button>
+                          {detailsMenuOpen === transporte.id && (
+                            <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                              <div className="py-2">
+                                {transporte.alcance_gasto && (
+                                  <div className="px-4 py-2 text-xs">
+                                    <span className="text-gray-500">Alcance:</span>
+                                    <div className="text-sm text-gray-900 mt-1">
+                                      {transporte.alcance_gasto === 'unidad' ? `1 unidad (×${cantidadItem})` : 
+                                       transporte.alcance_gasto === 'parcial' ? `${transporte.cantidad_items_aplicados || 0} items` :
+                                       'Total'}
+                                    </div>
+                                  </div>
+                                )}
+                                {transporte.factura_url && (
+                                  <div className="px-4 py-2 text-xs border-t border-gray-100">
+                                    <span className="text-gray-500">Factura:</span>
+                                    <div className="mt-1">
+                                      <a
+                                        href={transporte.factura_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm text-indigo-600 hover:text-indigo-800"
+                                      >
+                                        📄 Ver factura
+                                      </a>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditar(transporte)}
+                            className="text-indigo-600 hover:text-indigo-800 text-sm"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => handleEliminar(transporte.id)}
+                            className="text-red-600 hover:text-red-800 text-sm"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Modal */}

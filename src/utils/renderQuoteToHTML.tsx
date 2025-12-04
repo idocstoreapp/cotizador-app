@@ -1,10 +1,14 @@
 /**
  * Función SSR para renderizar el componente QuotePDF a HTML
  * Usa react-dom/server para convertir React a string HTML
+ * IMPORTANTE: Esta función solo debe ejecutarse en el servidor (endpoint API)
  */
 import React from 'react';
-import { renderToString } from 'react-dom/server';
 import QuotePDF from '../components/QuotePDF';
+
+// Importación estática de renderToString
+// En Astro, los endpoints API siempre se ejecutan en el servidor, así que esto debería funcionar
+import { renderToString as renderToStringStatic } from 'react-dom/server';
 
 interface EmpresaInfo {
   nombre: string;
@@ -36,8 +40,13 @@ interface QuoteData {
  * Renderiza el componente QuotePDF a HTML completo listo para Puppeteer
  */
 export function renderQuoteToHTML(data: QuoteData): string {
-  // Renderizar el componente React a string
-  const reactHTML = renderToString(
+  // Verificar que estamos en el servidor
+  if (typeof window !== 'undefined') {
+    throw new Error('renderQuoteToHTML solo puede ejecutarse en el servidor');
+  }
+  
+  // Renderizar el componente React a string usando importación estática
+  const reactHTML = renderToStringStatic(
     React.createElement(QuotePDF, data)
   );
 

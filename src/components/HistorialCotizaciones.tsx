@@ -35,6 +35,8 @@ export default function HistorialCotizaciones() {
   const [cotizacionEditando, setCotizacionEditando] = useState<Cotizacion | null>(null);
   const [mostrarModalEditar, setMostrarModalEditar] = useState(false);
   const [historialModificaciones, setHistorialModificaciones] = useState<HistorialModificacion[]>([]);
+  const [actionsMenuOpen, setActionsMenuOpen] = useState<string | null>(null);
+  const [detailsMenuOpen, setDetailsMenuOpen] = useState<string | null>(null);
 
   // Usar usuario del contexto o cargar directamente
   const usuario = contextoUsuario.usuario || usuarioLocal;
@@ -222,58 +224,191 @@ export default function HistorialCotizaciones() {
             </a>
           </div>
         ) : (
-          <div className="bg-white shadow rounded-lg overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
+          <>
+            {/* Vista de Cards para Móvil */}
+            <div className="lg:hidden space-y-3">
+              {cotizaciones.map((cotizacion) => (
+                <div
+                  key={cotizacion.id}
+                  className="bg-white rounded-lg border border-gray-200 shadow-sm p-4"
+                >
+                  {/* Header con número y estado */}
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <div className="text-xs text-gray-500 mb-0.5">Número</div>
+                      <div className="text-sm font-semibold text-gray-900">{cotizacion.numero}</div>
+                    </div>
+                    <select
+                      value={cotizacion.estado}
+                      onChange={(e) => cambiarEstado(cotizacion, e.target.value)}
+                      className={`text-xs font-semibold rounded-full px-3 py-1 border-0 ${
+                        cotizacion.estado === 'aceptada' ? 'bg-green-100 text-green-800' :
+                        cotizacion.estado === 'rechazada' ? 'bg-red-100 text-red-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}
+                    >
+                      <option value="pendiente">Pendiente</option>
+                      <option value="aceptada">Aceptada</option>
+                      <option value="rechazada">Rechazada</option>
+                    </select>
+                  </div>
+
+                  {/* Empresa */}
+                  {cotizacion.empresa && (
+                    <div className="mb-2">
+                      <div className="text-xs text-gray-500 mb-0.5">Empresa</div>
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={EMPRESAS[cotizacion.empresa].logo}
+                          alt={EMPRESAS[cotizacion.empresa].nombre}
+                          className="h-5 w-auto object-contain"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                        <span className="text-sm text-gray-900">{EMPRESAS[cotizacion.empresa].nombre}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cliente */}
+                  <div className="mb-2">
+                    <div className="text-xs text-gray-500 mb-0.5">Cliente</div>
+                    <div className="text-sm font-medium text-gray-900">{cotizacion.cliente_nombre}</div>
+                    {cotizacion.cliente_email && (
+                      <div className="text-xs text-gray-500">{cotizacion.cliente_email}</div>
+                    )}
+                  </div>
+
+                  {/* Información adicional agrupada */}
+                  <div className="border-t border-gray-200 pt-2 mt-2 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Total:</span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        ${calcularTotalDesdeItems(cotizacion).toLocaleString('es-CO')}
+                      </span>
+                    </div>
+                    {esAdmin && (cotizacion.usuario as any)?.nombre && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Creado por:</span>
+                        <span className="text-sm text-gray-700">{(cotizacion.usuario as any)?.nombre}</span>
+                      </div>
+                    )}
+                    {cotizacion.vendedor && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Vendedor:</span>
+                        <span className="text-sm text-gray-700">
+                          {(cotizacion.vendedor as any)?.nombre || 'N/A'}
+                        </span>
+                      </div>
+                    )}
+                    {cotizacion.pago_vendedor && cotizacion.pago_vendedor > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Pago vendedor:</span>
+                        <span className="text-sm font-medium text-green-600">
+                          ${cotizacion.pago_vendedor.toLocaleString('es-CO')}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Fecha:</span>
+                      <span className="text-sm text-gray-700">
+                        {new Date(cotizacion.created_at).toLocaleDateString('es-ES', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Botón de acciones */}
+                  <button
+                    onClick={() => setActionsMenuOpen(actionsMenuOpen === cotizacion.id ? null : cotizacion.id)}
+                    className="w-full mt-3 px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition"
+                  >
+                    {actionsMenuOpen === cotizacion.id ? 'Ocultar acciones' : 'Ver acciones'}
+                  </button>
+
+                  {/* Menú de acciones expandible */}
+                  {actionsMenuOpen === cotizacion.id && (
+                    <div className="mt-2 space-y-1 border-t border-gray-200 pt-2">
+                      <button
+                        onClick={() => {
+                          setCotizacionDetalles(cotizacion);
+                          setMostrarModalDetalles(true);
+                          setActionsMenuOpen(null);
+                        }}
+                        className="w-full text-left px-3 py-2 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                      >
+                        📄 Ver detalles
+                      </button>
+                      <button
+                        onClick={() => {
+                          generarPDF(cotizacion);
+                          setActionsMenuOpen(null);
+                        }}
+                        className="w-full text-left px-3 py-2 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200"
+                      >
+                        📥 Descargar PDF
+                      </button>
+                      {cotizacion.estado === 'aceptada' && esAdmin && (
+                        <a
+                          href={`/cotizaciones/${cotizacion.id}/costos`}
+                          className="block w-full text-left px-3 py-2 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
+                        >
+                          💰 Control de Costos
+                        </a>
+                      )}
+                      {esAdmin && (
+                        <button
+                          onClick={() => {
+                            setCotizacionEditando(cotizacion);
+                            setMostrarModalEditar(true);
+                            setActionsMenuOpen(null);
+                          }}
+                          className="w-full text-left px-3 py-2 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                        >
+                          ✏️ Editar cotización
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Vista de Tabla para Desktop - Solo columnas importantes */}
+            <div className="hidden lg:block bg-white shadow rounded-lg overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Número</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Empresa</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
-                  {esAdmin && (
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Creado por</th>
-                  )}
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vendedor</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Número</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Más Info</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {cotizaciones.map((cotizacion) => (
                   <tr key={cotizacion.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{cotizacion.numero}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {cotizacion.empresa ? (
-                        <div className="flex items-center gap-2">
-                          <img
-                            src={EMPRESAS[cotizacion.empresa].logo}
-                            alt={EMPRESAS[cotizacion.empresa].nombre}
-                            className="h-6 w-auto object-contain"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
-                          <span className="text-sm text-gray-900">{EMPRESAS[cotizacion.empresa].nombre}</span>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-gray-400">N/A</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-4">
                       <div className="text-sm text-gray-900">{cotizacion.cliente_nombre}</div>
                       {cotizacion.cliente_email && (
                         <div className="text-xs text-gray-500">{cotizacion.cliente_email}</div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-4 whitespace-nowrap">
                       <div className="text-sm font-semibold text-gray-900">
                         ${calcularTotalDesdeItems(cotizacion).toLocaleString('es-CO')}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-4 whitespace-nowrap">
                       <select
                         value={cotizacion.estado}
                         onChange={(e) => cambiarEstado(cotizacion, e.target.value)}
@@ -288,58 +423,86 @@ export default function HistorialCotizaciones() {
                         <option value="rechazada">Rechazada</option>
                       </select>
                     </td>
-                    {esAdmin && (
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {(cotizacion.usuario as any)?.nombre || 'N/A'}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {(cotizacion.usuario as any)?.email || 'N/A'}
-                        </div>
-                      </td>
-                    )}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {cotizacion.vendedor ? (
-                        <>
-                          <div className="text-sm text-gray-900">
-                            {(cotizacion.vendedor as any)?.nombre || 'N/A'}
-                          </div>
-                          {cotizacion.pago_vendedor && cotizacion.pago_vendedor > 0 && (
-                            <div className="text-xs text-green-600 font-medium">
-                              ${cotizacion.pago_vendedor.toLocaleString('es-CO')}
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="relative">
+                        <button
+                          onClick={() => setDetailsMenuOpen(detailsMenuOpen === cotizacion.id ? null : cotizacion.id)}
+                          className="text-gray-600 hover:text-gray-900 p-1"
+                          title="Más información"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                          </svg>
+                        </button>
+                        {detailsMenuOpen === cotizacion.id && (
+                          <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                            <div className="py-2">
+                              {cotizacion.empresa && (
+                                <div className="px-4 py-2 text-xs">
+                                  <span className="text-gray-500">Empresa:</span>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <img
+                                      src={EMPRESAS[cotizacion.empresa].logo}
+                                      alt={EMPRESAS[cotizacion.empresa].nombre}
+                                      className="h-4 w-auto object-contain"
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).style.display = 'none';
+                                      }}
+                                    />
+                                    <span className="text-sm text-gray-900">{EMPRESAS[cotizacion.empresa].nombre}</span>
+                                  </div>
+                                </div>
+                              )}
+                              {esAdmin && (cotizacion.usuario as any)?.nombre && (
+                                <div className="px-4 py-2 text-xs border-t border-gray-100">
+                                  <span className="text-gray-500">Creado por:</span>
+                                  <div className="text-sm text-gray-900 mt-1">{(cotizacion.usuario as any)?.nombre}</div>
+                                  <div className="text-xs text-gray-500">{(cotizacion.usuario as any)?.email}</div>
+                                </div>
+                              )}
+                              {cotizacion.vendedor && (
+                                <div className="px-4 py-2 text-xs border-t border-gray-100">
+                                  <span className="text-gray-500">Vendedor:</span>
+                                  <div className="text-sm text-gray-900 mt-1">{(cotizacion.vendedor as any)?.nombre || 'N/A'}</div>
+                                  {cotizacion.pago_vendedor && cotizacion.pago_vendedor > 0 && (
+                                    <div className="text-xs text-green-600 font-medium mt-1">
+                                      ${cotizacion.pago_vendedor.toLocaleString('es-CO')}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              <div className="px-4 py-2 text-xs border-t border-gray-100">
+                                <span className="text-gray-500">Fecha:</span>
+                                <div className="text-sm text-gray-900 mt-1">
+                                  {new Date(cotizacion.created_at).toLocaleDateString('es-ES')}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {new Date(cotizacion.created_at).toLocaleTimeString('es-ES', {
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </div>
+                              </div>
                             </div>
-                          )}
-                        </>
-                      ) : (
-                        <span className="text-sm text-gray-400">Sin vendedor</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {new Date(cotizacion.created_at).toLocaleDateString('es-ES')}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {new Date(cotizacion.created_at).toLocaleTimeString('es-ES', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
+                          </div>
+                        )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => {
                             setCotizacionDetalles(cotizacion);
                             setMostrarModalDetalles(true);
                           }}
-                          className="px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition-colors"
+                          className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium rounded transition-colors"
                           title="Ver detalles"
                         >
-                          Detalles
+                          Ver
                         </button>
                         <button
                           onClick={() => generarPDF(cotizacion)}
-                          className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded transition-colors"
                           title="Descargar PDF"
                         >
                           PDF
@@ -347,10 +510,10 @@ export default function HistorialCotizaciones() {
                         {cotizacion.estado === 'aceptada' && esAdmin && (
                           <a
                             href={`/cotizaciones/${cotizacion.id}/costos`}
-                            className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
+                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
                             title="Control de Costos"
                           >
-                            💰 Costos
+                            💰
                           </a>
                         )}
                         {esAdmin && (
@@ -359,10 +522,10 @@ export default function HistorialCotizaciones() {
                               setCotizacionEditando(cotizacion);
                               setMostrarModalEditar(true);
                             }}
-                            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors"
                             title="Editar cotización"
                           >
-                            Editar
+                            ✏️
                           </button>
                         )}
                       </div>
@@ -371,14 +534,18 @@ export default function HistorialCotizaciones() {
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
       </div>
 
       {/* Modal de Detalles */}
       {mostrarModalDetalles && cotizacionDetalles && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full my-8 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={() => {
+          setMostrarModalDetalles(false);
+          setCotizacionDetalles(null);
+        }}>
+          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full my-8 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
               <h2 className="text-2xl font-bold text-gray-900">Detalles de la Cotización</h2>
               <button
