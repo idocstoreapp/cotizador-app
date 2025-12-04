@@ -1115,128 +1115,130 @@ export default function AdminPreciosPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {muebles.filter((mueble) => {
-                  const opciones = mueble.opciones_disponibles?.opciones_personalizadas;
-                  return opciones && (
-                    (opciones.tipo_cocina && opciones.tipo_cocina.length > 0) ||
-                    (opciones.material_puertas && opciones.material_puertas.length > 0) ||
-                    (opciones.tipo_topes && opciones.tipo_topes.length > 0)
-                  );
-                }).map((mueble) => {
-                  const opcionesPersonalizadas = mueble.opciones_disponibles?.opciones_personalizadas || {};
-                  const tiposVariantes = Object.keys(opcionesPersonalizadas).filter(
-                    key => opcionesPersonalizadas[key] && (opcionesPersonalizadas[key] as any)?.length > 0
-                  );
+                {muebles
+                  .filter((mueble) => {
+                    const opciones = mueble.opciones_disponibles?.opciones_personalizadas;
+                    return opciones && (
+                      (opciones.tipo_cocina && opciones.tipo_cocina.length > 0) ||
+                      (opciones.material_puertas && opciones.material_puertas.length > 0) ||
+                      (opciones.tipo_topes && opciones.tipo_topes.length > 0)
+                    );
+                  })
+                  .map((mueble) => {
+                    const opcionesPersonalizadas = mueble.opciones_disponibles?.opciones_personalizadas || {};
+                    const tiposVariantes = Object.keys(opcionesPersonalizadas).filter(
+                      (key) => opcionesPersonalizadas[key] && (opcionesPersonalizadas[key] as any)?.length > 0
+                    );
 
-                  if (tiposVariantes.length === 0) return null;
+                    if (tiposVariantes.length === 0) return null;
 
-                  return (
-                    <div key={mueble.id} className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
-                      <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4">{mueble.nombre}</h3>
-                      {tiposVariantes.map((tipoVariante) => {
-                        const variantes = opcionesPersonalizadas[tipoVariante] || [];
-                        const nombreTipo = tipoVariante === 'tipo_cocina' ? 'Tipo de Cocina' :
-                                          tipoVariante === 'material_puertas' ? 'Material de Puertas' :
-                                          tipoVariante === 'tipo_topes' ? 'Tipo de Topes' : tipoVariante;
+                    return (
+                      <div key={mueble.id} className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+                        <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4">{mueble.nombre}</h3>
+                        {tiposVariantes.map((tipoVariante) => {
+                          const variantes = opcionesPersonalizadas[tipoVariante] || [];
+                          const nombreTipo = tipoVariante === 'tipo_cocina' ? 'Tipo de Cocina' :
+                                            tipoVariante === 'material_puertas' ? 'Material de Puertas' :
+                                            tipoVariante === 'tipo_topes' ? 'Tipo de Topes' : tipoVariante;
 
-                        return (
-                          <div key={tipoVariante} className="mb-4 sm:mb-6">
-                            <h4 className="text-sm font-semibold text-gray-700 mb-3">{nombreTipo}</h4>
-                            <div className="space-y-2">
-                              {variantes.map((variante: OpcionPersonalizada, index: number) => {
-                                const editandoKey = `${mueble.id}-${tipoVariante}-${variante.nombre}`;
-                                const estaEditando = editandoId === editandoKey;
+                          return (
+                            <div key={tipoVariante} className="mb-4 sm:mb-6">
+                              <h4 className="text-sm font-semibold text-gray-700 mb-3">{nombreTipo}</h4>
+                              <div className="space-y-2">
+                                {variantes.map((variante: OpcionPersonalizada, index: number) => {
+                                  const editandoKey = `${mueble.id}-${tipoVariante}-${variante.nombre}`;
+                                  const estaEditando = editandoId === editandoKey;
 
-                                return (
-                                  <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-3 bg-gray-50 rounded-lg">
-                                    <div className="flex-1 w-full sm:w-auto">
-                                      {estaEditando ? (
-                                        <input
-                                          type="text"
-                                          value={valoresEditando.nombre || variante.nombre}
-                                          onChange={(e) => setValoresEditando({ ...valoresEditando, nombre: e.target.value })}
-                                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
-                                        />
-                                      ) : (
-                                        <span className="text-sm font-medium text-gray-900">{variante.nombre}</span>
-                                      )}
-                                    </div>
-                                    <div className="w-full sm:w-32">
-                                      {estaEditando ? (
-                                        <input
-                                          type="number"
-                                          value={valoresEditando.precio_adicional !== undefined ? valoresEditando.precio_adicional : (variante.precio_adicional || 0)}
-                                          onChange={(e) => setValoresEditando({ ...valoresEditando, precio_adicional: parseFloat(e.target.value) || 0 })}
-                                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
-                                          placeholder="Precio adicional"
-                                          min="0"
-                                          step="1000"
-                                        />
-                                      ) : (
-                                        <span className="text-sm text-gray-600">
-                                          +${(variante.precio_adicional || 0).toLocaleString('es-CO')}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="w-full sm:w-24">
-                                      {estaEditando ? (
-                                        <input
-                                          type="number"
-                                          value={valoresEditando.multiplicador !== undefined ? valoresEditando.multiplicador : (variante.multiplicador || 1)}
-                                          onChange={(e) => setValoresEditando({ ...valoresEditando, multiplicador: parseFloat(e.target.value) || 1 })}
-                                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
-                                          placeholder="Multiplicador"
-                                          min="0.1"
-                                          step="0.1"
-                                        />
-                                      ) : (
-                                        <span className="text-sm text-gray-600">
-                                          x{variante.multiplicador || 1}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="w-full sm:w-auto">
-                                      {estaEditando ? (
-                                        <div className="flex gap-2">
+                                  return (
+                                    <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-3 bg-gray-50 rounded-lg">
+                                      <div className="flex-1 w-full sm:w-auto">
+                                        {estaEditando ? (
+                                          <input
+                                            type="text"
+                                            value={valoresEditando.nombre || variante.nombre}
+                                            onChange={(e) => setValoresEditando({ ...valoresEditando, nombre: e.target.value })}
+                                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                                          />
+                                        ) : (
+                                          <span className="text-sm font-medium text-gray-900">{variante.nombre}</span>
+                                        )}
+                                      </div>
+                                      <div className="w-full sm:w-32">
+                                        {estaEditando ? (
+                                          <input
+                                            type="number"
+                                            value={valoresEditando.precio_adicional !== undefined ? valoresEditando.precio_adicional : (variante.precio_adicional || 0)}
+                                            onChange={(e) => setValoresEditando({ ...valoresEditando, precio_adicional: parseFloat(e.target.value) || 0 })}
+                                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                                            placeholder="Precio adicional"
+                                            min="0"
+                                            step="1000"
+                                          />
+                                        ) : (
+                                          <span className="text-sm text-gray-600">
+                                            +${(variante.precio_adicional || 0).toLocaleString('es-CO')}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="w-full sm:w-24">
+                                        {estaEditando ? (
+                                          <input
+                                            type="number"
+                                            value={valoresEditando.multiplicador !== undefined ? valoresEditando.multiplicador : (variante.multiplicador || 1)}
+                                            onChange={(e) => setValoresEditando({ ...valoresEditando, multiplicador: parseFloat(e.target.value) || 1 })}
+                                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                                            placeholder="Multiplicador"
+                                            min="0.1"
+                                            step="0.1"
+                                          />
+                                        ) : (
+                                          <span className="text-sm text-gray-600">
+                                            x{variante.multiplicador || 1}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="w-full sm:w-auto">
+                                        {estaEditando ? (
+                                          <div className="flex gap-2">
+                                            <button
+                                              onClick={() => {
+                                                guardarVariante(mueble.id, tipoVariante, variante.nombre, valoresEditando);
+                                              }}
+                                              disabled={guardandoMueble}
+                                              className="flex-1 sm:flex-none px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
+                                            >
+                                              Guardar
+                                            </button>
+                                            <button
+                                              onClick={cancelarEdicion}
+                                              className="flex-1 sm:flex-none px-3 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
+                                            >
+                                              Cancelar
+                                            </button>
+                                          </div>
+                                        ) : (
                                           <button
-                                            onClick={() => {
-                                              guardarVariante(mueble.id, tipoVariante, variante.nombre, valoresEditando);
-                                            }}
-                                            disabled={guardandoMueble}
-                                            className="flex-1 sm:flex-none px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
+                                            onClick={() => iniciarEdicion(editandoKey, {
+                                              nombre: variante.nombre,
+                                              precio_adicional: variante.precio_adicional,
+                                              multiplicador: variante.multiplicador
+                                            })}
+                                            className="w-full sm:w-auto px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700"
                                           >
-                                            Guardar
+                                            Editar
                                           </button>
-                                          <button
-                                            onClick={cancelarEdicion}
-                                            className="flex-1 sm:flex-none px-3 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
-                                          >
-                                            Cancelar
-                                          </button>
-                                        </div>
-                                      ) : (
-                                        <button
-                                          onClick={() => iniciarEdicion(editandoKey, {
-                                            nombre: variante.nombre,
-                                            precio_adicional: variante.precio_adicional,
-                                            multiplicador: variante.multiplicador
-                                          })}
-                                          className="w-full sm:w-auto px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700"
-                                        >
-                                          Editar
-                                        </button>
-                                      )}
+                                        )}
+                                      </div>
                                     </div>
-                                  </div>
-                                );
-                              })}
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                }).filter(item => item !== null)}
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
               </div>
             )}
           </div>
