@@ -1,6 +1,13 @@
 /**
  * Componente de Login
  * Permite a los usuarios iniciar sesión con email y contraseña
+ * 
+ * Desarrollado por: Jonathan Guarirapa
+ * Desarrollador de aplicaciones y sitios webs
+ * Portfolio: https://jonadevel-portfolio.vercel.app
+ * WhatsApp: +56962614851
+ * Instagram: @jonacrd1
+ * Email: jona.develp@gmail.com
  */
 import { useState } from 'react';
 import { iniciarSesion } from '../services/auth.service';
@@ -175,6 +182,18 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             </button>
           </div>
         </form>
+
+        {/* Firma discreta */}
+        <div className="mt-8 text-center">
+          <a
+            href="https://jonadevel-portfolio.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            Desarrollado por Jonathan Guarirapa
+          </a>
+        </div>
       </div>
     </div>
   );

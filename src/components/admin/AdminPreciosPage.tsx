@@ -2,8 +2,15 @@
  * Página de administración de precios
  * Permite modificar precios de materiales, servicios, muebles y variantes
  * VERSIÓN SIN REACT QUERY - Carga datos directamente
+ * 
+ * Desarrollado por: Jonathan Guarirapa
+ * Desarrollador de aplicaciones y sitios webs
+ * Portfolio: https://jonadevel-portfolio.vercel.app
+ * WhatsApp: +56962614851
+ * Instagram: @jonacrd1
+ * Email: jona.develp@gmail.com
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useUser } from '../../contexts/UserContext';
 import { obtenerUsuarioActual } from '../../services/auth.service';
 import { obtenerMateriales, actualizarMaterial, crearMaterial, eliminarMaterial } from '../../services/materiales.service';
@@ -429,6 +436,361 @@ export default function AdminPreciosPage() {
     }
   };
 
+
+  const renderVariantesTab = () => {
+    if (loadingMuebles) {
+      return (
+        <div className="space-y-4 sm:space-y-6">
+          <div className="text-center py-12">
+            <p className="text-gray-500">Cargando muebles...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (muebles.length === 0) {
+      return (
+        <div className="space-y-4 sm:space-y-6">
+          <div className="text-center py-12">
+            <p className="text-gray-500">No hay muebles disponibles</p>
+          </div>
+        </div>
+      );
+    }
+
+    const mueblesConVariantes = muebles.filter((mueble) => {
+      const opciones = mueble.opciones_disponibles?.opciones_personalizadas;
+      if (!opciones) return false;
+      const tieneVariantes = (
+        (opciones.tipo_cocina && opciones.tipo_cocina.length > 0) ||
+        (opciones.material_puertas && opciones.material_puertas.length > 0) ||
+        (opciones.tipo_topes && opciones.tipo_topes.length > 0)
+      );
+      if (!tieneVariantes) return false;
+      const opcionesPersonalizadas = mueble.opciones_disponibles?.opciones_personalizadas || {};
+      const tiposVariantes = Object.keys(opcionesPersonalizadas).filter(
+        (key) => opcionesPersonalizadas[key] && (opcionesPersonalizadas[key] as any)?.length > 0
+      );
+      return tiposVariantes.length > 0;
+    });
+
+    if (mueblesConVariantes.length === 0) {
+      return (
+        <div className="space-y-4 sm:space-y-6">
+          <div className="text-center py-12">
+            <p className="text-gray-500">No hay muebles con variantes disponibles</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-4">
+          {mueblesConVariantes.map((mueble) => {
+            const opcionesPersonalizadas = mueble.opciones_disponibles?.opciones_personalizadas || {};
+            const tiposVariantes = Object.keys(opcionesPersonalizadas).filter(
+              (key) => opcionesPersonalizadas[key] && (opcionesPersonalizadas[key] as any)?.length > 0
+            );
+
+            return (
+              <div key={mueble.id} className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4">{mueble.nombre}</h3>
+                {tiposVariantes.map((tipoVariante) => {
+                  const variantes = opcionesPersonalizadas[tipoVariante] || [];
+                  const nombreTipo = tipoVariante === 'tipo_cocina' ? 'Tipo de Cocina' :
+                                    tipoVariante === 'material_puertas' ? 'Material de Puertas' :
+                                    tipoVariante === 'tipo_topes' ? 'Tipo de Topes' : tipoVariante;
+
+                  return (
+                    <div key={tipoVariante} className="mb-4 sm:mb-6">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">{nombreTipo}</h4>
+                      <div className="space-y-2">
+                        {variantes.map((variante: OpcionPersonalizada, index: number) => {
+                          const editandoKey = mueble.id + '-' + tipoVariante + '-' + variante.nombre;
+                          const estaEditando = editandoId === editandoKey;
+
+                          return (
+                            <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-3 bg-gray-50 rounded-lg">
+                              <div className="flex-1 w-full sm:w-auto">
+                                {estaEditando ? (
+                                  <input
+                                    type="text"
+                                    value={valoresEditando.nombre || variante.nombre}
+                                    onChange={(e) => setValoresEditando({ ...valoresEditando, nombre: e.target.value })}
+                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                                  />
+                                ) : (
+                                  <span className="text-sm font-medium text-gray-900">{variante.nombre}</span>
+                                )}
+                              </div>
+                              <div className="w-full sm:w-32">
+                                {estaEditando ? (
+                                  <input
+                                    type="number"
+                                    value={valoresEditando.precio_adicional !== undefined ? valoresEditando.precio_adicional : (variante.precio_adicional || 0)}
+                                    onChange={(e) => setValoresEditando({ ...valoresEditando, precio_adicional: parseFloat(e.target.value) || 0 })}
+                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="Precio adicional"
+                                    min="0"
+                                    step="1000"
+                                  />
+                                ) : (
+                                  <span className="text-sm text-gray-600">
+                                    +${(variante.precio_adicional || 0).toLocaleString('es-CO')}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="w-full sm:w-24">
+                                {estaEditando ? (
+                                  <input
+                                    type="number"
+                                    value={valoresEditando.multiplicador !== undefined ? valoresEditando.multiplicador : (variante.multiplicador || 1)}
+                                    onChange={(e) => setValoresEditando({ ...valoresEditando, multiplicador: parseFloat(e.target.value) || 1 })}
+                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="Multiplicador"
+                                    min="0.1"
+                                    step="0.1"
+                                  />
+                                ) : (
+                                  <span className="text-sm text-gray-600">
+                                    x{variante.multiplicador || 1}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="w-full sm:w-auto">
+                                {estaEditando ? (
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => {
+                                        guardarVariante(mueble.id, tipoVariante, variante.nombre, valoresEditando);
+                                      }}
+                                      disabled={guardandoMueble}
+                                      className="flex-1 sm:flex-none px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
+                                    >
+                                      Guardar
+                                    </button>
+                                    <button
+                                      onClick={cancelarEdicion}
+                                      className="flex-1 sm:flex-none px-3 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
+                                    >
+                                      Cancelar
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => iniciarEdicion(editandoKey, {
+                                      nombre: variante.nombre,
+                                      precio_adicional: variante.precio_adicional,
+                                      multiplicador: variante.multiplicador
+                                    })}
+                                    className="w-full sm:w-auto px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700"
+                                  >
+                                    Editar
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderModalNuevoMaterial = () => {
+    if (!mostrarModalNuevoMaterial) {
+      return null;
+    }
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-900">Nuevo Material</h2>
+            <button
+              onClick={() => {
+                setMostrarModalNuevoMaterial(false);
+                setNuevoMaterial({ nombre: '', tipo: '', unidad: 'unidad', costo_unitario: 0, proveedor: '' });
+              }}
+              className="text-gray-400 hover:text-gray-600 text-2xl"
+            >
+              ×
+            </button>
+          </div>
+          <div className="p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+              <input
+                type="text"
+                value={nuevoMaterial.nombre}
+                onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, nombre: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
+              <input
+                type="text"
+                value={nuevoMaterial.tipo}
+                onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, tipo: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Unidad *</label>
+              <select
+                value={nuevoMaterial.unidad}
+                onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, unidad: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="unidad">Unidad</option>
+                <option value="m2">m²</option>
+                <option value="m">m</option>
+                <option value="kg">kg</option>
+                <option value="litro">Litro</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Costo Unitario *</label>
+              <input
+                type="number"
+                value={nuevoMaterial.costo_unitario}
+                onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, costo_unitario: parseFloat(e.target.value) || 0 })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                min="0"
+                step="100"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
+              <input
+                type="text"
+                value={nuevoMaterial.proveedor}
+                onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, proveedor: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex gap-3 pt-4">
+              <button
+                onClick={handleCrearMaterial}
+                disabled={creandoMaterial}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+              >
+                {creandoMaterial ? 'Creando...' : 'Crear Material'}
+              </button>
+              <button
+                onClick={() => {
+                  setMostrarModalNuevoMaterial(false);
+                  setNuevoMaterial({ nombre: '', tipo: '', unidad: 'unidad', costo_unitario: 0, proveedor: '' });
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderModalNuevoServicio = () => {
+    if (!mostrarModalNuevoServicio) {
+      return null;
+    }
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-900">Nuevo Servicio</h2>
+            <button
+              onClick={() => {
+                setMostrarModalNuevoServicio(false);
+                setNuevoServicio({ nombre: '', descripcion: '', precio_por_hora: 0, horas_estimadas: 0 });
+              }}
+              className="text-gray-400 hover:text-gray-600 text-2xl"
+            >
+              ×
+            </button>
+          </div>
+          <div className="p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+              <input
+                type="text"
+                value={nuevoServicio.nombre}
+                onChange={(e) => setNuevoServicio({ ...nuevoServicio, nombre: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+              <textarea
+                value={nuevoServicio.descripcion}
+                onChange={(e) => setNuevoServicio({ ...nuevoServicio, descripcion: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                rows={3}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Precio por Hora *</label>
+              <input
+                type="number"
+                value={nuevoServicio.precio_por_hora}
+                onChange={(e) => setNuevoServicio({ ...nuevoServicio, precio_por_hora: parseFloat(e.target.value) || 0 })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                min="0"
+                step="1000"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Horas Estimadas *</label>
+              <input
+                type="number"
+                value={nuevoServicio.horas_estimadas}
+                onChange={(e) => setNuevoServicio({ ...nuevoServicio, horas_estimadas: parseFloat(e.target.value) || 0 })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                min="0"
+                step="0.5"
+                required
+              />
+            </div>
+            <div className="flex gap-3 pt-4">
+              <button
+                onClick={handleCrearServicio}
+                disabled={creandoServicio}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+              >
+                {creandoServicio ? 'Creando...' : 'Crear Servicio'}
+              </button>
+              <button
+                onClick={() => {
+                  setMostrarModalNuevoServicio(false);
+                  setNuevoServicio({ nombre: '', descripcion: '', precio_por_hora: 0, horas_estimadas: 0 });
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderTabContent = () => {
     switch (tabActual) {
       case 'materiales':
@@ -688,6 +1050,7 @@ export default function AdminPreciosPage() {
               </table>
             </div>
           </div>
+        </div>
         );
 
       case 'servicios':
@@ -1103,146 +1466,7 @@ export default function AdminPreciosPage() {
         );
 
       case 'variantes':
-        return (
-          <div className="space-y-4 sm:space-y-6">
-            {loadingMuebles ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500">Cargando muebles...</p>
-              </div>
-            ) : muebles.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500">No hay muebles disponibles</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {muebles
-                  .filter((mueble) => {
-                    const opciones = mueble.opciones_disponibles?.opciones_personalizadas;
-                    return opciones && (
-                      (opciones.tipo_cocina && opciones.tipo_cocina.length > 0) ||
-                      (opciones.material_puertas && opciones.material_puertas.length > 0) ||
-                      (opciones.tipo_topes && opciones.tipo_topes.length > 0)
-                    );
-                  })
-                  .map((mueble) => {
-                    const opcionesPersonalizadas = mueble.opciones_disponibles?.opciones_personalizadas || {};
-                    const tiposVariantes = Object.keys(opcionesPersonalizadas).filter(
-                      (key) => opcionesPersonalizadas[key] && (opcionesPersonalizadas[key] as any)?.length > 0
-                    );
-
-                    if (tiposVariantes.length === 0) return null;
-
-                    return (
-                      <div key={mueble.id} className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
-                        <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4">{mueble.nombre}</h3>
-                        {tiposVariantes.map((tipoVariante) => {
-                          const variantes = opcionesPersonalizadas[tipoVariante] || [];
-                          const nombreTipo = tipoVariante === 'tipo_cocina' ? 'Tipo de Cocina' :
-                                            tipoVariante === 'material_puertas' ? 'Material de Puertas' :
-                                            tipoVariante === 'tipo_topes' ? 'Tipo de Topes' : tipoVariante;
-
-                          return (
-                            <div key={tipoVariante} className="mb-4 sm:mb-6">
-                              <h4 className="text-sm font-semibold text-gray-700 mb-3">{nombreTipo}</h4>
-                              <div className="space-y-2">
-                                {variantes.map((variante: OpcionPersonalizada, index: number) => {
-                                  const editandoKey = `${mueble.id}-${tipoVariante}-${variante.nombre}`;
-                                  const estaEditando = editandoId === editandoKey;
-
-                                  return (
-                                    <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-3 bg-gray-50 rounded-lg">
-                                      <div className="flex-1 w-full sm:w-auto">
-                                        {estaEditando ? (
-                                          <input
-                                            type="text"
-                                            value={valoresEditando.nombre || variante.nombre}
-                                            onChange={(e) => setValoresEditando({ ...valoresEditando, nombre: e.target.value })}
-                                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
-                                          />
-                                        ) : (
-                                          <span className="text-sm font-medium text-gray-900">{variante.nombre}</span>
-                                        )}
-                                      </div>
-                                      <div className="w-full sm:w-32">
-                                        {estaEditando ? (
-                                          <input
-                                            type="number"
-                                            value={valoresEditando.precio_adicional !== undefined ? valoresEditando.precio_adicional : (variante.precio_adicional || 0)}
-                                            onChange={(e) => setValoresEditando({ ...valoresEditando, precio_adicional: parseFloat(e.target.value) || 0 })}
-                                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
-                                            placeholder="Precio adicional"
-                                            min="0"
-                                            step="1000"
-                                          />
-                                        ) : (
-                                          <span className="text-sm text-gray-600">
-                                            +${(variante.precio_adicional || 0).toLocaleString('es-CO')}
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="w-full sm:w-24">
-                                        {estaEditando ? (
-                                          <input
-                                            type="number"
-                                            value={valoresEditando.multiplicador !== undefined ? valoresEditando.multiplicador : (variante.multiplicador || 1)}
-                                            onChange={(e) => setValoresEditando({ ...valoresEditando, multiplicador: parseFloat(e.target.value) || 1 })}
-                                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
-                                            placeholder="Multiplicador"
-                                            min="0.1"
-                                            step="0.1"
-                                          />
-                                        ) : (
-                                          <span className="text-sm text-gray-600">
-                                            x{variante.multiplicador || 1}
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="w-full sm:w-auto">
-                                        {estaEditando ? (
-                                          <div className="flex gap-2">
-                                            <button
-                                              onClick={() => {
-                                                guardarVariante(mueble.id, tipoVariante, variante.nombre, valoresEditando);
-                                              }}
-                                              disabled={guardandoMueble}
-                                              className="flex-1 sm:flex-none px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
-                                            >
-                                              Guardar
-                                            </button>
-                                            <button
-                                              onClick={cancelarEdicion}
-                                              className="flex-1 sm:flex-none px-3 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
-                                            >
-                                              Cancelar
-                                            </button>
-                                          </div>
-                                        ) : (
-                                          <button
-                                            onClick={() => iniciarEdicion(editandoKey, {
-                                              nombre: variante.nombre,
-                                              precio_adicional: variante.precio_adicional,
-                                              multiplicador: variante.multiplicador
-                                            })}
-                                            className="w-full sm:w-auto px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700"
-                                          >
-                                            Editar
-                                          </button>
-                                        )}
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-              </div>
-            )}
-          </div>
-        );
+        return renderVariantesTab();
 
       case 'configuracion':
         return (
@@ -1331,46 +1555,47 @@ export default function AdminPreciosPage() {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6 max-w-full overflow-x-hidden">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Administración de Precios</h1>
-        <p className="text-sm sm:text-base text-gray-600 mt-1">Modifica precios de materiales, servicios, muebles y variantes</p>
-      </div>
-
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <div className="flex gap-1 overflow-x-auto scrollbar-hide">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => {
-                setTabActual(tab.id);
-                setEditandoId(null);
-                setValoresEditando({});
-              }}
-              className={`px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                tabActual === tab.id
-                  ? 'border-indigo-600 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <span className="mr-1">{tab.icon}</span>
-              <span className="hidden sm:inline">{tab.label}</span>
-              <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
-            </button>
-          ))}
+    <div className="max-w-full overflow-x-hidden">
+      <div className="space-y-4 sm:space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Administración de Precios</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Modifica precios de materiales, servicios, muebles y variantes</p>
         </div>
-      </div>
 
-      {/* Content */}
-      <div>
-        {renderTabContent()}
-      </div>
+        {/* Tabs */}
+        <div className="border-b border-gray-200">
+          <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  setTabActual(tab.id);
+                  setEditandoId(null);
+                  setValoresEditando({});
+                }}
+                className={`px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                  tabActual === tab.id
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <span className="mr-1">{tab.icon}</span>
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+              </button>
+            ))}
+          </div>
+        </div>
 
-      {/* Modal para Nuevo Material */}
-      {mostrarModalNuevoMaterial && (
+        {/* Content */}
+        <div>
+          {renderTabContent()}
+        </div>
+
+        {/* Modales */}
+        {mostrarModalNuevoMaterial ? (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -1462,10 +1687,8 @@ export default function AdminPreciosPage() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Modal para Nuevo Servicio */}
-      {mostrarModalNuevoServicio && (
+      ) : null}
+      {mostrarModalNuevoServicio ? (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -1545,7 +1768,8 @@ export default function AdminPreciosPage() {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
+      </div>
     </div>
   );
 }

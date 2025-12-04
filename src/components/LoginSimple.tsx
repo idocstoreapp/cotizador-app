@@ -1,6 +1,13 @@
 /**
  * Componente de Login simplificado y robusto
  * Versión mejorada con mejor manejo de eventos
+ * 
+ * Desarrollado por: Jonathan Guarirapa
+ * Desarrollador de aplicaciones y sitios webs
+ * Portfolio: https://jonadevel-portfolio.vercel.app
+ * WhatsApp: +56962614851
+ * Instagram: @jonacrd1
+ * Email: jona.develp@gmail.com
  */
 import { useState, useCallback } from 'react';
 import { iniciarSesion } from '../services/auth.service';
@@ -213,6 +220,18 @@ export default function LoginSimple({ onLoginSuccess }: LoginSimpleProps) {
               {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
             </button>
           </div>
+        </div>
+
+        {/* Firma discreta */}
+        <div className="mt-8 text-center">
+          <a
+            href="https://jonadevel-portfolio.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            Desarrollado por Jonathan Guarirapa
+          </a>
         </div>
       </div>
     </div>

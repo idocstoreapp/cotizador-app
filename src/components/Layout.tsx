@@ -1,5 +1,12 @@
 /**
  * Layout principal con sidebar y topbar moderno
+ * 
+ * Desarrollado por: Jonathan Guarirapa
+ * Desarrollador de aplicaciones y sitios webs
+ * Portfolio: https://jonadevel-portfolio.vercel.app
+ * WhatsApp: +56962614851
+ * Instagram: @jonacrd1
+ * Email: jona.develp@gmail.com
  */
 import { useState, useEffect, useCallback } from 'react';
 import { cerrarSesion, obtenerUsuarioActual } from '../services/auth.service';
@@ -502,6 +509,20 @@ export default function Layout({ children, currentPath }: LayoutProps) {
                 {children}
               </UserProvider>
             </main>
+
+        {/* Footer discreto */}
+        <footer className="bg-white border-t border-gray-200 py-2 px-4">
+          <div className="text-center">
+            <a
+              href="https://jonadevel-portfolio.vercel.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              Desarrollado por Jonathan Guarirapa
+            </a>
+          </div>
+        </footer>
       </div>
     </div>
   );
