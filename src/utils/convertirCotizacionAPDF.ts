@@ -2,6 +2,7 @@
  * Convierte una cotización guardada en la BD al formato requerido por QuotePDF
  */
 import type { Cotizacion } from '../types/database';
+import { EMPRESAS } from '../types/empresas';
 
 /**
  * Convierte una cotización guardada al formato del PDF profesional
@@ -144,7 +145,6 @@ export function convertirCotizacionAPDF(cotizacion: Cotizacion) {
   let empresaInfo: any = undefined;
   
   if (cotizacion.empresa) {
-    const { EMPRESAS } = require('../types/empresas');
     const empresa = EMPRESAS[cotizacion.empresa];
     if (empresa) {
       companyName = empresa.nombre;

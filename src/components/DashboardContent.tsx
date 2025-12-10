@@ -84,8 +84,8 @@ export default function DashboardContent() {
                 Recargar página
               </button>
               <button
-                onClick={() => {
-                  const { supabase } = require('../utils/supabase');
+                onClick={async () => {
+                  const { supabase } = await import('../utils/supabase');
                   supabase.auth.signOut().then(() => {
                     window.location.href = '/';
                   });

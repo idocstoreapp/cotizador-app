@@ -4,11 +4,12 @@
 
 // Material predeterminado en un mueble del catálogo
 export interface MaterialMueble {
-  material_id: string;
+  material_id?: string; // ID del material (UUID) - opcional porque puede no existir en materiales presupuestados
   material_nombre?: string; // Para mostrar
   cantidad: number;
   unidad: string; // m², metro lineal, unidad, etc.
   precio_unitario?: number; // Precio del material al momento de crear el mueble
+  material_tipo?: string; // Tipo de material (opcional)
 }
 
 // Medidas predeterminadas de un mueble

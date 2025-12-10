@@ -552,6 +552,7 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
   // IMPORTANTE: El precio unitario se mantiene del material original
   // Si hay diferentes precios, se usa el del primer material encontrado
   const materialesAgrupados = new Map<string, {
+    material_id: string | undefined; // Preservar el material_id del primer material encontrado
     material_nombre: string;
     cantidad_total: number;
     precio_unitario: number;
@@ -573,6 +574,7 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
       // Por ahora mantenemos el precio original del primer material
     } else {
       materialesAgrupados.set(key, {
+        material_id: material.material_id, // Preservar el material_id del primer material
         material_nombre: nombre,
         cantidad_total: material.cantidad || 0,
         precio_unitario: material.precio_unitario || 0,
@@ -852,8 +854,9 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
                           <button
                             onClick={() => {
                               // Crear un material con la cantidad total agrupada para el modal
+                              // IMPORTANTE: material_id debe ser un UUID válido o null/undefined, NO el nombre
                               const materialParaModal: MaterialMueble = {
-                                material_id: mat.material_nombre, // Usar nombre como ID temporal
+                                material_id: mat.material_id || undefined, // Usar el material_id real o undefined si no existe
                                 material_nombre: mat.material_nombre,
                                 cantidad: mat.cantidad_total, // Cantidad total agrupada (ya multiplicada por cantidad del item)
                                 precio_unitario: mat.precio_unitario,

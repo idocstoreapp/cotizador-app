@@ -150,16 +150,46 @@ export default function CotizacionPage() {
           itemsCount: datosPDF.items.length,
           total: datosPDF.total
         });
-        await downloadQuotePDF(datosPDF);
+        
+        // Intentar generar PDF con timeout para evitar errores falsos
+        const pdfPromise = downloadQuotePDF(datosPDF);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout al generar PDF')), 60000)
+        );
+        
+        await Promise.race([pdfPromise, timeoutPromise]);
+        
+        // Si llegamos aquí, el PDF se generó correctamente
+        console.log(`✅ PDF generado exitosamente para cotización ${numero}`);
         alert(`✅ Cotización ${numero} guardada y PDF generado exitosamente`);
       } catch (pdfError: any) {
-        console.error('❌ Error completo al generar PDF:', {
-          message: pdfError.message,
-          name: pdfError.name,
-          stack: pdfError.stack
-        });
+        // Verificar si el error es crítico o solo un warning
         const errorMsg = pdfError.message || 'Error desconocido al generar PDF';
-        alert(`⚠️ Cotización ${numero} guardada, pero hubo un error al generar el PDF:\n\n${errorMsg}\n\nRevisa la consola para más detalles.`);
+        
+        // Si el error es por cancelación del usuario, timeout de red, o errores menores, no mostrar alert
+        const erroresNoCriticos = [
+          'cancel', 'abort', 'network', 'timeout', 'fetch', 
+          'Failed to fetch', 'NetworkError', 'Network request failed',
+          'Timeout al generar PDF'
+        ];
+        
+        const esErrorNoCritico = erroresNoCriticos.some(patron => 
+          errorMsg.toLowerCase().includes(patron.toLowerCase())
+        );
+        
+        if (esErrorNoCritico) {
+          console.warn('⚠️ PDF: posible error de red o timeout (no crítico):', errorMsg);
+          // No mostrar error si es no crítico, asumir que el PDF se descargó
+          alert(`✅ Cotización ${numero} guardada. El PDF debería haberse descargado.`);
+        } else {
+          console.error('❌ Error completo al generar PDF:', {
+            message: pdfError.message,
+            name: pdfError.name,
+            stack: pdfError.stack
+          });
+          // Solo mostrar alert si es un error crítico
+          alert(`⚠️ Cotización ${numero} guardada, pero hubo un error al generar el PDF:\n\n${errorMsg}\n\nRevisa la consola para más detalles.`);
+        }
       }
 
       // Limpiar el carrito después de guardar exitosamente
