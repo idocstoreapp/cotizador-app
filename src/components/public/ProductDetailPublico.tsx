@@ -16,67 +16,21 @@ export default function ProductDetailPublico({ mueble, onBack }: ProductDetailPu
   const [mostrarCotizador, setMostrarCotizador] = useState(false);
   
   // Asegurar que opciones_disponibles tenga la estructura correcta
-  // Intentar leer de diferentes formas posibles
   const opcionesDisponibles = {
     colores: Array.isArray(mueble.opciones_disponibles?.colores) 
       ? mueble.opciones_disponibles.colores 
-      : (Array.isArray((mueble as any).colores) ? (mueble as any).colores : []),
+      : [],
     materiales: Array.isArray(mueble.opciones_disponibles?.materiales) 
       ? mueble.opciones_disponibles.materiales 
-      : (Array.isArray((mueble as any).materiales) ? (mueble as any).materiales : []),
+      : [],
     encimeras: Array.isArray(mueble.opciones_disponibles?.encimeras) 
       ? mueble.opciones_disponibles.encimeras 
-      : (Array.isArray((mueble as any).encimeras) ? (mueble as any).encimeras : []),
+      : [],
     canteados: Array.isArray(mueble.opciones_disponibles?.canteados) 
       ? mueble.opciones_disponibles.canteados 
-      : (Array.isArray((mueble as any).canteados) ? (mueble as any).canteados : []),
+      : [],
     opciones_personalizadas: mueble.opciones_disponibles?.opciones_personalizadas || undefined
   };
-
-  // Debug: Log para verificar qué opciones están disponibles
-  console.log('🔍 ProductDetailPublico - Categoría:', mueble.categoria);
-  console.log('🔍 ProductDetailPublico - Nombre:', mueble.nombre);
-  console.log('🔍 ProductDetailPublico - opciones_disponibles raw:', mueble.opciones_disponibles);
-  console.log('🔍 ProductDetailPublico - Opciones disponibles procesadas:', {
-    colores: opcionesDisponibles.colores.length,
-    materiales: opcionesDisponibles.materiales.length,
-    encimeras: opcionesDisponibles.encimeras.length,
-    canteados: opcionesDisponibles.canteados.length,
-    opciones_personalizadas: opcionesDisponibles.opciones_personalizadas ? 'Sí' : 'No'
-  });
-  console.log('🔍 ProductDetailPublico - Valores de colores:', opcionesDisponibles.colores);
-  console.log('🔍 ProductDetailPublico - Valores de materiales:', opcionesDisponibles.materiales);
-  console.log('🔍 ProductDetailPublico - imagenes_por_variante:', mueble.imagenes_por_variante);
-
-  // Validar y normalizar imagenes_por_variante (similar a ProductDetail.tsx)
-  const imagenesPorVariante = useMemo(() => {
-    if (!mueble.imagenes_por_variante) {
-      console.log('ProductDetailPublico: No hay imagenes_por_variante en el mueble');
-      return [];
-    }
-
-    if (!Array.isArray(mueble.imagenes_por_variante)) {
-      console.warn('ProductDetailPublico: imagenes_por_variante no es un array:', mueble.imagenes_por_variante);
-      return [];
-    }
-
-    // Filtrar y validar que cada variante tenga imagen_url
-    const variantesValidas = mueble.imagenes_por_variante.filter((v: any) => {
-      const tieneUrl = v && (v.imagen_url || v.url);
-      if (!tieneUrl) {
-        console.warn('ProductDetailPublico: Variante sin URL:', v);
-      }
-      return tieneUrl;
-    }).map((v: any) => ({
-      color: v.color || undefined,
-      material: v.material || undefined,
-      encimera: v.encimera || undefined,
-      imagen_url: v.imagen_url || v.url || ''
-    }));
-
-    console.log(`ProductDetailPublico: ${variantesValidas.length} variantes válidas de ${mueble.imagenes_por_variante.length} totales`);
-    return variantesValidas;
-  }, [mueble.imagenes_por_variante]);
 
   // Estado de opciones seleccionadas
   const [opciones, setOpciones] = useState<OpcionesMueble>({
@@ -104,10 +58,8 @@ export default function ProductDetailPublico({ mueble, onBack }: ProductDetailPu
 
   /**
    * Obtiene la URL de la imagen según las opciones seleccionadas
-   * Prioridad: tipo_topes > material_puertas > imagenes_por_variante > imagen principal
    */
   const imagenActual = useMemo(() => {
-    // Si es cocina y hay opciones personalizadas, buscar imagen según las opciones seleccionadas
     if (mueble.categoria === 'cocina' && opcionesDisponibles.opciones_personalizadas) {
       if (mostrarEjemploTopes) {
         return mostrarEjemploTopes;
@@ -153,24 +105,6 @@ export default function ProductDetailPublico({ mueble, onBack }: ProductDetailPu
       }
     }
     
-    // Si hay imagenes_por_variante, buscar por opciones tradicionales (para closets y muebles)
-    if (imagenesPorVariante.length > 0) {
-      // Buscar una variante que coincida con las opciones actuales
-      const variante = imagenesPorVariante.find((v) => {
-        const matchColor = !v.color || v.color === opciones.color;
-        const matchMaterial = !v.material || v.material === opciones.material;
-        const matchEncimera = !v.encimera || v.encimera === opciones.encimera;
-        return matchColor && matchMaterial && matchEncimera;
-      });
-      
-      if (variante) {
-        return variante.imagen_url;
-      }
-      
-      // Si no hay coincidencia exacta, usar la primera variante
-      return imagenesPorVariante[0].imagen_url;
-    }
-    
     return mueble.imagen || '';
   }, [
     mueble.imagen,
@@ -181,11 +115,7 @@ export default function ProductDetailPublico({ mueble, onBack }: ProductDetailPu
     seleccionConfirmadaPuertas,
     seleccionConfirmadaTopes,
     mostrarEjemploPuertas,
-    mostrarEjemploTopes,
-    imagenesPorVariante,
-    opciones.color,
-    opciones.material,
-    opciones.encimera
+    mostrarEjemploTopes
   ]);
 
   const actualizarOpcion = (key: keyof OpcionesMueble, value: string) => {
@@ -241,7 +171,7 @@ export default function ProductDetailPublico({ mueble, onBack }: ProductDetailPu
           {/* Columna izquierda: Imagen */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl shadow-lg p-6">
-              <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden relative">
+              <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
                 <img
                   key={imagenActual}
                   src={imagenActual}
@@ -252,52 +182,6 @@ export default function ProductDetailPublico({ mueble, onBack }: ProductDetailPu
                   }}
                 />
               </div>
-              
-              {/* Thumbnails de variantes (si existen) - Solo para closets y muebles */}
-              {imagenesPorVariante.length > 0 && mueble.categoria !== 'cocina' && (
-                <div className="mt-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">Variantes disponibles:</h3>
-                  <div className="grid grid-cols-4 gap-2">
-                    {imagenesPorVariante.map((variante, index) => {
-                      const isActive = variante.imagen_url === imagenActual;
-                      return (
-                        <button
-                          key={`${variante.imagen_url}-${index}`}
-                          onClick={() => {
-                            if (variante.color) actualizarOpcion('color', variante.color);
-                            if (variante.material) actualizarOpcion('material', variante.material);
-                            if (variante.encimera) actualizarOpcion('encimera', variante.encimera);
-                          }}
-                          className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${
-                            isActive 
-                              ? 'border-indigo-600 ring-2 ring-indigo-200 scale-105' 
-                              : 'border-gray-300 hover:border-gray-400'
-                          }`}
-                          title={`${variante.color || 'Variante'} ${variante.material ? `- ${variante.material}` : ''}`}
-                        >
-                          <img
-                            src={variante.imagen_url}
-                            alt={`Variante ${variante.color || index + 1}`}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              console.error('Error al cargar imagen de variante:', variante.imagen_url);
-                              (e.target as HTMLImageElement).src = 'https://via.placeholder.com/200x200?text=Variante';
-                            }}
-                          />
-                          {isActive && (
-                            <div className="absolute inset-0 bg-indigo-600 bg-opacity-20"></div>
-                          )}
-                          {variante.color && (
-                            <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 text-center truncate">
-                              {variante.color}
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
@@ -309,93 +193,6 @@ export default function ProductDetailPublico({ mueble, onBack }: ProductDetailPu
               </h1>
               {mueble.descripcion && (
                 <p className="text-sm text-gray-500 mb-6">{mueble.descripcion}</p>
-              )}
-
-              {/* Selector de Color */}
-              {opcionesDisponibles.colores.length > 0 && (
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Color:
-                  </label>
-                  <select
-                    value={opciones.color}
-                    onChange={(e) => actualizarOpcion('color', e.target.value)}
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
-                  >
-                    {opcionesDisponibles.colores.map((color) => (
-                      <option key={color} value={color}>{color}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Selector de Material */}
-              {opcionesDisponibles.materiales.length > 0 && (
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Material:
-                  </label>
-                  <select
-                    value={opciones.material}
-                    onChange={(e) => actualizarOpcion('material', e.target.value)}
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
-                  >
-                    {opcionesDisponibles.materiales.map((material) => (
-                      <option key={material} value={material}>{material}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Selector de Encimera (si está disponible) */}
-              {opcionesDisponibles.encimeras.length > 0 && (
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Encimera:
-                  </label>
-                  <select
-                    value={opciones.encimera}
-                    onChange={(e) => actualizarOpcion('encimera', e.target.value)}
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
-                  >
-                    {opcionesDisponibles.encimeras.map((encimera) => (
-                      <option key={encimera} value={encimera}>{encimera}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Selector de Cantear (si está disponible) */}
-              {opcionesDisponibles.canteados.length > 0 && (
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Cantear:
-                  </label>
-                  <select
-                    value={opciones.cantear || ''}
-                    onChange={(e) => actualizarOpcion('cantear', e.target.value)}
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
-                  >
-                    <option value="">Seleccione un tipo de cantear</option>
-                    {opcionesDisponibles.canteados.map((cantear) => (
-                      <option key={cantear} value={cantear}>{cantear}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Mensaje informativo si no hay opciones disponibles (solo para debug) */}
-              {mueble.categoria !== 'cocina' && 
-               opcionesDisponibles.colores.length === 0 && 
-               opcionesDisponibles.materiales.length === 0 && 
-               opcionesDisponibles.encimeras.length === 0 && 
-               opcionesDisponibles.canteados.length === 0 && (
-                <div className="mb-6 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-xs text-yellow-800">
-                    ℹ️ Este producto no tiene opciones de personalización configuradas. 
-                    Si necesitas agregar colores, materiales u otras opciones, contacta al administrador.
-                  </p>
-                </div>
               )}
 
               {/* Opciones Personalizadas de Cocina - Mismo código que ProductDetail */}

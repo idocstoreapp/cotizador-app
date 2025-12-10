@@ -257,15 +257,13 @@ export const useCotizacionStore = create<CotizacionStore>()(
               gastosExtrasValor = itemActualizado.gastos_extras.reduce((sum, gasto) => sum + (gasto.monto || 0), 0);
             }
             
-            // Subtotal final
-            const subtotal = subtotalAntesExtras + gastosExtrasValor;
-            
-            // Margen de ganancia
+            // IMPORTANTE: Los gastos extras NO se incluyen en el cálculo de utilidad
+            // Aplicar utilidad SOLO sobre el subtotal antes de gastos extras
             const margenGanancia = itemActualizado.margen_ganancia || 30;
-            const margenGananciaValor = subtotal * (margenGanancia / 100);
+            const margenGananciaValor = subtotalAntesExtras * (margenGanancia / 100);
             
-            // Precio unitario final
-            const nuevoPrecioUnitario = Math.round((subtotal + margenGananciaValor) * 100) / 100;
+            // Precio unitario final = subtotal + utilidad + gastos extras (sin utilidad sobre gastos extras)
+            const nuevoPrecioUnitario = Math.round((subtotalAntesExtras + margenGananciaValor + gastosExtrasValor) * 100) / 100;
             itemActualizado.precio_unitario = nuevoPrecioUnitario;
             itemActualizado.precio_total = nuevoPrecioUnitario * itemActualizado.cantidad;
           } else if (updates.cantidad !== undefined) {

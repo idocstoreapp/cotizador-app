@@ -3,7 +3,7 @@
  * Reutiliza el sistema existente de gastos reales de materiales
  */
 import { useState, useEffect } from 'react';
-import { obtenerGastosRealesPorCotizacion, eliminarGastoReal, crearGastoReal } from '../../services/gastos-reales.service';
+import { obtenerGastosRealesPorCotizacion, eliminarGastoReal, crearGastoReal, actualizarGastoReal } from '../../services/gastos-reales.service';
 import RegistrarGastoRealModal from './RegistrarGastoRealModal';
 import type { Cotizacion, GastoRealMaterial } from '../../types/database';
 import type { MaterialMueble } from '../../types/muebles';
@@ -17,10 +17,12 @@ interface MaterialesRealesTabProps {
 // Modal para agregar material adicional
 function AgregarMaterialAdicionalModal({ 
   cotizacionId, 
+  cotizacion,
   onClose, 
   onSuccess 
 }: { 
-  cotizacionId: string; 
+  cotizacionId: string;
+  cotizacion: Cotizacion;
   onClose: () => void; 
   onSuccess: () => void; 
 }) {
@@ -33,8 +35,35 @@ function AgregarMaterialAdicionalModal({
     fecha_compra: new Date().toISOString().split('T')[0],
     proveedor: '',
     numero_factura: '',
-    notas: ''
+    notas: '',
+    alcance_gasto: 'total' as 'unidad' | 'parcial' | 'total',
+    cantidad_items_aplicados: 1
   });
+
+  // Obtener la cantidad de items de la cotización
+  let cantidadItem = 1;
+  if (cotizacion?.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0) {
+    const itemConCantidad = cotizacion.items.find((item: any) => item.cantidad && item.cantidad > 1);
+    if (itemConCantidad) {
+      cantidadItem = itemConCantidad.cantidad;
+    }
+  }
+
+  // Calcular el total según el alcance
+  const calcularTotal = () => {
+    const costoBase = formData.cantidad * formData.precio_unitario;
+    let multiplicador = 1;
+    
+    if (formData.alcance_gasto === 'unidad') {
+      multiplicador = cantidadItem;
+    } else if (formData.alcance_gasto === 'parcial') {
+      multiplicador = formData.cantidad_items_aplicados || 1;
+    } else {
+      multiplicador = 1; // total
+    }
+    
+    return costoBase * multiplicador;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,8 +77,23 @@ function AgregarMaterialAdicionalModal({
       return;
     }
 
+    if (formData.alcance_gasto === 'parcial' && (!formData.cantidad_items_aplicados || formData.cantidad_items_aplicados < 1 || formData.cantidad_items_aplicados > cantidadItem)) {
+      alert(`La cantidad de items aplicados debe estar entre 1 y ${cantidadItem}`);
+      return;
+    }
+
     try {
       setGuardando(true);
+      console.log('💾 Guardando material adicional...', {
+        cotizacionId,
+        material_nombre: formData.material_nombre.trim(),
+        cantidad: formData.cantidad,
+        precio_unitario: formData.precio_unitario,
+        alcance_gasto: formData.alcance_gasto,
+        cantidad_items_aplicados: formData.alcance_gasto === 'parcial' ? formData.cantidad_items_aplicados : undefined,
+        cantidadItem
+      });
+
       await crearGastoReal({
         cotizacion_id: cotizacionId,
         item_id: 'material-adicional-' + Date.now(),
@@ -62,12 +106,29 @@ function AgregarMaterialAdicionalModal({
         fecha_compra: formData.fecha_compra,
         proveedor: formData.proveedor || undefined,
         numero_factura: formData.numero_factura || undefined,
-        notas: formData.notas ? `[MATERIAL ADICIONAL] ${formData.notas}` : '[MATERIAL ADICIONAL] Material no presupuestado originalmente'
+        notas: formData.notas ? `[MATERIAL ADICIONAL] ${formData.notas}` : '[MATERIAL ADICIONAL] Material no presupuestado originalmente',
+        alcance_gasto: formData.alcance_gasto,
+        cantidad_items_aplicados: formData.alcance_gasto === 'parcial' ? formData.cantidad_items_aplicados : undefined
       });
+      
+      console.log('✅ Material adicional guardado exitosamente');
+      alert('✅ Material adicional guardado exitosamente');
       onSuccess();
     } catch (error: any) {
-      console.error('Error al guardar:', error);
-      alert('Error al guardar: ' + (error.message || 'Error desconocido'));
+      console.error('❌ Error al guardar material adicional:', error);
+      
+      // Mensaje de error más descriptivo
+      let mensajeError = error.message || 'Error desconocido al guardar';
+      
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+        mensajeError = '❌ Error de conexión\n\nNo se pudo conectar con el servidor. Verifica:\n\n1. Tu conexión a internet\n2. Que el servidor esté funcionando\n3. Intenta recargar la página\n\nSi el problema persiste, contacta al administrador.';
+      } else if (error.message?.includes('sesión') || error.message?.includes('JWT')) {
+        mensajeError = '❌ Sesión expirada\n\nTu sesión ha expirado. Por favor, recarga la página e inicia sesión nuevamente.';
+      } else if (error.message?.includes('permisos')) {
+        mensajeError = '❌ Sin permisos\n\nNo tienes permisos para realizar esta acción. Verifica tu sesión.';
+      }
+      
+      alert(mensajeError);
     } finally {
       setGuardando(false);
     }
@@ -152,12 +213,101 @@ function AgregarMaterialAdicionalModal({
             </div>
           </div>
 
+          {/* Selector de alcance */}
+          <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              ¿A cuántos items aplica este material? *
+            </label>
+            <div className="space-y-2">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="alcance"
+                  value="total"
+                  checked={formData.alcance_gasto === 'total'}
+                  onChange={() => setFormData({ ...formData, alcance_gasto: 'total' })}
+                  className="mt-1"
+                />
+                <div>
+                  <span className="font-medium">Total</span>
+                  <p className="text-xs text-gray-600">
+                    El material ya incluye todos los {cantidadItem} items. No se multiplicará.
+                  </p>
+                </div>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="alcance"
+                  value="unidad"
+                  checked={formData.alcance_gasto === 'unidad'}
+                  onChange={() => setFormData({ ...formData, alcance_gasto: 'unidad' })}
+                  className="mt-1"
+                />
+                <div>
+                  <span className="font-medium">Por Unidad</span>
+                  <p className="text-xs text-gray-600">
+                    El material es para 1 unidad. Se multiplicará por {cantidadItem} items.
+                  </p>
+                </div>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="alcance"
+                  value="parcial"
+                  checked={formData.alcance_gasto === 'parcial'}
+                  onChange={() => setFormData({ ...formData, alcance_gasto: 'parcial' })}
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  <span className="font-medium">Parcial</span>
+                  <p className="text-xs text-gray-600 mb-2">
+                    El material aplica solo a algunos items. Especifica cuántos:
+                  </p>
+                  {formData.alcance_gasto === 'parcial' && (
+                    <input
+                      type="number"
+                      min="1"
+                      max={cantidadItem}
+                      value={formData.cantidad_items_aplicados}
+                      onChange={(e) => setFormData({ ...formData, cantidad_items_aplicados: Number(e.target.value) })}
+                      className="w-24 border border-gray-300 rounded px-2 py-1 text-sm"
+                      placeholder={`1-${cantidadItem}`}
+                    />
+                  )}
+                </div>
+              </label>
+            </div>
+          </div>
+
           <div className="bg-blue-50 p-3 rounded-lg">
             <p className="text-sm text-blue-800">
-              <span className="font-medium">Total:</span>{' '}
-              <span className="text-lg font-bold">
+              <span className="font-medium">Costo base (1 unidad):</span>{' '}
+              <span className="font-bold">
                 ${(formData.cantidad * formData.precio_unitario).toLocaleString('es-CO')}
               </span>
+            </p>
+            <p className="text-sm text-blue-800 mt-1">
+              <span className="font-medium">Total calculado:</span>{' '}
+              <span className="text-lg font-bold">
+                ${calcularTotal().toLocaleString('es-CO')}
+              </span>
+              {formData.alcance_gasto === 'unidad' && (
+                <span className="text-xs ml-2">
+                  ({formData.cantidad * formData.precio_unitario} × {cantidadItem} items)
+                </span>
+              )}
+              {formData.alcance_gasto === 'parcial' && (
+                <span className="text-xs ml-2">
+                  ({formData.cantidad * formData.precio_unitario} × {formData.cantidad_items_aplicados} items)
+                </span>
+              )}
+              {formData.alcance_gasto === 'total' && (
+                <span className="text-xs ml-2">
+                  (ya incluye todos los {cantidadItem} items)
+                </span>
+              )}
             </p>
           </div>
 
@@ -251,6 +401,15 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
     cargarDatos();
   }, [cotizacionId]);
 
+  // IMPORTANTE: Recargar datos cuando cambia la cotización (por si se actualizaron los items)
+  useEffect(() => {
+    if (cotizacion?.items) {
+      // Forzar recálculo cuando cambian los items de la cotización
+      console.log('🔄 Cotización actualizada, recalculando totales...');
+      // No necesitamos recargar gastos, solo se recalcularán los totales
+    }
+  }, [cotizacion?.items]);
+
   const cargarDatos = async () => {
     try {
       setCargando(true);
@@ -274,6 +433,78 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
     } catch (error: any) {
       console.error('Error al eliminar:', error);
       alert('Error al eliminar: ' + (error.message || 'Error desconocido'));
+    }
+  };
+
+  // Función para corregir automáticamente materiales adicionales mal marcados
+  const corregirMaterialesAdicionales = async () => {
+    // Detectar materiales adicionales que deberían ser 'total'
+    const materialesACorregir = gastos.filter(g => {
+      // Es material adicional (item_id empieza con "material-adicional")
+      const esAdicional = g.item_id?.startsWith('material-adicional');
+      
+      // Tiene alcance 'unidad' (incorrecto para materiales adicionales)
+      const tieneAlcanceIncorrecto = g.alcance_gasto === 'unidad';
+      
+      if (!esAdicional || !tieneAlcanceIncorrecto) return false;
+      
+      // Nombres que sugieren que son "total" (facturas, cortes CNC, servicios únicos, etc.)
+      const nombre = g.material_nombre?.toLowerCase() || '';
+      const nombreSugiereTotal = 
+        nombre.includes('total') ||
+        nombre.includes('factura') ||
+        nombre.includes('corte cnc') ||
+        nombre.includes('cnc') ||
+        nombre.includes('servicio') ||
+        nombre.includes('corte') ||
+        nombre.includes('fresado') ||
+        nombre.includes('maquinado') ||
+        nombre.includes('trabajo');
+      
+      return nombreSugiereTotal;
+    });
+
+    if (materialesACorregir.length === 0) {
+      alert('No se encontraron materiales adicionales que necesiten corrección.');
+      return;
+    }
+
+    const confirmacion = confirm(
+      `Se encontraron ${materialesACorregir.length} materiales adicionales que deberían ser "Total" en lugar de "Por Unidad".\n\n` +
+      `Materiales a corregir:\n${materialesACorregir.map(m => `- ${m.material_nombre}`).join('\n')}\n\n` +
+      `¿Deseas corregirlos automáticamente?`
+    );
+
+    if (!confirmacion) return;
+
+    try {
+      let corregidos = 0;
+      let errores = 0;
+
+      for (const gasto of materialesACorregir) {
+        try {
+          await actualizarGastoReal(gasto.id, {
+            alcance_gasto: 'total'
+          });
+          corregidos++;
+          console.log(`✅ Corregido: ${gasto.material_nombre} → alcance: total`);
+        } catch (error: any) {
+          console.error(`❌ Error al corregir ${gasto.material_nombre}:`, error);
+          errores++;
+        }
+      }
+
+      alert(
+        `Corrección completada:\n` +
+        `✅ ${corregidos} materiales corregidos\n` +
+        (errores > 0 ? `❌ ${errores} errores` : '')
+      );
+
+      await cargarDatos();
+      onUpdate();
+    } catch (error: any) {
+      console.error('Error al corregir materiales:', error);
+      alert('Error al corregir materiales: ' + (error.message || 'Error desconocido'));
     }
   };
 
@@ -364,7 +595,7 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
   }
   
   // IMPORTANTE: totalPresupuestado ya está multiplicado por cantidadItem en materialesAgrupados
-  const totalPresupuestado = Array.from(materialesAgrupados.values()).reduce((sum, mat) => sum + mat.costo_total, 0);
+  const totalPresupuestadoDesdeItems = Array.from(materialesAgrupados.values()).reduce((sum, mat) => sum + mat.costo_total, 0);
   
   // También calcular desde gastos reales registrados (para comparación)
   // NOTA: cantidad_presupuestada en los gastos reales YA está multiplicada por cantidadItem cuando se registró
@@ -373,10 +604,74 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
     return sum + (g.cantidad_presupuestada * g.precio_unitario_presupuestado);
   }, 0);
 
+  // CORRECCIÓN: Si no hay materiales en los items pero hay gastos reales con cantidad_presupuestada,
+  // usar el total desde gastos. Si hay materiales en items, usar ese (más confiable).
+  // Si ambos están vacíos, el total es 0.
+  const totalPresupuestado = totalPresupuestadoDesdeItems > 0 
+    ? totalPresupuestadoDesdeItems 
+    : totalPresupuestadoDesdeGastos;
+
   // Debug: verificar cálculos
+  console.log('🔍 ====== CÁLCULO DE TOTALES ======');
   console.log('Materiales - cantidadItem:', cantidadItem);
-  console.log('Materiales - totalPresupuestado (desde items):', totalPresupuestado);
+  console.log('Materiales - totalPresupuestado (desde items):', totalPresupuestadoDesdeItems);
   console.log('Materiales - totalPresupuestadoDesdeGastos:', totalPresupuestadoDesdeGastos);
+  console.log('Materiales - totalPresupuestado FINAL (usado):', totalPresupuestado);
+  console.log('Materiales - Cantidad de materiales en items:', materialesPresupuestados.length);
+  console.log('Materiales - Cantidad de gastos reales:', gastos.length);
+  
+  // Debug adicional: verificar si hay discrepancia
+  if (Math.abs(totalPresupuestadoDesdeItems - totalPresupuestadoDesdeGastos) > 0.01 && totalPresupuestadoDesdeItems > 0 && totalPresupuestadoDesdeGastos > 0) {
+    console.warn('⚠️ DISCREPANCIA: Los totales desde items y desde gastos no coinciden');
+    console.warn('   - Desde items:', totalPresupuestadoDesdeItems);
+    console.warn('   - Desde gastos:', totalPresupuestadoDesdeGastos);
+    console.warn('   - Diferencia:', Math.abs(totalPresupuestadoDesdeItems - totalPresupuestadoDesdeGastos));
+  }
+  console.log('===================================');
+
+  // DEBUG: Función especial para kub-1003
+  const esKub1003 = cotizacion?.numero?.toUpperCase().includes('KUB-1003');
+  if (esKub1003) {
+    console.log('🔍 ====== DEBUG KUB-1003 ======');
+    console.log('📋 Cotización:', cotizacion.numero);
+    console.log('📦 Cantidad de items:', cantidadItem);
+    console.log('📊 Total de gastos reales:', gastos.length);
+    console.log('📋 Materiales en items de cotización:');
+    if (cotizacion.items && Array.isArray(cotizacion.items)) {
+      cotizacion.items.forEach((item: any, itemIndex: number) => {
+        console.log(`  Item ${itemIndex + 1}: ${item.nombre || 'Sin nombre'}`);
+        console.log(`    - Cantidad: ${item.cantidad || 1}`);
+        console.log(`    - Materiales en item: ${item.materiales?.length || 0}`);
+        if (item.materiales && Array.isArray(item.materiales)) {
+          item.materiales.forEach((mat: any, matIndex: number) => {
+            console.log(`      Material ${matIndex + 1}: ${mat.material_nombre || mat.nombre}`);
+            console.log(`        - Cantidad: ${mat.cantidad || 0} ${mat.unidad || ''}`);
+            console.log(`        - Precio: $${(mat.precio_unitario || 0).toLocaleString('es-CO')}`);
+            console.log(`        - Total: $${((mat.cantidad || 0) * (mat.precio_unitario || 0)).toLocaleString('es-CO')}`);
+          });
+        }
+      });
+    } else {
+      console.log('  ⚠️ No hay items en la cotización o items no es un array');
+    }
+    console.log('📋 Gastos reales detallados:');
+    gastos.forEach((g, index) => {
+      console.log(`  ${index + 1}. ${g.material_nombre}`);
+      console.log(`     - Cantidad presupuestada: ${g.cantidad_presupuestada} ${g.unidad}`);
+      console.log(`     - Precio presupuestado: $${g.precio_unitario_presupuestado.toLocaleString('es-CO')}`);
+      console.log(`     - Cantidad real: ${g.cantidad_real} ${g.unidad}`);
+      console.log(`     - Precio unitario real: $${g.precio_unitario_real.toLocaleString('es-CO')}`);
+      console.log(`     - Alcance: ${g.alcance_gasto || 'NO DEFINIDO (se asume total)'}`);
+      console.log(`     - Items aplicados: ${g.cantidad_items_aplicados || 'N/A'}`);
+      console.log(`     - Item ID: ${g.item_id}`);
+      console.log(`     - Notas: ${g.notas || 'Sin notas'}`);
+    });
+    console.log('📊 Totales calculados:');
+    console.log(`  - Total presupuestado desde items: $${totalPresupuestadoDesdeItems.toLocaleString('es-CO')}`);
+    console.log(`  - Total presupuestado desde gastos: $${totalPresupuestadoDesdeGastos.toLocaleString('es-CO')}`);
+    console.log(`  - Total presupuestado FINAL: $${totalPresupuestado.toLocaleString('es-CO')}`);
+    console.log('===============================');
+  }
 
   // IMPORTANTE: Calcular total real considerando el alcance_gasto de cada gasto
   const totalReal = gastos.reduce((sum, g) => {
@@ -384,27 +679,50 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
     let multiplicador = 1;
     
     // Debug: verificar el alcance_gasto guardado
-    console.log('Material:', g.material_nombre, 'alcance_gasto:', g.alcance_gasto, 'costoPorUnidad:', costoPorUnidad);
+    if (esKub1003) {
+      console.log(`🔍 [KUB-1003] Material: ${g.material_nombre}`);
+      console.log(`   - Alcance: ${g.alcance_gasto || 'NO DEFINIDO'}`);
+      console.log(`   - Costo por unidad: $${costoPorUnidad.toLocaleString('es-CO')}`);
+    }
     
     if (g.alcance_gasto === 'unidad') {
       // Por 1 unidad: multiplicar por cantidad total de items
       multiplicador = cantidadItem;
+      if (esKub1003) {
+        console.log(`   - Multiplicador: ${cantidadItem} (unidad × ${cantidadItem} items)`);
+      }
     } else if (g.alcance_gasto === 'parcial') {
       // Parcial: usar cantidad_items_aplicados directamente
       multiplicador = g.cantidad_items_aplicados || 1;
+      if (esKub1003) {
+        console.log(`   - Multiplicador: ${multiplicador} (parcial - ${g.cantidad_items_aplicados} items)`);
+      }
     } else if (g.alcance_gasto === 'total') {
       // Total: no multiplicar (ya incluye todos los items)
       multiplicador = 1;
+      if (esKub1003) {
+        console.log(`   - Multiplicador: 1 (total - ya incluye todos los ${cantidadItem} items)`);
+      }
     } else {
       // Por defecto (gastos antiguos sin alcance_gasto): NO multiplicar (asumir que ya es total)
       // Cambio: asumir que los gastos antiguos son "total" para no duplicar
       multiplicador = 1;
+      if (esKub1003) {
+        console.log(`   ⚠️ Multiplicador: 1 (SIN ALCANCE - se asume total para evitar duplicación)`);
+      }
     }
     
     const costoTotal = costoPorUnidad * multiplicador;
-    console.log('  -> multiplicador:', multiplicador, 'costoTotal:', costoTotal);
+    if (esKub1003) {
+      console.log(`   - Costo total: $${costoTotal.toLocaleString('es-CO')}`);
+    }
     return sum + costoTotal;
   }, 0);
+  
+  if (esKub1003) {
+    console.log(`💰 [KUB-1003] Total real calculado: $${totalReal.toLocaleString('es-CO')}`);
+    console.log('===============================');
+  }
   
   const totalRealPorUnidad = cantidadItem > 0 ? totalReal / cantidadItem : totalReal;
   
@@ -421,8 +739,21 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
 
   return (
     <div className="space-y-4">
-      {/* Botón Agregar Material Adicional */}
-      <div className="flex justify-end">
+      {/* Botones de acción */}
+      <div className="flex justify-end gap-2 flex-wrap">
+        {/* Botón para corregir materiales adicionales */}
+        {gastos.some(g => g.item_id?.startsWith('material-adicional') && g.alcance_gasto === 'unidad') && (
+          <button
+            onClick={corregirMaterialesAdicionales}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-medium rounded-lg transition-colors shadow-sm text-sm"
+            title="Corregir materiales adicionales que están marcados como 'Por Unidad' pero deberían ser 'Total'"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Corregir Alcances
+          </button>
+        )}
         <button
           onClick={() => setMostrarModalAdicional(true)}
           className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors shadow-sm"
@@ -824,6 +1155,7 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
       {mostrarModalAdicional && (
         <AgregarMaterialAdicionalModal
           cotizacionId={cotizacionId}
+          cotizacion={cotizacion}
           onClose={() => setMostrarModalAdicional(false)}
           onSuccess={() => {
             cargarDatos();
