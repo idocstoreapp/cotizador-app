@@ -45,3 +45,4 @@ CREATE POLICY "Admins can delete profiles" ON perfiles
 -- SELECT * FROM pg_policies WHERE tablename = 'perfiles' AND policyname = 'Admins can delete profiles';
 
 
+

@@ -121,7 +121,7 @@ export async function obtenerEstadisticasDashboard(mes?: number, año?: number):
 
   // Buscar K001 específicamente para debug
   const cotizacionK001 = todasLasCotizaciones.find(c => c.numero === 'K001' || c.numero === 'K-001');
-  
+
   // Debug: Log para verificar filtros
   console.log('📊 [Dashboard Stats] Filtros:', {
     totalCotizaciones: todasLasCotizaciones.length,
@@ -195,10 +195,10 @@ export async function obtenerEstadisticasDashboard(mes?: number, año?: number):
     cotizacionesConItems.forEach(c => {
       cantidadPorCotizacion.set(c.id, c.cantidadItem);
     });
-
+  
     // 1. Gastos en materiales (de todas las cotizaciones aceptadas en el mes)
     const { data: gastosMaterialesData, error: errorMateriales } = await supabase
-      .from('gastos_reales_materiales')
+    .from('gastos_reales_materiales')
       .select('precio_unitario_real, cantidad_real, cotizacion_id, alcance_gasto, cantidad_items_aplicados')
       .in('cotizacion_id', idsCotizacionesAceptadas);
 
@@ -229,11 +229,11 @@ export async function obtenerEstadisticasDashboard(mes?: number, año?: number):
       
       const costoTotal = costoPorUnidad * multiplicador;
       return sum + costoTotal;
-    }, 0);
+  }, 0);
 
     // 2. Mano de obra real (de todas las cotizaciones aceptadas en el mes)
     const { data: manoObraData, error: errorManoObra } = await supabase
-      .from('mano_obra_real')
+    .from('mano_obra_real')
       .select('total_pagado, cotizacion_id, alcance_gasto, cantidad_items_aplicados')
       .in('cotizacion_id', idsCotizacionesAceptadas);
 
@@ -265,7 +265,7 @@ export async function obtenerEstadisticasDashboard(mes?: number, año?: number):
 
     // 3. Gastos hormiga (de todas las cotizaciones aceptadas en el mes)
     const { data: gastosHormigaData, error: errorHormiga } = await supabase
-      .from('gastos_hormiga')
+    .from('gastos_hormiga')
       .select('monto, cotizacion_id, alcance_gasto, cantidad_items_aplicados')
       .in('cotizacion_id', idsCotizacionesAceptadas);
 
@@ -297,7 +297,7 @@ export async function obtenerEstadisticasDashboard(mes?: number, año?: number):
 
     // 4. Transporte real (de todas las cotizaciones aceptadas en el mes)
     const { data: transporteData, error: errorTransporte } = await supabase
-      .from('transporte_real')
+    .from('transporte_real')
       .select('costo, cotizacion_id, alcance_gasto, cantidad_items_aplicados')
       .in('cotizacion_id', idsCotizacionesAceptadas);
 
@@ -588,7 +588,7 @@ export async function obtenerEstadisticasDashboard(mes?: number, año?: number):
       cantidadPorCotizacionHist.set(cotizacion.id, cantidadItem);
     });
 
-    const [materialesHist, manoObraHist, hormigaHist, transporteHist] = await Promise.all([
+  const [materialesHist, manoObraHist, hormigaHist, transporteHist] = await Promise.all([
       supabase.from('gastos_reales_materiales')
         .select('precio_unitario_real, cantidad_real, cotizacion_id, alcance_gasto, cantidad_items_aplicados')
         .in('cotizacion_id', idsCotizacionesAceptadasHistorico),

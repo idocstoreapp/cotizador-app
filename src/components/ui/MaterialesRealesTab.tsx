@@ -351,7 +351,7 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
       });
     }
   });
-
+  
   // Obtener la cantidad del item (para multiplicar los gastos reales)
   // Los gastos reales están registrados para 1 unidad, pero el item puede tener múltiples unidades
   let cantidadItem = 1;
@@ -372,7 +372,7 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
   const totalPresupuestadoDesdeGastos = gastos.reduce((sum, g) => {
     return sum + (g.cantidad_presupuestada * g.precio_unitario_presupuestado);
   }, 0);
-  
+
   // Debug: verificar cálculos
   console.log('Materiales - cantidadItem:', cantidadItem);
   console.log('Materiales - totalPresupuestado (desde items):', totalPresupuestado);
@@ -671,54 +671,54 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
 
           {/* Vista desktop - Tabla simplificada */}
           <div className="hidden lg:block overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Material</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cantidad</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precio Unit.</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Más Info</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {gastos.map((gasto) => {
-                  const totalGasto = gasto.cantidad_real * gasto.precio_unitario_real;
-                  const totalPresupuestadoGasto = gasto.cantidad_presupuestada * gasto.precio_unitario_presupuestado;
-                  const diferenciaGasto = totalGasto - totalPresupuestadoGasto;
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {gastos.map((gasto) => {
+                const totalGasto = gasto.cantidad_real * gasto.precio_unitario_real;
+                const totalPresupuestadoGasto = gasto.cantidad_presupuestada * gasto.precio_unitario_presupuestado;
+                const diferenciaGasto = totalGasto - totalPresupuestadoGasto;
 
-                  return (
-                    <tr key={gasto.id}>
+                return (
+                  <tr key={gasto.id}>
                       <td className="px-4 py-4">
-                        <div className="text-sm font-medium text-gray-900">{gasto.material_nombre}</div>
-                        {gasto.numero_factura && (
-                          <div className="text-xs text-gray-500">Fact: {gasto.numero_factura}</div>
-                        )}
-                      </td>
+                      <div className="text-sm font-medium text-gray-900">{gasto.material_nombre}</div>
+                      {gasto.numero_factura && (
+                        <div className="text-xs text-gray-500">Fact: {gasto.numero_factura}</div>
+                      )}
+                    </td>
                       <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="text-sm">
-                          <span className="text-gray-900">{gasto.cantidad_real}</span>
-                          <span className="text-gray-500"> / {gasto.cantidad_presupuestada}</span>
-                          <span className="text-xs text-gray-400"> {gasto.unidad}</span>
-                        </div>
-                      </td>
+                      <div className="text-sm">
+                        <span className="text-gray-900">{gasto.cantidad_real}</span>
+                        <span className="text-gray-500"> / {gasto.cantidad_presupuestada}</span>
+                        <span className="text-xs text-gray-400"> {gasto.unidad}</span>
+                      </div>
+                    </td>
                       <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="text-sm">
-                          <span className="text-gray-900">${gasto.precio_unitario_real.toLocaleString('es-CO')}</span>
-                          <span className="text-gray-500 text-xs"> / ${gasto.precio_unitario_presupuestado.toLocaleString('es-CO')}</span>
-                        </div>
-                      </td>
+                      <div className="text-sm">
+                        <span className="text-gray-900">${gasto.precio_unitario_real.toLocaleString('es-CO')}</span>
+                        <span className="text-gray-500 text-xs"> / ${gasto.precio_unitario_presupuestado.toLocaleString('es-CO')}</span>
+                      </div>
+                    </td>
                       <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium">
-                          ${totalGasto.toLocaleString('es-CO')}
+                      <div className="text-sm font-medium">
+                        ${totalGasto.toLocaleString('es-CO')}
+                      </div>
+                      {diferenciaGasto !== 0 && (
+                        <div className={`text-xs ${diferenciaGasto > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {diferenciaGasto > 0 ? '+' : ''}${diferenciaGasto.toLocaleString('es-CO')}
                         </div>
-                        {diferenciaGasto !== 0 && (
-                          <div className={`text-xs ${diferenciaGasto > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            {diferenciaGasto > 0 ? '+' : ''}${diferenciaGasto.toLocaleString('es-CO')}
-                          </div>
-                        )}
-                      </td>
+                      )}
+                    </td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         <div className="relative">
                           <button
@@ -742,7 +742,7 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
                                 <div className="px-4 py-2 text-xs border-t border-gray-100">
                                   <span className="text-gray-500">Fecha:</span>
                                   <div className="text-sm text-gray-900 mt-1">
-                                    {new Date(gasto.fecha_compra).toLocaleDateString('es-CO')}
+                      {new Date(gasto.fecha_compra).toLocaleDateString('es-CO')}
                                   </div>
                                 </div>
                                 {gasto.alcance_gasto && (
@@ -759,7 +759,7 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
                             </div>
                           )}
                         </div>
-                      </td>
+                    </td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         <div className="flex gap-2">
                           <button
@@ -782,20 +782,20 @@ export default function MaterialesRealesTab({ cotizacionId, cotizacion, onUpdate
                           >
                             ✏️ Editar
                           </button>
-                          <button
-                            onClick={() => handleEliminar(gasto.id)}
-                            className="text-red-600 hover:text-red-800 text-sm"
-                          >
+                      <button
+                        onClick={() => handleEliminar(gasto.id)}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                      >
                             🗑️ Eliminar
-                          </button>
+                      </button>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
         </>
       )}
 

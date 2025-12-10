@@ -396,7 +396,7 @@ export default function GastosHormigaTab({ cotizacionId, cotizacion, onUpdate }:
         <>
           {/* Vista móvil - Cards */}
           <div className="lg:hidden space-y-3">
-            {gastos.map((gasto) => (
+              {gastos.map((gasto) => (
               <div key={gasto.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
@@ -409,13 +409,13 @@ export default function GastosHormigaTab({ cotizacionId, cotizacion, onUpdate }:
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-500">Monto:</span>
                     <span className="text-sm font-semibold text-gray-900">
-                      ${gasto.monto.toLocaleString('es-CO')}
+                    ${gasto.monto.toLocaleString('es-CO')}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-500">Fecha:</span>
                     <span className="text-sm text-gray-700">
-                      {new Date(gasto.fecha).toLocaleDateString('es-CO')}
+                    {new Date(gasto.fecha).toLocaleDateString('es-CO')}
                     </span>
                   </div>
                   {gasto.alcance_gasto && (
@@ -555,30 +555,30 @@ export default function GastosHormigaTab({ cotizacionId, cotizacion, onUpdate }:
                               )}
                             </div>
                           </div>
-                        )}
-                      </div>
-                    </td>
+                      )}
+                    </div>
+                  </td>
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleEditar(gasto)}
-                          className="text-indigo-600 hover:text-indigo-800 text-sm"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => handleEliminar(gasto.id)}
-                          className="text-red-600 hover:text-red-800 text-sm"
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEditar(gasto)}
+                        className="text-indigo-600 hover:text-indigo-800 text-sm"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleEliminar(gasto.id)}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         </>
       )}
 

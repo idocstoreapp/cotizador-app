@@ -447,25 +447,25 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
 
           {/* Vista desktop - Tabla simplificada */}
           <div className="hidden lg:block overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trabajador</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Horas</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pago/Hora</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Más Info</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {registros.map((registro) => (
-                  <tr key={registro.id}>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {registros.map((registro) => (
+                <tr key={registro.id}>
                     <td className="px-4 py-4 whitespace-nowrap">
-                      {registro.trabajador
-                        ? `${registro.trabajador.nombre || ''} ${registro.trabajador.apellido || ''}`.trim() || registro.trabajador.email || 'Sin nombre'
-                        : 'No asignado'}
-                    </td>
+                    {registro.trabajador
+                      ? `${registro.trabajador.nombre || ''} ${registro.trabajador.apellido || ''}`.trim() || registro.trabajador.email || 'Sin nombre'
+                      : 'No asignado'}
+                  </td>
                     <td className="px-4 py-4 whitespace-nowrap">{registro.horas_trabajadas}</td>
                     <td className="px-4 py-4 whitespace-nowrap">${registro.pago_por_hora.toLocaleString('es-CO')}</td>
                     <td className="px-4 py-4 whitespace-nowrap font-medium">${registro.total_pagado.toLocaleString('es-CO')}</td>
@@ -511,26 +511,26 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleEditar(registro)}
-                          className="text-indigo-600 hover:text-indigo-800 text-sm"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => handleEliminar(registro.id)}
-                          className="text-red-600 hover:text-red-800 text-sm"
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEditar(registro)}
+                        className="text-indigo-600 hover:text-indigo-800 text-sm"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleEliminar(registro.id)}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         </>
       )}
 

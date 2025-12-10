@@ -482,17 +482,17 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
 
           {/* Vista desktop - Tabla simplificada */}
           <div className="hidden lg:block overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo/Descripción</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Costo</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Más Info</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
                 {transportes.map((transporte) => {
                   const costoPorUnidad = transporte.costo || 0;
                   let multiplicador = 1;
@@ -508,10 +508,10 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
                   const costoTotal = costoPorUnidad * multiplicador;
                   
                   return (
-                    <tr key={transporte.id}>
+                <tr key={transporte.id}>
                       <td className="px-4 py-4">
-                        <div className="text-sm font-medium text-gray-900">{transporte.tipo_descripcion}</div>
-                      </td>
+                    <div className="text-sm font-medium text-gray-900">{transporte.tipo_descripcion}</div>
+                  </td>
                       <td className="px-4 py-4 whitespace-nowrap font-medium">
                         ${costoTotal.toLocaleString('es-CO')}
                         {multiplicador > 1 && (
@@ -519,10 +519,10 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
                             ${costoPorUnidad.toLocaleString('es-CO')} × {multiplicador}
                           </div>
                         )}
-                      </td>
+                  </td>
                       <td className="px-4 py-4 whitespace-nowrap">
-                        {new Date(transporte.fecha).toLocaleDateString('es-CO')}
-                      </td>
+                    {new Date(transporte.fecha).toLocaleDateString('es-CO')}
+                  </td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         <div className="relative">
                           <button
@@ -551,12 +551,12 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
                                   <div className="px-4 py-2 text-xs border-t border-gray-100">
                                     <span className="text-gray-500">Factura:</span>
                                     <div className="mt-1">
-                                      <a
-                                        href={transporte.factura_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
+                      <a
+                        href={transporte.factura_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
                                         className="text-sm text-indigo-600 hover:text-indigo-800"
-                                      >
+                      >
                                         📄 Ver factura
                                       </a>
                                     </div>
@@ -564,31 +564,31 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
                                 )}
                               </div>
                             </div>
-                          )}
+                    )}
                         </div>
-                      </td>
+                  </td>
                       <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleEditar(transporte)}
-                            className="text-indigo-600 hover:text-indigo-800 text-sm"
-                          >
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => handleEliminar(transporte.id)}
-                            className="text-red-600 hover:text-red-800 text-sm"
-                          >
-                            Eliminar
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEditar(transporte)}
+                        className="text-indigo-600 hover:text-indigo-800 text-sm"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleEliminar(transporte.id)}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </td>
+                </tr>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
+            </tbody>
+          </table>
+        </div>
         </>
       )}
 

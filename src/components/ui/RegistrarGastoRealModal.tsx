@@ -89,24 +89,24 @@ export default function RegistrarGastoRealModal({
         alert('✅ Gasto real actualizado exitosamente');
       } else {
         // Modo creación
-        await crearGastoReal({
-          cotizacion_id: cotizacionId,
-          item_id: itemId,
-          material_id: material.material_id,
-          material_nombre: material.material_nombre || 'Material',
-          cantidad_presupuestada: cantidadPresupuestada,
-          cantidad_real: cantidadReal,
-          precio_unitario_presupuestado: precioPresupuestado,
-          precio_unitario_real: precioUnitarioReal,
-          unidad: material.unidad || 'unidad',
-          fecha_compra: fechaCompra,
-          proveedor: proveedor || undefined,
-          numero_factura: numeroFactura || undefined,
+      await crearGastoReal({
+        cotizacion_id: cotizacionId,
+        item_id: itemId,
+        material_id: material.material_id,
+        material_nombre: material.material_nombre || 'Material',
+        cantidad_presupuestada: cantidadPresupuestada,
+        cantidad_real: cantidadReal,
+        precio_unitario_presupuestado: precioPresupuestado,
+        precio_unitario_real: precioUnitarioReal,
+        unidad: material.unidad || 'unidad',
+        fecha_compra: fechaCompra,
+        proveedor: proveedor || undefined,
+        numero_factura: numeroFactura || undefined,
           notas: notas || undefined,
           alcance_gasto: alcanceGasto,
           cantidad_items_aplicados: alcanceGasto === 'parcial' ? cantidadItemsAplicados : undefined
-        });
-        alert('✅ Gasto real registrado exitosamente');
+      });
+      alert('✅ Gasto real registrado exitosamente');
       }
 
       onSuccess();
