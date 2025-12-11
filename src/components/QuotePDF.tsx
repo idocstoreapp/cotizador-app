@@ -1,12 +1,14 @@
 /**
  * Componente React para generar PDF de cotización profesional
- * Diseño basado en plantilla de Mueblería Casa Blanca
+ * Diseño personalizado por empresa (Kubica y Casablanca)
  */
 import React from 'react';
 
 interface QuoteItem {
   concepto: string;
   precio: number;
+  cantidad?: number; // Cantidad de unidades
+  precio_unitario?: number; // Precio por unidad
   // Detalles opcionales para mostrar desglose
   detalles?: {
     materiales?: Array<{
@@ -45,6 +47,10 @@ interface EmpresaInfo {
 
 interface QuotePDFProps {
   clientName: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  clientAddress?: string;
+  vendedorName?: string; // Nombre del vendedor
   date: string;
   quoteNumber: string;
   model: string;
@@ -59,6 +65,10 @@ interface QuotePDFProps {
 
 export default function QuotePDF({
   clientName,
+  clientEmail,
+  clientPhone,
+  clientAddress,
+  vendedorName,
   date,
   quoteNumber,
   model,
@@ -70,53 +80,161 @@ export default function QuotePDF({
   companyLogo,
   empresaInfo
 }: QuotePDFProps) {
+  // Detectar si es Kubica o Casablanca
+  const isKubica = companyName?.toUpperCase().includes('KUBICA') || 
+                   empresaInfo?.nombre?.toUpperCase().includes('KUBICA');
+  
+  const isCasablanca = companyName?.toUpperCase().includes('CASABLANCA') || 
+                       empresaInfo?.nombre?.toUpperCase().includes('CASABLANCA') ||
+                       companyName?.toUpperCase().includes('CASA BLANCA') ||
+                       empresaInfo?.nombre?.toUpperCase().includes('CASA BLANCA');
+
+  // Colores de Kubica (basados en su diseño web)
+  const kubicaColors = {
+    primary: '#b4965a',      // Línea de Acento/Ocre RGB(180, 150, 90)
+    secondary: '#8b6f47',    // Color secundario (marrón medio para contrastes)
+    dark: '#333333',         // Texto Principal/Títulos RGB(51, 51, 51)
+    light: '#f5f5f5',        // Fondo Principal RGB(245, 245, 245)
+    darkLight: '#d2d2d2',    // Borde de Tarjeta RGB(210, 210, 210)
+    rowLight: '#e8e8e8',     // Gris claro para filas alternadas
+    rowDark: '#d0d0d0'       // Gris un poco más oscuro para filas alternadas
+  };
+
+  // Colores de Mueblería Casa Blanca (negro, blanco y amarillo para detalles)
+  const casablancaColors = {
+    primary: '#000000',       // Negro (principal)
+    secondary: '#ffffff',     // Blanco (principal)
+    dark: '#000000',          // Negro (textos)
+    light: '#ffffff',         // Blanco (fondos)
+    darkLight: '#f5f5f5',     // Gris muy claro para filas alternadas
+    accent: '#dfa135'         // Amarillo para detalles/acentos (#ffd700 = gold)
+  };
+
+  // Filtrar items que son totales, subtotales, IVA, etc. para no mostrarlos en la tabla principal
+  // Solo mostrar items reales de la cotización (no cálculos)
+  const regularItems = items.filter(item => {
+    const conceptoUpper = item.concepto.toUpperCase();
+    // Excluir solo items que son claramente cálculos o totales
+    // Ser más específico para no eliminar items válidos
+    const esCalculo = conceptoUpper === 'TOTAL' ||
+                      conceptoUpper === 'SUBTOTAL MATERIALES' ||
+                      conceptoUpper === 'SUBTOTAL SERVICIOS' ||
+                      conceptoUpper === 'SUBTOTAL' ||
+                      conceptoUpper.startsWith('IVA') ||
+                      conceptoUpper.startsWith('MARGEN DE GANANCIA') ||
+                      conceptoUpper.startsWith('DESCUENTO') ||
+                      conceptoUpper === 'COTIZACIÓN COMPLETA';
+    
+    return !esCalculo;
+  });
+  
+  // Si no hay items después del filtro, mostrar todos excepto TOTAL final
+  // Esto puede pasar cuando se genera desde historial con "Cotización Completa"
+  const itemsAMostrar = regularItems.length > 0 
+    ? regularItems 
+    : items.filter(item => item.concepto.toUpperCase() !== 'TOTAL');
+
+  // Calcular subtotal (suma de todos los items regulares)
+  const subtotal = itemsAMostrar.reduce((sum, item) => sum + item.precio, 0);
+
+  // Buscar IVA en los items filtrados
+  const ivaItem = items.find(item => {
+    const conceptoUpper = item.concepto.toUpperCase();
+    return conceptoUpper.startsWith('IVA') || conceptoUpper.includes('IVA');
+  });
+  const iva = ivaItem ? ivaItem.precio : 0;
+
+  // Determinar qué empresa es para aplicar estilos
+  const empresaStyle = isKubica ? 'kubica' : (isCasablanca ? 'casablanca' : 'default');
+  const empresaColors = isKubica ? kubicaColors : (isCasablanca ? casablancaColors : kubicaColors);
+
   return (
-    <div className="quote-pdf-container">
+    <div className={`quote-pdf-container ${empresaStyle}-style`}>
       <style>{`
         .quote-pdf-container {
           width: 210mm;
           min-height: 297mm;
-          background: #f5f5f0;
+          background: ${isKubica ? '#f5f5f5' : (isCasablanca ? '#f5f5f5' : '#f5f5f0')};
           position: relative;
           font-family: 'Arial', 'Helvetica', sans-serif;
           overflow: hidden;
+          padding-bottom: ${(isKubica || isCasablanca) ? '120px' : '80px'};
         }
 
-        /* Curvas decorativas */
-        .decorative-curve-1 {
+        /* Líneas curvas decorativas horizontales */
+        .decorative-line {
           position: absolute;
-          top: -50px;
-          right: -100px;
-          width: 400px;
-          height: 300px;
-          background: #d4a574;
-          border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-          opacity: 0.3;
-          transform: rotate(-15deg);
+          left: 0;
+          right: 0;
+          height: 3px;
+          z-index: 1;
+          opacity: 0.15;
         }
 
-        .decorative-curve-2 {
-          position: absolute;
-          top: 100px;
-          right: -80px;
-          width: 350px;
-          height: 250px;
-          background: #8b6f47;
-          border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-          opacity: 0.25;
-          transform: rotate(10deg);
+        .decorative-line-1 {
+          top: 80px;
+          background: linear-gradient(90deg, 
+            transparent 0%, 
+            ${empresaColors.primary} 10%, 
+            ${empresaColors.primary} 90%, 
+            transparent 100%);
+          border-radius: 0 0 50% 50%;
+          transform: scaleY(1.5);
         }
 
-        .decorative-curve-3 {
-          position: absolute;
-          top: 200px;
-          right: -60px;
-          width: 300px;
-          height: 200px;
-          background: #6b2c3e;
-          border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-          opacity: 0.2;
-          transform: rotate(-5deg);
+        .decorative-line-2 {
+          top: 180px;
+          background: linear-gradient(90deg, 
+            transparent 0%, 
+            ${empresaColors.secondary} 15%, 
+            ${empresaColors.secondary} 85%, 
+            transparent 100%);
+          border-radius: 0 0 50% 50%;
+          transform: scaleY(1.3);
+        }
+
+        .decorative-line-3 {
+          top: 280px;
+          background: linear-gradient(90deg, 
+            transparent 0%, 
+            ${empresaColors.dark} 20%, 
+            ${empresaColors.dark} 80%, 
+            transparent 100%);
+          border-radius: 0 0 50% 50%;
+          transform: scaleY(1.2);
+        }
+
+        .decorative-line-4 {
+          top: 380px;
+          background: linear-gradient(90deg, 
+            transparent 0%, 
+            ${empresaColors.primary} 12%, 
+            ${empresaColors.primary} 88%, 
+            transparent 100%);
+          border-radius: 0 0 50% 50%;
+          transform: scaleY(1.4);
+        }
+
+        .decorative-line-5 {
+          top: 480px;
+          background: linear-gradient(90deg, 
+            transparent 0%, 
+            ${empresaColors.secondary} 18%, 
+            ${empresaColors.secondary} 82%, 
+            transparent 100%);
+          border-radius: 0 0 50% 50%;
+          transform: scaleY(1.3);
+        }
+
+        .decorative-line-6 {
+          top: 580px;
+          background: linear-gradient(90deg, 
+            transparent 0%, 
+            ${empresaColors.dark} 15%, 
+            ${empresaColors.dark} 85%, 
+            transparent 100%);
+          border-radius: 0 0 50% 50%;
+          transform: scaleY(1.25);
         }
 
         /* Header */
@@ -173,6 +291,35 @@ export default function QuotePDF({
           margin-bottom: 3px;
         }
 
+        /* Número de orden y fecha en esquina superior derecha (solo Kubica) */
+        .quote-number-date {
+          position: absolute;
+          top: 30px;
+          right: 40px;
+          z-index: 20;
+          text-align: right;
+        }
+
+        .quote-number-large {
+          font-size: 36px;
+          font-weight: bold;
+          color: ${empresaColors.dark};
+          margin-bottom: 5px;
+          letter-spacing: 1px;
+        }
+
+        .quote-date {
+          font-size: 14px;
+          color: #666;
+          font-weight: 500;
+        }
+
+        /* Ocultar nombre de empresa en grande para Kubica y Casablanca */
+        .kubica-style .company-name,
+        .casablanca-style .company-name {
+          display: none;
+        }
+
         .quote-title {
           text-align: center;
           font-size: 24px;
@@ -191,11 +338,39 @@ export default function QuotePDF({
         }
 
         .info-section {
-          background: rgba(255, 255, 255, 0.9);
+          background: ${(isKubica || isCasablanca) ? empresaColors.light : 'rgba(255, 255, 255, 0.9)'};
           padding: 15px 20px;
           border-radius: 8px;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
           margin-bottom: 15px;
+          border: ${(isKubica || isCasablanca) ? `2px solid ${empresaColors.primary}` : 'none'};
+          position: relative;
+        }
+
+        .vendedor-section {
+          position: absolute;
+          right: 40px;
+          top: 15px;
+          background: ${(isKubica || isCasablanca) ? empresaColors.light : 'rgba(255, 255, 255, 0.9)'};
+          padding: 15px 20px;
+          border-radius: 8px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+          border: ${(isKubica || isCasablanca) ? `2px solid ${empresaColors.primary}` : 'none'};
+          min-width: 200px;
+          text-align: right;
+        }
+
+        .vendedor-label {
+          font-weight: bold;
+          color: ${(isKubica || isCasablanca) ? empresaColors.dark : '#333'};
+          margin-bottom: 4px;
+          font-size: 13px;
+        }
+
+        .vendedor-value {
+          color: ${(isKubica || isCasablanca) ? empresaColors.dark : '#666'};
+          font-weight: 600;
+          font-size: 13px;
         }
 
         .info-row {
@@ -205,12 +380,13 @@ export default function QuotePDF({
 
         .info-label {
           font-weight: bold;
-          color: #333;
+          color: ${(isKubica || isCasablanca) ? empresaColors.dark : '#333'};
           margin-right: 8px;
         }
 
         .info-value {
-          color: #666;
+          color: ${(isKubica || isCasablanca) ? empresaColors.dark : '#666'};
+          font-weight: ${(isKubica || isCasablanca) ? '600' : 'normal'};
         }
 
         .section-title {
@@ -222,59 +398,241 @@ export default function QuotePDF({
           border-bottom: 2px solid #d4a574;
         }
 
-
-        /* Economic summary */
+        /* Economic summary - Estilos mejorados para Kubica y Casablanca */
         .economic-summary {
           position: relative;
           z-index: 10;
-          background: rgba(255, 255, 255, 0.95);
+          background: ${isKubica ? empresaColors.primary : (isCasablanca ? casablancaColors.secondary : 'rgba(255, 255, 255, 0.95)')};
           margin: 0 40px 20px;
-          padding: 20px;
+          padding: 0;
           border-radius: 8px;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+          overflow: hidden;
+          border: ${isCasablanca ? `3px solid ${casablancaColors.accent}` : 'none'};
+        }
+
+        /* Esquinas estilizadas con triángulos y detalles pixelados */
+        .corner-decoration {
+          position: absolute;
+          width: 0;
+          height: 0;
+          z-index: 1;
+        }
+
+        .corner-top-left {
+          top: 0;
+          left: 0;
+          border-top: 30px solid ${isKubica ? empresaColors.secondary : (isCasablanca ? casablancaColors.accent : empresaColors.secondary)};
+          border-right: 30px solid transparent;
+        }
+
+        .corner-top-left::before {
+          content: '';
+          position: absolute;
+          top: -30px;
+          left: 0;
+          width: 20px;
+          height: 20px;
+          background: ${isKubica ? empresaColors.dark : (isCasablanca ? casablancaColors.dark : empresaColors.dark)};
+          clip-path: polygon(0 0, 100% 0, 0 100%, 20% 80%, 0 60%);
+        }
+
+        .corner-top-left::after {
+          content: '';
+          position: absolute;
+          top: -25px;
+          left: 5px;
+          width: 8px;
+          height: 8px;
+          background: ${isKubica ? empresaColors.primary : (isCasablanca ? casablancaColors.accent : empresaColors.primary)};
+          clip-path: polygon(0 0, 100% 0, 50% 100%);
+        }
+
+        .corner-top-right {
+          top: 0;
+          right: 0;
+          border-top: 30px solid ${isKubica ? empresaColors.secondary : (isCasablanca ? casablancaColors.accent : empresaColors.secondary)};
+          border-left: 30px solid transparent;
+        }
+
+        .corner-top-right::before {
+          content: '';
+          position: absolute;
+          top: -30px;
+          right: 0;
+          width: 20px;
+          height: 20px;
+          background: ${isKubica ? empresaColors.dark : (isCasablanca ? casablancaColors.dark : empresaColors.dark)};
+          clip-path: polygon(100% 0, 100% 100%, 0 0, 80% 20%, 100% 40%);
+        }
+
+        .corner-top-right::after {
+          content: '';
+          position: absolute;
+          top: -25px;
+          right: 5px;
+          width: 8px;
+          height: 8px;
+          background: ${isKubica ? empresaColors.primary : (isCasablanca ? casablancaColors.accent : empresaColors.primary)};
+          clip-path: polygon(0 0, 100% 0, 50% 100%);
+        }
+
+        .corner-bottom-left {
+          bottom: 0;
+          left: 0;
+          border-bottom: 30px solid ${isKubica ? empresaColors.secondary : (isCasablanca ? casablancaColors.accent : empresaColors.secondary)};
+          border-right: 30px solid transparent;
+        }
+
+        .corner-bottom-left::before {
+          content: '';
+          position: absolute;
+          bottom: -30px;
+          left: 0;
+          width: 20px;
+          height: 20px;
+          background: ${isKubica ? empresaColors.dark : (isCasablanca ? casablancaColors.dark : empresaColors.dark)};
+          clip-path: polygon(0 100%, 100% 100%, 0 0, 20% 80%, 0 60%);
+        }
+
+        .corner-bottom-left::after {
+          content: '';
+          position: absolute;
+          bottom: -25px;
+          left: 5px;
+          width: 8px;
+          height: 8px;
+          background: ${isKubica ? empresaColors.primary : (isCasablanca ? casablancaColors.accent : empresaColors.primary)};
+          clip-path: polygon(0 100%, 100% 100%, 50% 0);
+        }
+
+        .corner-bottom-right {
+          bottom: 0;
+          right: 0;
+          border-bottom: 30px solid ${isKubica ? empresaColors.secondary : (isCasablanca ? casablancaColors.accent : empresaColors.secondary)};
+          border-left: 30px solid transparent;
+        }
+
+        .corner-bottom-right::before {
+          content: '';
+          position: absolute;
+          bottom: -30px;
+          right: 0;
+          width: 20px;
+          height: 20px;
+          background: ${isKubica ? empresaColors.dark : (isCasablanca ? casablancaColors.dark : empresaColors.dark)};
+          clip-path: polygon(100% 100%, 100% 0, 0 100%, 80% 80%, 100% 60%);
+        }
+
+        .corner-bottom-right::after {
+          content: '';
+          position: absolute;
+          bottom: -25px;
+          right: 5px;
+          width: 8px;
+          height: 8px;
+          background: ${isKubica ? empresaColors.primary : (isCasablanca ? casablancaColors.accent : empresaColors.primary)};
+          clip-path: polygon(0 100%, 100% 100%, 50% 0);
         }
 
         .summary-title {
           font-size: 16px;
           font-weight: bold;
-          color: #333;
-          margin-bottom: 15px;
+          color: ${isKubica ? '#fff' : (isCasablanca ? '#000000' : '#333')};
+          margin: 20px 20px 0 20px;
+          padding-bottom: 15px;
           text-align: center;
+          position: relative;
+          z-index: 2;
+          border-bottom: ${isKubica ? `3px solid ${empresaColors.dark}` : (isCasablanca ? `3px solid ${casablancaColors.accent}` : '2px solid #e5e7eb')};
+          box-shadow: ${(isKubica || isCasablanca) ? `0 2px 4px rgba(0, 0, 0, 0.2)` : '0 1px 2px rgba(0, 0, 0, 0.1)'};
         }
 
         .summary-table {
           width: 100%;
           border-collapse: collapse;
+          position: relative;
+          z-index: 2;
+          margin-top: 5px;
+        }
+
+        .summary-table th {
+          padding: 12px 15px;
+          font-family: 'Arial', 'Helvetica', sans-serif;
+          font-size: 12px;
+          font-weight: bold;
+          text-align: left;
+          color: ${isKubica ? '#fff' : (isCasablanca ? '#000000' : '#333')};
+          background-color: ${isKubica ? empresaColors.dark : (isCasablanca ? casablancaColors.accent : '#f3f4f6')};
+          border-bottom: 2px solid ${isKubica ? empresaColors.secondary : (isCasablanca ? casablancaColors.dark : '#e5e7eb')};
+        }
+
+        .summary-table th:last-child {
+          text-align: right;
         }
 
         .summary-table td {
-          padding: 8px;
-          font-size: 12px;
-          border-bottom: 1px solid #e0e0e0;
-        }
-
-        .summary-table td:first-child {
-          color: #666;
-          font-weight: 500;
+          padding: 14px 15px;
+          font-family: 'Arial', 'Helvetica', sans-serif;
+          vertical-align: top;
+          font-size: 14px !important; /* Tamaño base consistente */
         }
 
         .summary-table td:last-child {
           text-align: right;
-          color: #333;
-          font-weight: 600;
         }
 
-        .summary-table tr:last-child td {
-          border-bottom: none;
-          padding-top: 10px;
-          font-size: 18px;
-          font-weight: bold;
-          color: #6b2c3e;
+        /* Filas intercaladas con colores claro/oscuro alternados */
+        .kubica-style .summary-table tbody tr:nth-child(odd) {
+          background-color: ${kubicaColors.rowLight};
         }
 
-        .summary-table tr:last-child td:first-child {
-          font-size: 18px;
-          color: #6b2c3e;
+        .kubica-style .summary-table tbody tr:nth-child(even) {
+          background-color: ${kubicaColors.rowDark};
+        }
+
+        .casablanca-style .summary-table tbody tr:nth-child(odd) {
+          background-color: ${casablancaColors.light};
+        }
+
+        .casablanca-style .summary-table tbody tr:nth-child(even) {
+          background-color: ${casablancaColors.darkLight};
+        }
+
+        .summary-table td:first-child {
+          color: ${isKubica ? '#000000' : (isCasablanca ? '#000000' : '#333')};
+          font-weight: normal;
+          font-size: 14px !important; /* Tamaño consistente */
+        }
+
+        /* Estilos para el contenido del item - TAMAÑOS FIJOS */
+        .item-title {
+          font-size: 14px !important;
+          font-weight: bold !important;
+          color: ${isKubica ? '#000000' : (isCasablanca ? '#000000' : '#333')} !important;
+          margin-bottom: 4px;
+          line-height: 1.3;
+          font-family: 'Arial', 'Helvetica', sans-serif !important;
+          display: block;
+        }
+
+        .item-description {
+          font-size: 11px !important;
+          color: ${isKubica ? '#000000' : (isCasablanca ? '#000000' : '#666')} !important;
+          line-height: 1.4;
+          font-family: 'Arial', 'Helvetica', sans-serif !important;
+          margin-top: 2px;
+          display: block;
+        }
+
+        .summary-table td:last-child {
+          text-align: right;
+          color: ${isKubica ? '#000000' : (isCasablanca ? '#000000' : '#333')} !important;
+          font-weight: 600 !important;
+          font-size: 14px !important;
+          font-family: 'Arial', 'Helvetica', sans-serif !important;
+          vertical-align: middle;
+          white-space: nowrap; /* Evitar que el precio se divida en líneas */
         }
 
         /* Detalles de items */
@@ -307,12 +665,12 @@ export default function QuotePDF({
         }
 
         .detail-table th {
-          background: #f5f5f0;
+          background: ${isKubica ? '#f5f5f5' : (isCasablanca ? '#f5f5f5' : '#f5f5f0')};
           padding: 6px;
           text-align: left;
           font-weight: 600;
-          color: #333;
-          border-bottom: 1px solid #d4a574;
+          color: ${isKubica ? '#333333' : '#333'};
+          border-bottom: 1px solid ${isKubica ? '#b4965a' : '#d4a574'};
           font-size: 10px;
         }
 
@@ -344,22 +702,89 @@ export default function QuotePDF({
           border-left: 3px solid #d4a574;
         }
 
-        /* Footer */
+        /* Footer - Total en cuadro para Kubica y Casablanca */
         .quote-footer {
           position: absolute;
           bottom: 0;
           left: 0;
           right: 0;
-          background: #2c2c2c;
-          color: white;
-          padding: 15px 40px;
+          background: ${isKubica ? '#fafafa' : (isCasablanca ? empresaColors.light : '#f5f5f5')};
+          color: ${(isKubica || isCasablanca) ? empresaColors.dark : '#333'};
+          padding: ${(isKubica || isCasablanca) ? '25px 40px 280px 40px' : '15px 40px'};
           text-align: center;
           z-index: 10;
+          min-height: ${(isKubica || isCasablanca) ? '300px' : 'auto'};
         }
 
         .footer-text {
           font-size: 12px;
           margin-bottom: 6px;
+        }
+
+        /* Cuadro de subtotal e IVA para Kubica y Casablanca */
+        .subtotal-iva-box {
+          background: ${isKubica ? empresaColors.light : (isCasablanca ? casablancaColors.secondary : '#fff')};
+          padding: 12px 20px;
+          border-radius: 4px;
+          position: absolute;
+          right: 40px;
+          bottom: 120px;
+          min-width: 250px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+          border: ${isKubica ? `2px solid ${empresaColors.primary}` : (isCasablanca ? `2px solid ${casablancaColors.accent}` : '1px solid #ddd')};
+          z-index: 11;
+        }
+
+        .subtotal-iva-row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 6px;
+          font-size: 13px;
+        }
+
+        .subtotal-iva-row:last-child {
+          margin-bottom: 0;
+          padding-top: 6px;
+          border-top: 1px solid ${isKubica ? empresaColors.darkLight : (isCasablanca ? casablancaColors.darkLight : '#ddd')};
+        }
+
+        .subtotal-iva-label {
+          color: ${isKubica ? empresaColors.dark : (isCasablanca ? casablancaColors.dark : '#333')};
+          font-weight: 600;
+        }
+
+        .subtotal-iva-value {
+          color: ${isKubica ? empresaColors.dark : (isCasablanca ? casablancaColors.dark : '#333')};
+          font-weight: bold;
+        }
+
+        /* Cuadro de total para Kubica y Casablanca - esquina derecha */
+        .total-box {
+          background: ${empresaColors.secondary};
+          padding: 20px 30px;
+          border-radius: 4px;
+          position: absolute;
+          right: 40px;
+          bottom: 25px;
+          min-width: 250px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+          z-index: 12;
+        }
+
+        .total-label {
+          font-size: 16px;
+          font-weight: bold;
+          color: #fff;
+          margin-bottom: 8px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+
+        .total-amount {
+          font-size: 28px;
+          font-weight: bold;
+          color: #fff;
+          text-align: right;
         }
 
         .footer-links {
@@ -382,10 +807,21 @@ export default function QuotePDF({
         }
       `}</style>
 
-      {/* Curvas decorativas */}
-      <div className="decorative-curve-1"></div>
-      <div className="decorative-curve-2"></div>
-      <div className="decorative-curve-3"></div>
+      {/* Líneas curvas decorativas horizontales */}
+      <div className="decorative-line decorative-line-1"></div>
+      <div className="decorative-line decorative-line-2"></div>
+      <div className="decorative-line decorative-line-3"></div>
+      <div className="decorative-line decorative-line-4"></div>
+      <div className="decorative-line decorative-line-5"></div>
+      <div className="decorative-line decorative-line-6"></div>
+
+      {/* Número de orden y fecha en esquina superior derecha (Kubica y Casablanca) */}
+      {(isKubica || isCasablanca) && (
+        <div className="quote-number-date">
+          <div className="quote-number-large">{quoteNumber}</div>
+          <div className="quote-date">{date}</div>
+        </div>
+      )}
 
       {/* Header */}
       <div className="quote-header">
@@ -404,7 +840,7 @@ export default function QuotePDF({
           )}
         </div>
         <div className="company-info-section">
-          <div className="company-name">{companyName}</div>
+          {!(isKubica || isCasablanca) && <div className="company-name">{companyName}</div>}
           {empresaInfo && (
             <div className="company-details">
               {empresaInfo.nombreCompleto && empresaInfo.rut && (
@@ -418,15 +854,19 @@ export default function QuotePDF({
               {empresaInfo.descripcion && (
                 <div className="company-detail-line">{empresaInfo.descripcion}</div>
               )}
-              {empresaInfo.emails && empresaInfo.emails.length > 0 && (
-                <div className="company-detail-line">{empresaInfo.emails.join(' / ')}</div>
-              )}
               {empresaInfo.telefonos && empresaInfo.telefonos.length > 0 && (
-                <div className="company-detail-line">{empresaInfo.telefonos.join(' / ')}</div>
+                <div className="company-detail-line">
+                  <span style={{ display: 'inline-block', width: '20px', textAlign: 'center', fontSize: '16px', marginRight: '4px' }}>📱</span> {empresaInfo.telefonos[0]}
+                </div>
+              )}
+              {empresaInfo.emails && empresaInfo.emails.length > 0 && (
+                <div className="company-detail-line">
+                  <span style={{ display: 'inline-block', width: '20px', textAlign: 'center', fontSize: '16px', marginRight: '4px' }}>✉️</span> {empresaInfo.emails[0]}
+                </div>
               )}
               {empresaInfo.sitioWeb && (
                 <div className="company-detail-line">
-                  {empresaInfo.sitioWeb.startsWith('http') ? empresaInfo.sitioWeb : `https://${empresaInfo.sitioWeb}`}
+                  <span style={{ display: 'inline-block', width: '20px', textAlign: 'center', fontSize: '16px', marginRight: '4px' }}>🌐</span> {empresaInfo.sitioWeb.startsWith('http') ? empresaInfo.sitioWeb : `https://${empresaInfo.sitioWeb}`}
                 </div>
               )}
             </div>
@@ -434,52 +874,273 @@ export default function QuotePDF({
         </div>
       </div>
 
-      {/* Title */}
-      <div className="quote-title">COTIZACIÓN DE COCINA INTEGRAL</div>
+      {/* Title - Solo mostrar si hay un modelo específico y no es el genérico */}
+      {model && model !== 'Cocina Integral' && model !== 'Dimensiones del proyecto' && (
+        <div className="quote-title">COTIZACIÓN - {model.toUpperCase()}</div>
+      )}
 
       {/* Main content */}
       <div className="quote-content">
         {/* Client info */}
         <div className="info-section">
-          <div className="info-row">
-            <span className="info-label">Cliente:</span>
-            <span className="info-value">{clientName}</span>
-          </div>
-          <div className="info-row">
-            <span className="info-label">Fecha:</span>
-            <span className="info-value">{date}</span>
-          </div>
-          <div className="info-row">
-            <span className="info-label">Nº Cotización:</span>
-            <span className="info-value">{quoteNumber}</span>
-          </div>
+          {!(isKubica || isCasablanca) && (
+            <>
+              <div className="info-row">
+                <span className="info-label">Cliente:</span>
+                <span className="info-value">{clientName}</span>
+              </div>
+              {clientEmail && (
+                <div className="info-row">
+                  <span className="info-label">Email:</span>
+                  <span className="info-value">{clientEmail}</span>
+                </div>
+              )}
+              {clientPhone && (
+                <div className="info-row">
+                  <span className="info-label">Teléfono:</span>
+                  <span className="info-value">{clientPhone}</span>
+                </div>
+              )}
+              {clientAddress && (
+                <div className="info-row">
+                  <span className="info-label">Dirección:</span>
+                  <span className="info-value">{clientAddress}</span>
+                </div>
+              )}
+              <div className="info-row">
+                <span className="info-label">Fecha:</span>
+                <span className="info-value">{date}</span>
+              </div>
+              <div className="info-row">
+                <span className="info-label">Nº Cotización:</span>
+                <span className="info-value">{quoteNumber}</span>
+              </div>
+            </>
+          )}
+          {(isKubica || isCasablanca) && (
+            <>
+              <div className="info-row">
+                <span className="info-label">Cliente:</span>
+                <span className="info-value">{clientName}</span>
+              </div>
+              {clientEmail && (
+                <div className="info-row">
+                  <span className="info-label">Email:</span>
+                  <span className="info-value">{clientEmail}</span>
+                </div>
+              )}
+              {clientPhone && (
+                <div className="info-row">
+                  <span className="info-label">Teléfono:</span>
+                  <span className="info-value">{clientPhone}</span>
+                </div>
+              )}
+              {clientAddress && (
+                <div className="info-row">
+                  <span className="info-label">Dirección:</span>
+                  <span className="info-value">{clientAddress}</span>
+                </div>
+              )}
+            </>
+          )}
         </div>
+
+        {/* Vendedor - Fuera del cuadro, a la derecha */}
+        {vendedorName && (
+          <div className="vendedor-section">
+            <div className="vendedor-label">Vendedor:</div>
+            <div className="vendedor-value">{vendedorName}</div>
+          </div>
+        )}
       </div>
 
       {/* Economic summary */}
       <div className="economic-summary">
-        <div className="summary-title">RESUMEN ECONÓMICO</div>
+        {/* Esquinas estilizadas con triángulos */}
+        <div className="corner-decoration corner-bottom-left"></div>
+        <div className="corner-decoration corner-bottom-right"></div>
+        
+        <div className="summary-title">
+          {isKubica ? 'MOBILIARIOS - RETAIL - PROTOTIPOS' : (isCasablanca ? 'COCINAS - MUEBLES - CLOSETS' : 'RESUMEN ECONÓMICO')}
+        </div>
         <table className="summary-table">
-          <tbody>
-            {items.map((item, index) => (
-              <tr key={index}>
-                <td>{item.concepto}</td>
-                <td>${item.precio.toLocaleString('es-CO')}</td>
-              </tr>
-            ))}
+          <thead>
             <tr>
-              <td>TOTAL</td>
-              <td>${total.toLocaleString('es-CO')}</td>
+              <th>Item</th>
+              <th style={{ textAlign: 'center', width: '80px' }}>Cantidad</th>
+              <th style={{ textAlign: 'right', width: '120px' }}>Precio Unit.</th>
+              <th style={{ textAlign: 'right', width: '120px' }}>Total</th>
             </tr>
+          </thead>
+          <tbody>
+            {itemsAMostrar.map((item, index) => {
+              // Separar nombre y descripción del concepto
+              let titulo = item.concepto;
+              let descripcion = '';
+              
+              // Si el concepto tiene descripción separada (formato "Nombre - Descripción")
+              const partes = titulo.split(' - ');
+              if (partes.length > 1) {
+                titulo = partes[0].trim();
+                descripcion = partes.slice(1).join(' - ').trim();
+              }
+              
+              // Si hay paréntesis, extraer la descripción
+              const matchParentesis = titulo.match(/^(.+?)\s*\((.+?)\)\s*$/);
+              if (matchParentesis && !descripcion) {
+                titulo = matchParentesis[1].trim();
+                descripcion = matchParentesis[2].trim();
+              }
+              
+              // Calcular cantidad y precio unitario
+              const cantidad = item.cantidad || 1;
+              const precioUnitario = item.precio_unitario || (item.precio / cantidad);
+              const totalItem = item.precio;
+              
+              return (
+                <tr key={index}>
+                  <td style={{ maxWidth: '300px' }}>
+                    <div className="item-title">{titulo}</div>
+                    {descripcion && <div className="item-description">{descripcion}</div>}
+                  </td>
+                  <td style={{ textAlign: 'center', color: (isKubica || isCasablanca) ? '#000000' : 'inherit' }}>{cantidad}</td>
+                  <td style={{ textAlign: 'right', color: (isKubica || isCasablanca) ? '#000000' : 'inherit' }}>${precioUnitario.toLocaleString('es-CO')}</td>
+                  <td style={{ textAlign: 'right', color: (isKubica || isCasablanca) ? '#000000' : 'inherit' }}>${totalItem.toLocaleString('es-CO')}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
       {/* Footer */}
       <div className="quote-footer">
-        <div className="footer-text">Gracias por confiar en nosotros.</div>
+        {(isKubica || isCasablanca) ? (
+          <>
+            {/* Cuadro de Subtotal e IVA */}
+            <div className="subtotal-iva-box">
+              <div className="subtotal-iva-row">
+                <span className="subtotal-iva-label">Subtotal:</span>
+                <span className="subtotal-iva-value">${subtotal.toLocaleString('es-CO')}</span>
+              </div>
+              {iva > 0 && (
+                <div className="subtotal-iva-row">
+                  <span className="subtotal-iva-label">IVA:</span>
+                  <span className="subtotal-iva-value">${iva.toLocaleString('es-CO')}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="total-box">
+              <div className="total-label">Total</div>
+              <div className="total-amount">${total.toLocaleString('es-CO')}</div>
+            </div>
+            
+            {/* Tabla de Condiciones de Pago */}
+            <div style={{ 
+              position: 'absolute', 
+              left: '40px', 
+              bottom: '25px', 
+              width: '550px',
+              background: 'white',
+              borderRadius: '4px',
+              padding: '10px 15px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+            }}>
+              <div style={{
+                padding: '8px',
+                marginBottom: '8px',
+                textAlign: 'center',
+                border: 'none'
+              }}>
+                <div style={{ 
+                  padding: '4px',
+                  fontWeight: 'bold',
+                  fontSize: '12px',
+                  color: empresaColors.dark,
+                  border: 'none'
+                }}>
+                  CONDICIONES DE PAGO
+                </div>
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                <thead>
+                  <tr>
+                    <th style={{ 
+                      padding: '6px 8px', 
+                      textAlign: 'left', 
+                      borderBottom: `2px dotted ${empresaColors.primary}`,
+                      fontWeight: 'bold',
+                      color: empresaColors.dark,
+                      fontSize: '11px'
+                    }}>
+                      Anticipo
+                    </th>
+                    <th style={{ 
+                      padding: '6px 8px', 
+                      textAlign: 'left', 
+                      borderBottom: `2px dotted ${empresaColors.primary}`,
+                      fontWeight: 'bold',
+                      color: empresaColors.dark,
+                      fontSize: '11px'
+                    }}>
+                      Saldo
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style={{ padding: '6px 8px', borderBottom: `1px dotted ${empresaColors.primary}` }}>50%</td>
+                    <td style={{ padding: '6px 8px', borderBottom: `1px dotted ${empresaColors.primary}` }}>50%</td>
+                  </tr>
+                  <tr style={{ background: empresaColors.primary, color: 'white' }}>
+                    <td style={{ padding: '6px 8px', borderBottom: `1px dotted ${empresaColors.secondary}` }}>
+                      ${Math.round(total * 0.5).toLocaleString('es-CO')}
+                    </td>
+                    <td style={{ padding: '6px 8px', borderBottom: `1px dotted ${empresaColors.secondary}` }}>
+                      ${Math.round(total * 0.5).toLocaleString('es-CO')}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '4px 8px', fontSize: '10px', color: '#666' }}>días hábiles</td>
+                    <td style={{ padding: '4px 8px', fontSize: '10px', color: empresaColors.dark, fontWeight: 'bold' }}>
+                      {vendedorName ? `Cod_Vendedor: ${vendedorName}` : ''}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Políticas/Condiciones */}
+            <div style={{
+              position: 'absolute',
+              left: '40px',
+              bottom: '200px',
+              width: 'calc(100% - 500px)',
+              background: 'white',
+              borderRadius: '4px',
+              padding: '10px 15px',
+              fontSize: '10px',
+              lineHeight: '1.3',
+              color: '#333'
+            }}>
+              <div style={{ fontWeight: 'bold', marginBottom: '6px', color: empresaColors.dark, fontSize: '11px' }}>
+                CONDICIONES Y POLÍTICAS:
+              </div>
+              <div style={{ marginBottom: '2px' }}>
+                • No incluye Obra Gris (Demoler paredes, remover escombros) • Accesorios adicionales fuera de la cotización van por cuenta del cliente • SACAR MUEBLES PUEDE VARIAR LA COTIZACIÓN
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="footer-text">Gracias por confiar en nosotros.</div>
+            <div className="footer-text" style={{ fontSize: '18px', fontWeight: 'bold', marginTop: '10px' }}>
+              TOTAL: ${total.toLocaleString('es-CO')}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
 }
-

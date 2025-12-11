@@ -46,3 +46,4 @@ CREATE POLICY "Admins can delete profiles" ON perfiles
 
 
 
+

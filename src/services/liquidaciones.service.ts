@@ -83,6 +83,32 @@ export async function obtenerLiquidaciones(): Promise<Liquidacion[]> {
 }
 
 /**
+ * Obtiene liquidaciones filtradas por rango de fechas
+ */
+export async function obtenerLiquidacionesPorFecha(
+  fechaInicio: string, // YYYY-MM-DD
+  fechaFin: string     // YYYY-MM-DD
+): Promise<Liquidacion[]> {
+  const { data, error } = await supabase
+    .from('liquidaciones')
+    .select(`
+      *,
+      persona:perfiles!liquidaciones_persona_id_fkey (
+        id, nombre, apellido, email, role, especialidad
+      ),
+      liquidador:perfiles!liquidaciones_liquidado_por_fkey (
+        id, nombre, apellido, email
+      )
+    `)
+    .gte('fecha_liquidacion', fechaInicio + 'T00:00:00')
+    .lte('fecha_liquidacion', fechaFin + 'T23:59:59')
+    .order('fecha_liquidacion', { ascending: false });
+
+  if (error) throw error;
+  return data as Liquidacion[];
+}
+
+/**
  * Obtiene las liquidaciones de una persona específica
  */
 export async function obtenerLiquidacionesPorPersona(personaId: string): Promise<Liquidacion[]> {

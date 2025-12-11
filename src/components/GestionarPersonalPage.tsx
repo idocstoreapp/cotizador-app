@@ -11,8 +11,13 @@ import {
   crearUsuario,
   actualizarUsuario
 } from '../services/usuarios.service';
+import { 
+  crearLiquidacion,
+  obtenerLiquidacionesPorPersona,
+  calcularBalancePersona
+} from '../services/liquidaciones.service';
 import { supabase } from '../utils/supabase';
-import type { UserProfile } from '../types/database';
+import type { UserProfile, Liquidacion } from '../types/database';
 
 interface CrearEditarUsuarioModalProps {
   usuario?: UserProfile | null;
@@ -251,6 +256,12 @@ export default function GestionarPersonalPage() {
   const [usuarioEditando, setUsuarioEditando] = useState<UserProfile | null>(null);
   const [tipoModal, setTipoModal] = useState<'vendedor' | 'trabajador_taller'>('vendedor');
   const [actionsMenuOpen, setActionsMenuOpen] = useState<{ tipo: 'vendedor' | 'trabajador_taller', id: string } | null>(null);
+  
+  // Estados para pagos manuales
+  const [mostrarModalPago, setMostrarModalPago] = useState(false);
+  const [personaPago, setPersonaPago] = useState<UserProfile | null>(null);
+  const [balancePersona, setBalancePersona] = useState<{ totalGanado: number; totalLiquidado: number; balancePendiente: number } | null>(null);
+  const [liquidacionesPersona, setLiquidacionesPersona] = useState<Liquidacion[]>([]);
 
   // Usar usuario del contexto o cargar directamente
   const usuario = contextoUsuario.usuario || usuarioLocal;
@@ -471,6 +482,42 @@ export default function GestionarPersonalPage() {
     console.log('✅ [GestionarPersonal] Modal abierto, mostrarModal:', true);
   };
 
+  const handleAbrirModalPago = async (persona: UserProfile, e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    try {
+      setPersonaPago(persona);
+      // Cargar balance y liquidaciones de la persona
+      const [balance, liquidaciones] = await Promise.all([
+        calcularBalancePersona(persona.id),
+        obtenerLiquidacionesPorPersona(persona.id)
+      ]);
+      setBalancePersona(balance);
+      setLiquidacionesPersona(liquidaciones);
+      setMostrarModalPago(true);
+    } catch (error: any) {
+      console.error('Error al cargar datos de pago:', error);
+      alert('Error al cargar datos: ' + (error.message || 'Error desconocido'));
+    }
+  };
+
+  const handleCerrarModalPago = () => {
+    setMostrarModalPago(false);
+    setPersonaPago(null);
+    setBalancePersona(null);
+    setLiquidacionesPersona([]);
+  };
+
+  const handlePagoExitoso = async () => {
+    // Recargar balance después del pago
+    if (personaPago) {
+      const balance = await calcularBalancePersona(personaPago.id);
+      const liquidaciones = await obtenerLiquidacionesPorPersona(personaPago.id);
+      setBalancePersona(balance);
+      setLiquidacionesPersona(liquidaciones);
+    }
+  };
+
   // Si aún no se ha cargado el usuario, mostrar loading
   if (usuario === null) {
     return (
@@ -571,6 +618,16 @@ export default function GestionarPersonalPage() {
                       <button
                         type="button"
                         onClick={(e) => {
+                          handleAbrirModalPago(vendedor, e);
+                          setActionsMenuOpen(null);
+                        }}
+                        className="flex-1 px-3 py-2 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition"
+                      >
+                        💰 Pagar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
                           handleEliminar(vendedor.id, 'vendedor', e);
                           setActionsMenuOpen(null);
                         }}
@@ -614,6 +671,13 @@ export default function GestionarPersonalPage() {
                               className="text-indigo-600 hover:text-indigo-800 text-sm font-medium px-2 py-1 rounded hover:bg-indigo-50 transition-colors cursor-pointer"
                             >
                               Editar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleAbrirModalPago(vendedor, e)}
+                              className="text-green-600 hover:text-green-800 text-sm font-medium px-2 py-1 rounded hover:bg-green-50 transition-colors cursor-pointer"
+                            >
+                              💰 Pagar
                             </button>
                             <button
                               type="button"
@@ -697,6 +761,16 @@ export default function GestionarPersonalPage() {
                       <button
                         type="button"
                         onClick={(e) => {
+                          handleAbrirModalPago(trabajador, e);
+                          setActionsMenuOpen(null);
+                        }}
+                        className="flex-1 px-3 py-2 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition"
+                      >
+                        💰 Pagar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
                           handleEliminar(trabajador.id, 'trabajador_taller', e);
                           setActionsMenuOpen(null);
                         }}
@@ -749,6 +823,13 @@ export default function GestionarPersonalPage() {
                             </button>
                             <button
                               type="button"
+                              onClick={(e) => handleAbrirModalPago(trabajador, e)}
+                              className="text-green-600 hover:text-green-800 text-sm font-medium px-2 py-1 rounded hover:bg-green-50 transition-colors cursor-pointer"
+                            >
+                              💰 Pagar
+                            </button>
+                            <button
+                              type="button"
                               onClick={(e) => {
                                 console.log('🖱️ [Trabajador] Click en Eliminar:', trabajador.id);
                                 handleEliminar(trabajador.id, 'trabajador_taller', e);
@@ -781,7 +862,320 @@ export default function GestionarPersonalPage() {
           onSuccess={cargarDatos}
         />
       )}
+
+      {/* Modal de pago */}
+      {mostrarModalPago && personaPago && balancePersona && (
+        <ModalPagoPersonal
+          persona={personaPago}
+          balancePendiente={balancePersona.balancePendiente}
+          liquidaciones={liquidacionesPersona}
+          balancePersona={balancePersona}
+          onClose={handleCerrarModalPago}
+          onSuccess={handlePagoExitoso}
+        />
+      )}
     </>
+  );
+}
+
+interface ModalPagoPersonalProps {
+  persona: UserProfile;
+  balancePendiente: number;
+  liquidaciones: Liquidacion[];
+  balancePersona: { totalGanado: number; totalLiquidado: number; balancePendiente: number };
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePersona, onClose, onSuccess }: ModalPagoPersonalProps) {
+  const [monto, setMonto] = useState('');
+  const [fechaPago, setFechaPago] = useState(new Date().toISOString().split('T')[0]);
+  const [metodoPago, setMetodoPago] = useState<'efectivo' | 'transferencia' | 'cheque' | 'otro'>('efectivo');
+  const [numeroReferencia, setNumeroReferencia] = useState('');
+  const [notas, setNotas] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const montoNum = parseFloat(monto);
+    
+    if (!monto || montoNum <= 0) {
+      setError('El monto debe ser mayor a 0');
+      return;
+    }
+
+    // Advertencia si el pago hará que el balance sea muy negativo
+    const nuevoBalance = balancePendiente - montoNum;
+    if (nuevoBalance < -50000 && balancePersona.totalGanado === 0) {
+      const confirmar = window.confirm(
+        `⚠️ Advertencia: Este pago hará que el balance sea de $${nuevoBalance.toLocaleString('es-CO')}.\n\n` +
+        `La persona no tiene ganancias registradas. ¿Estás seguro de continuar?`
+      );
+      if (!confirmar) {
+        return;
+      }
+    }
+
+    try {
+      setGuardando(true);
+      setError(null);
+
+      // Crear fecha con hora actual si no se especifica
+      const fechaCompleta = fechaPago ? new Date(fechaPago + 'T12:00:00').toISOString() : new Date().toISOString();
+
+      await crearLiquidacion({
+        persona_id: persona.id,
+        tipo_persona: persona.role as 'vendedor' | 'trabajador_taller',
+        monto: montoNum,
+        metodo_pago: metodoPago,
+        numero_referencia: numeroReferencia || undefined,
+        notas: notas || undefined
+      });
+
+      // Actualizar fecha_liquidacion manualmente si es diferente a hoy
+      if (fechaPago && fechaPago !== new Date().toISOString().split('T')[0]) {
+        // Obtener la última liquidación creada y actualizar su fecha
+        const liquidacionesActualizadas = await obtenerLiquidacionesPorPersona(persona.id);
+        const ultimaLiquidacion = liquidacionesActualizadas[0];
+        if (ultimaLiquidacion) {
+          await supabase
+            .from('liquidaciones')
+            .update({ fecha_liquidacion: fechaCompleta })
+            .eq('id', ultimaLiquidacion.id);
+        }
+      }
+
+      onSuccess();
+      // No cerrar el modal automáticamente para permitir agregar más pagos
+      setMonto('');
+      setNumeroReferencia('');
+      setNotas('');
+      setFechaPago(new Date().toISOString().split('T')[0]);
+    } catch (err: any) {
+      setError(err.message || 'Error al registrar pago');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[95vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900">
+            Registrar Pago - {persona.nombre} {persona.apellido}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Resumen de balance */}
+          <div className={`rounded-lg p-4 border-2 ${
+            balancePendiente >= 0 
+              ? 'bg-blue-50 border-blue-200' 
+              : 'bg-orange-50 border-orange-300'
+          }`}>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <p className="text-sm font-medium mb-1">
+                  {balancePendiente >= 0 ? (
+                    <span className="text-blue-800">Total Ganado</span>
+                  ) : (
+                    <span className="text-orange-800">Total Ganado</span>
+                  )}
+                </p>
+                <p className={`text-xl font-bold ${
+                  balancePendiente >= 0 ? 'text-blue-900' : 'text-orange-900'
+                }`}>
+                  ${balancePersona.totalGanado.toLocaleString('es-CO')}
+                </p>
+                {balancePersona.totalGanado === 0 && (
+                  <p className="text-xs text-gray-500 mt-1">Sin ganancias registradas</p>
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-1">
+                  {balancePendiente >= 0 ? (
+                    <span className="text-blue-800">Total Liquidado</span>
+                  ) : (
+                    <span className="text-orange-800">Total Liquidado</span>
+                  )}
+                </p>
+                <p className={`text-xl font-bold ${
+                  balancePendiente >= 0 ? 'text-blue-700' : 'text-orange-700'
+                }`}>
+                  ${balancePersona.totalLiquidado.toLocaleString('es-CO')}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-1">
+                  {balancePendiente >= 0 ? (
+                    <span className="text-blue-800">Balance Pendiente</span>
+                  ) : (
+                    <span className="text-orange-800">Balance (Adelantado)</span>
+                  )}
+                </p>
+                <p className={`text-2xl font-bold ${
+                  balancePendiente >= 0 ? 'text-blue-900' : 'text-orange-900'
+                }`}>
+                  ${balancePendiente.toLocaleString('es-CO')}
+                </p>
+                {balancePendiente < 0 && (
+                  <p className="text-xs text-orange-700 mt-1 font-medium">
+                    ⚠️ Se ha pagado más de lo ganado
+                  </p>
+                )}
+              </div>
+            </div>
+            {balancePendiente < 0 && (
+              <div className="mt-3 pt-3 border-t border-orange-200">
+                <p className="text-xs text-orange-800">
+                  <strong>Nota:</strong> El balance negativo indica que se han realizado pagos por un monto mayor 
+                  a las ganancias registradas. Esto puede deberse a pagos anticipados, bonos u otros conceptos 
+                  no relacionados con cotizaciones específicas.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Monto del pago *
+              </label>
+              <input
+                type="number"
+                value={monto}
+                onChange={(e) => setMonto(e.target.value)}
+                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                min="0"
+                step="0.01"
+                required
+                placeholder="0.00"
+                disabled={guardando}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha del pago *
+              </label>
+              <input
+                type="date"
+                value={fechaPago}
+                onChange={(e) => setFechaPago(e.target.value)}
+                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                required
+                disabled={guardando}
+                max={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Método de pago *
+              </label>
+              <select
+                value={metodoPago}
+                onChange={(e) => setMetodoPago(e.target.value as any)}
+                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                required
+                disabled={guardando}
+              >
+                <option value="efectivo">Efectivo</option>
+                <option value="transferencia">Transferencia</option>
+                <option value="cheque">Cheque</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Número de referencia
+              </label>
+              <input
+                type="text"
+                value={numeroReferencia}
+                onChange={(e) => setNumeroReferencia(e.target.value)}
+                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                placeholder="Nº de transacción, cheque, etc."
+                disabled={guardando}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Notas
+              </label>
+              <textarea
+                value={notas}
+                onChange={(e) => setNotas(e.target.value)}
+                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                rows={2}
+                placeholder="Notas adicionales..."
+                disabled={guardando}
+              />
+            </div>
+
+            {/* Historial de pagos */}
+            {liquidaciones.length > 0 && (
+              <div className="border-t border-gray-200 pt-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Historial de Pagos</h3>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {liquidaciones.map((liquidacion) => (
+                    <div key={liquidacion.id} className="bg-gray-50 rounded-lg p-3 text-sm">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            ${liquidacion.monto.toLocaleString('es-CO')}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(liquidacion.fecha_liquidacion).toLocaleDateString('es-CO')} - {liquidacion.metodo_pago || 'N/A'}
+                          </p>
+                          {liquidacion.notas && (
+                            <p className="text-xs text-gray-600 mt-1">{liquidacion.notas}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-4 sticky bottom-0 bg-white border-t border-gray-200 -mx-6 px-6 py-4">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={guardando}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cerrar
+              </button>
+              <button
+                type="submit"
+                disabled={guardando}
+                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50"
+              >
+                {guardando ? 'Guardando...' : 'Registrar Pago'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   );
 }
 

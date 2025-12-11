@@ -24,11 +24,15 @@ interface EmpresaInfo {
 
 interface QuoteData {
   clientName: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  clientAddress?: string;
+  vendedorName?: string;
   date: string;
   quoteNumber: string;
   model: string;
   dimensions: string;
-  items: Array<{ concepto: string; precio: number }>;
+  items: Array<{ concepto: string; precio: number; cantidad?: number; precio_unitario?: number }>;
   total: number;
   image?: string;
   companyName?: string;
@@ -45,10 +49,26 @@ export function renderQuoteToHTML(data: QuoteData): string {
     throw new Error('renderQuoteToHTML solo puede ejecutarse en el servidor');
   }
   
-  // Renderizar el componente React a string usando importación estática
-  const reactHTML = renderToStringStatic(
-    React.createElement(QuotePDF, data)
-  );
+    // Renderizar el componente React a string usando importación estática
+    const reactHTML = renderToStringStatic(
+      React.createElement(QuotePDF, {
+        clientName: data.clientName,
+        clientEmail: data.clientEmail,
+        clientPhone: data.clientPhone,
+        clientAddress: data.clientAddress,
+        vendedorName: data.vendedorName,
+        date: data.date,
+        quoteNumber: data.quoteNumber,
+        model: data.model,
+        dimensions: data.dimensions,
+        items: data.items,
+        total: data.total,
+        image: data.image,
+        companyName: data.companyName,
+        companyLogo: data.companyLogo,
+        empresaInfo: data.empresaInfo
+      })
+    );
 
   // Crear el HTML completo con estilos y estructura
   const fullHTML = `

@@ -54,6 +54,10 @@ export const POST: APIRoute = async ({ request }) => {
     const body = await request.json();
     const {
       clientName,
+      clientEmail,
+      clientPhone,
+      clientAddress,
+      vendedorName,
       date,
       quoteNumber,
       model,
@@ -113,6 +117,10 @@ export const POST: APIRoute = async ({ request }) => {
     // Renderizar React a HTML
     const html = renderQuoteToHTML({
       clientName,
+      clientEmail,
+      clientPhone,
+      clientAddress,
+      vendedorName,
       date,
       quoteNumber,
       model,

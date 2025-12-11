@@ -9,8 +9,9 @@ import { obtenerMateriales } from '../services/materiales.service';
 import { obtenerServicios } from '../services/servicios.service';
 import { obtenerEstadisticasRentabilidad } from '../services/rentabilidad.service';
 import { obtenerEstadisticasDashboard } from '../services/dashboard-stats.service';
+import { obtenerLiquidacionesPorFecha } from '../services/liquidaciones.service';
 import DashboardVendedor from './DashboardVendedor';
-import type { UserProfile, Cotizacion, Material, Servicio } from '../types/database';
+import type { UserProfile, Cotizacion, Material, Servicio, Liquidacion } from '../types/database';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface DashboardProps {
@@ -29,6 +30,8 @@ export default function Dashboard({ usuario }: DashboardProps) {
   const [cargandoRentabilidad, setCargandoRentabilidad] = useState(false);
   const [estadisticasDashboard, setEstadisticasDashboard] = useState<any>(null);
   const [cargandoDashboard, setCargandoDashboard] = useState(false);
+  const [liquidacionesMes, setLiquidacionesMes] = useState<Liquidacion[]>([]);
+  const [cargandoLiquidaciones, setCargandoLiquidaciones] = useState(false);
 
   // Estados para datos
   const [cotizaciones, setCotizaciones] = useState<Cotizacion[]>([]);
@@ -36,10 +39,15 @@ export default function Dashboard({ usuario }: DashboardProps) {
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [loadingCotizaciones, setLoadingCotizaciones] = useState(true);
 
-  // Estado para mes/año seleccionado
+  // Estado para filtros de fecha
   const ahora = new Date();
+  const [tipoFiltro, setTipoFiltro] = useState<'mes' | 'semana' | 'rango'>('mes');
   const [mesSeleccionado, setMesSeleccionado] = useState<number>(ahora.getMonth());
   const [añoSeleccionado, setAñoSeleccionado] = useState<number>(ahora.getFullYear());
+  const [fechaInicio, setFechaInicio] = useState<string>('');
+  const [fechaFin, setFechaFin] = useState<string>('');
+  const [semanasAtras, setSemanasAtras] = useState<number>(1);
+  const [mesesAtras, setMesesAtras] = useState<number>(1);
 
   // Cargar cotizaciones
   useEffect(() => {
@@ -87,6 +95,66 @@ export default function Dashboard({ usuario }: DashboardProps) {
     }
   }, [esAdmin]);
 
+  // Calcular fechas según el tipo de filtro
+  const calcularFechasFiltro = () => {
+    let inicio: Date;
+    let fin: Date = new Date();
+    fin.setHours(23, 59, 59, 999);
+
+    switch (tipoFiltro) {
+      case 'semana':
+        // Últimas N semanas desde hoy
+        inicio = new Date();
+        inicio.setDate(inicio.getDate() - (semanasAtras * 7));
+        inicio.setHours(0, 0, 0, 0);
+        break;
+      case 'rango':
+        // Rango personalizado
+        if (fechaInicio && fechaFin) {
+          inicio = new Date(fechaInicio);
+          inicio.setHours(0, 0, 0, 0);
+          fin = new Date(fechaFin);
+          fin.setHours(23, 59, 59, 999);
+        } else {
+          // Si no hay fechas, usar mes actual como fallback
+          inicio = new Date(añoSeleccionado, mesSeleccionado, 1);
+          inicio.setHours(0, 0, 0, 0);
+          fin = new Date(añoSeleccionado, mesSeleccionado + 1, 0, 23, 59, 59);
+        }
+        break;
+      case 'mes':
+      default:
+        // Mes seleccionado
+        inicio = new Date(añoSeleccionado, mesSeleccionado, 1);
+        inicio.setHours(0, 0, 0, 0);
+        fin = new Date(añoSeleccionado, mesSeleccionado + 1, 0, 23, 59, 59);
+        break;
+    }
+
+    return { inicio, fin };
+  };
+
+  // Cargar liquidaciones según el filtro seleccionado (solo admin)
+  useEffect(() => {
+    if (esAdmin) {
+      const cargarLiquidaciones = async () => {
+        try {
+          setCargandoLiquidaciones(true);
+          const { inicio, fin } = calcularFechasFiltro();
+          const fechaInicioStr = inicio.toISOString().split('T')[0];
+          const fechaFinStr = fin.toISOString().split('T')[0];
+          const datos = await obtenerLiquidacionesPorFecha(fechaInicioStr, fechaFinStr);
+          setLiquidacionesMes(datos);
+        } catch (error) {
+          console.error('Error al cargar liquidaciones:', error);
+        } finally {
+          setCargandoLiquidaciones(false);
+        }
+      };
+      cargarLiquidaciones();
+    }
+  }, [esAdmin, tipoFiltro, mesSeleccionado, añoSeleccionado, fechaInicio, fechaFin, semanasAtras, mesesAtras]);
+
   // Cargar estadísticas de rentabilidad (solo admin)
   useEffect(() => {
     if (esAdmin) {
@@ -111,8 +179,11 @@ export default function Dashboard({ usuario }: DashboardProps) {
       const cargarDashboard = async () => {
         try {
           setCargandoDashboard(true);
-          console.log('📊 Cargando estadísticas del dashboard...', { mes: mesSeleccionado, año: añoSeleccionado });
-          const stats = await obtenerEstadisticasDashboard(mesSeleccionado, añoSeleccionado);
+          const { inicio, fin } = calcularFechasFiltro();
+          const fechaInicioStr = inicio.toISOString().split('T')[0];
+          const fechaFinStr = fin.toISOString().split('T')[0];
+          console.log('📊 Cargando estadísticas del dashboard...', { tipoFiltro, fechaInicioStr, fechaFinStr, mes: mesSeleccionado, año: añoSeleccionado });
+          const stats = await obtenerEstadisticasDashboard(fechaInicioStr, fechaFinStr, mesSeleccionado, añoSeleccionado);
           console.log('✅ Estadísticas del dashboard cargadas:', stats);
           setEstadisticasDashboard(stats);
         } catch (error: any) {
@@ -125,7 +196,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
       };
       cargarDashboard();
     }
-  }, [esAdmin, mesSeleccionado, añoSeleccionado]);
+  }, [esAdmin, tipoFiltro, mesSeleccionado, añoSeleccionado, fechaInicio, fechaFin, semanasAtras, mesesAtras]);
 
   // Función auxiliar para obtener el total de la cotización
   // IMPORTANTE: Usa siempre el total guardado para evitar inconsistencias
@@ -150,28 +221,25 @@ export default function Dashboard({ usuario }: DashboardProps) {
     */
   };
 
-  // Calcular estadísticas del mes seleccionado (fallback si no hay estadisticasDashboard)
-  const inicioMes = new Date(añoSeleccionado, mesSeleccionado, 1);
-  inicioMes.setHours(0, 0, 0, 0);
-  const finMes = new Date(añoSeleccionado, mesSeleccionado + 1, 0, 23, 59, 59);
+  // Calcular estadísticas del período seleccionado (fallback si no hay estadisticasDashboard)
+  const { inicio: inicioPeriodo, fin: finPeriodo } = calcularFechasFiltro();
   
-  const cotizacionesMes = cotizaciones.filter(c => {
+  const cotizacionesPeriodo = cotizaciones.filter(c => {
     const fecha = new Date(c.created_at);
-    fecha.setHours(0, 0, 0, 0);
-    return fecha >= inicioMes && fecha <= finMes;
+    return fecha >= inicioPeriodo && fecha <= finPeriodo;
   });
 
   const totalCotizaciones = cotizaciones.length;
-  const totalCotizacionesMes = cotizacionesMes.length;
+  const totalCotizacionesPeriodo = cotizacionesPeriodo.length;
   const cotizacionesAceptadas = cotizaciones.filter(c => c.estado === 'aceptada').length;
-  const cotizacionesAceptadasMes = cotizacionesMes.filter(c => c.estado === 'aceptada');
-  const cotizacionesPendientesMes = cotizacionesMes.filter(c => c.estado === 'pendiente');
+  const cotizacionesAceptadasPeriodo = cotizacionesPeriodo.filter(c => c.estado === 'aceptada');
+  const cotizacionesPendientesPeriodo = cotizacionesPeriodo.filter(c => c.estado === 'pendiente');
   
   const ventasTotales = cotizaciones
     .filter(c => c.estado === 'aceptada')
     .reduce((sum, c) => sum + calcularTotalDesdeItems(c), 0);
   
-  const ventasTotalesMes = cotizacionesAceptadasMes.reduce((sum, c) => {
+  const ventasTotalesPeriodo = cotizacionesAceptadasPeriodo.reduce((sum, c) => {
     const total = calcularTotalDesdeItems(c);
     return sum + total;
   }, 0);
@@ -214,54 +282,112 @@ export default function Dashboard({ usuario }: DashboardProps) {
       {/* Tarjetas de resumen - Métricas del mes actual (SIEMPRE mostrar para admin) */}
       {esAdmin && (
         <>
-          {/* Selector de mes/año */}
+          {/* Selector de período */}
           <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4 shadow-sm">
             <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-gray-700">📅 Seleccionar período:</label>
-                <div className="flex items-center gap-2">
+              <div className="flex items-center gap-4 flex-wrap">
+                <label className="text-sm font-medium text-gray-700">📅 Filtrar por:</label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Selector de tipo de filtro */}
                   <select
-                    value={mesSeleccionado}
-                    onChange={(e) => setMesSeleccionado(parseInt(e.target.value))}
+                    value={tipoFiltro}
+                    onChange={(e) => {
+                      setTipoFiltro(e.target.value as 'mes' | 'semana' | 'rango');
+                      // Resetear fechas cuando cambia el tipo
+                      if (e.target.value === 'rango') {
+                        setFechaInicio('');
+                        setFechaFin('');
+                      }
+                    }}
                     className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   >
-                    <option value={0}>Enero</option>
-                    <option value={1}>Febrero</option>
-                    <option value={2}>Marzo</option>
-                    <option value={3}>Abril</option>
-                    <option value={4}>Mayo</option>
-                    <option value={5}>Junio</option>
-                    <option value={6}>Julio</option>
-                    <option value={7}>Agosto</option>
-                    <option value={8}>Septiembre</option>
-                    <option value={9}>Octubre</option>
-                    <option value={10}>Noviembre</option>
-                    <option value={11}>Diciembre</option>
+                    <option value="mes">Mes</option>
+                    <option value="semana">Semanas</option>
+                    <option value="rango">Rango personalizado</option>
                   </select>
-                  <select
-                    value={añoSeleccionado}
-                    onChange={(e) => setAñoSeleccionado(parseInt(e.target.value))}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    {Array.from({ length: 5 }, (_, i) => {
-                      const año = ahora.getFullYear() - 2 + i;
-                      return (
-                        <option key={año} value={año}>
-                          {año}
-                        </option>
-                      );
-                    })}
-                  </select>
-                  {(mesSeleccionado !== ahora.getMonth() || añoSeleccionado !== ahora.getFullYear()) && (
-                    <button
-                      onClick={() => {
-                        setMesSeleccionado(ahora.getMonth());
-                        setAñoSeleccionado(ahora.getFullYear());
-                      }}
-                      className="px-3 py-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
-                    >
-                      📍 Mes actual
-                    </button>
+
+                  {/* Campos según el tipo de filtro */}
+                  {tipoFiltro === 'mes' && (
+                    <>
+                      <select
+                        value={mesSeleccionado}
+                        onChange={(e) => setMesSeleccionado(parseInt(e.target.value))}
+                        className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      >
+                        <option value={0}>Enero</option>
+                        <option value={1}>Febrero</option>
+                        <option value={2}>Marzo</option>
+                        <option value={3}>Abril</option>
+                        <option value={4}>Mayo</option>
+                        <option value={5}>Junio</option>
+                        <option value={6}>Julio</option>
+                        <option value={7}>Agosto</option>
+                        <option value={8}>Septiembre</option>
+                        <option value={9}>Octubre</option>
+                        <option value={10}>Noviembre</option>
+                        <option value={11}>Diciembre</option>
+                      </select>
+                      <select
+                        value={añoSeleccionado}
+                        onChange={(e) => setAñoSeleccionado(parseInt(e.target.value))}
+                        className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      >
+                        {Array.from({ length: 5 }, (_, i) => {
+                          const año = ahora.getFullYear() - 2 + i;
+                          return (
+                            <option key={año} value={año}>
+                              {año}
+                            </option>
+                          );
+                        })}
+                      </select>
+                      {(mesSeleccionado !== ahora.getMonth() || añoSeleccionado !== ahora.getFullYear()) && (
+                        <button
+                          onClick={() => {
+                            setMesSeleccionado(ahora.getMonth());
+                            setAñoSeleccionado(ahora.getFullYear());
+                          }}
+                          className="px-3 py-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                        >
+                          📍 Mes actual
+                        </button>
+                      )}
+                    </>
+                  )}
+
+                  {tipoFiltro === 'semana' && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-600">Últimas</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="52"
+                        value={semanasAtras}
+                        onChange={(e) => setSemanasAtras(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-20 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                      <label className="text-xs text-gray-600">semanas</label>
+                    </div>
+                  )}
+
+                  {tipoFiltro === 'rango' && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-600">Desde:</label>
+                      <input
+                        type="date"
+                        value={fechaInicio}
+                        onChange={(e) => setFechaInicio(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                      <label className="text-xs text-gray-600">Hasta:</label>
+                      <input
+                        type="date"
+                        value={fechaFin}
+                        onChange={(e) => setFechaFin(e.target.value)}
+                        min={fechaInicio}
+                        className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
                   )}
                 </div>
               </div>
@@ -272,11 +398,22 @@ export default function Dashboard({ usuario }: DashboardProps) {
                 </div>
               )}
             </div>
+            {/* Mostrar rango de fechas seleccionado */}
+            {(() => {
+              const { inicio, fin } = calcularFechasFiltro();
+              return (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <p className="text-xs text-gray-500">
+                    📆 Período: {inicio.toLocaleDateString('es-CO')} - {fin.toLocaleDateString('es-CO')}
+                  </p>
+                </div>
+              );
+            })()}
           </div>
 
 
-          {/* Primera fila: Cotizaciones, Ventas, Costos Totales, Ganancia */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Primera fila: Cotizaciones, Ventas, Cotizaciones en Proceso, Costos Totales, Ganancia, Pagos a Personal */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
             {/* Total Cotizaciones */}
             <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-indigo-500">
               <div className="p-5">
@@ -290,9 +427,9 @@ export default function Dashboard({ usuario }: DashboardProps) {
                     <div className="ml-4">
                       <dt className="text-sm font-medium text-gray-500">Cotizaciones Creadas</dt>
                       <dd className="text-2xl font-bold text-gray-900 mt-1">
-                        {estadisticasDashboard?.totalCotizaciones ?? totalCotizacionesMes}
+                        {estadisticasDashboard?.totalCotizaciones ?? totalCotizacionesPeriodo}
                       </dd>
-                      <p className="text-xs text-gray-400 mt-1">Este mes</p>
+                      <p className="text-xs text-gray-400 mt-1">Período seleccionado</p>
                     </div>
                   </div>
                 </div>
@@ -300,20 +437,20 @@ export default function Dashboard({ usuario }: DashboardProps) {
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500">✅ Aceptadas:</span>
                     <span className="font-semibold text-green-600">
-                      {estadisticasDashboard?.cotizacionesAceptadas ?? cotizacionesAceptadasMes.length}
+                      {estadisticasDashboard?.cotizacionesAceptadas ?? cotizacionesAceptadasPeriodo.length}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs mt-1">
                     <span className="text-gray-500">⏳ Pendientes:</span>
                     <span className="font-semibold text-yellow-600">
-                      {estadisticasDashboard?.cotizacionesPendientes ?? cotizacionesPendientesMes.length}
+                      {estadisticasDashboard?.cotizacionesPendientes ?? cotizacionesPendientesPeriodo.length}
                     </span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Ventas del Mes */}
+            {/* Ventas del Mes (SOLO PAGADAS) */}
             <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-blue-500">
               <div className="p-5">
                 <div className="flex items-center">
@@ -326,14 +463,56 @@ export default function Dashboard({ usuario }: DashboardProps) {
                     <dl>
                       <dt className="text-sm font-medium text-gray-500 truncate">Ventas del Mes</dt>
                       <dd className="text-2xl font-bold text-blue-600">
-                        ${(estadisticasDashboard?.ventasTotalesMes ?? ventasTotalesMes).toLocaleString('es-CO')}
+                        ${(estadisticasDashboard?.ventasTotalesMes ?? 0).toLocaleString('es-CO')}
                       </dd>
-                      <p className="text-xs text-gray-400 mt-1">Total de cotizaciones aceptadas</p>
+                      <p className="text-xs text-gray-400 mt-1">Solo cotizaciones pagadas completamente</p>
                       {estadisticasDashboard?.variacionVentas !== undefined && estadisticasDashboard.variacionVentas !== 0 && (
                         <dd className={`text-xs mt-1 font-medium ${estadisticasDashboard.variacionVentas >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {estadisticasDashboard.variacionVentas >= 0 ? '↑' : '↓'} {Math.abs(estadisticasDashboard.variacionVentas).toFixed(1)}% vs mes anterior
                         </dd>
                       )}
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Cotizaciones Aceptadas en Proceso */}
+            <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-orange-500">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-orange-500 rounded-md flex items-center justify-center">
+                      <span className="text-white text-lg font-bold">⏳</span>
+                    </div>
+                  </div>
+                  <div className="ml-4 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Cotizaciones en Proceso</dt>
+                      <dd className="text-2xl font-bold text-orange-600">
+                        {estadisticasDashboard?.cotizacionesAceptadasEnProceso ?? 0}
+                      </dd>
+                      <p className="text-xs text-gray-400 mt-1">Aceptadas pero no pagadas o pagadas parcialmente</p>
+                      <div className="mt-2 pt-2 border-t border-gray-200 grid grid-cols-2 gap-2">
+                        <div>
+                          <p className="text-xs text-gray-500">✅ Pagadas:</p>
+                          <p className="text-sm font-semibold text-green-600">
+                            {estadisticasDashboard?.cotizacionesPagadasCompletamente ?? 0}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">💰 Total Abonado:</p>
+                          <p className="text-sm font-semibold text-blue-600">
+                            ${(estadisticasDashboard?.totalAbonado ?? 0).toLocaleString('es-CO')}
+                          </p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-xs text-gray-500">📊 Pendiente por Pagar:</p>
+                          <p className="text-sm font-semibold text-red-600">
+                            ${(estadisticasDashboard?.totalPendiente ?? 0).toLocaleString('es-CO')}
+                          </p>
+                        </div>
+                      </div>
                     </dl>
                   </div>
                 </div>
@@ -402,6 +581,95 @@ export default function Dashboard({ usuario }: DashboardProps) {
                 </div>
               </div>
             </div>
+
+            {/* Pagos a Personal del Mes */}
+            <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-purple-500">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-purple-500 rounded-md flex items-center justify-center">
+                      <span className="text-white text-lg font-bold">👥</span>
+                    </div>
+                  </div>
+                  <div className="ml-4 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Pagos a Personal</dt>
+                      <dd className="text-2xl font-bold text-purple-600">
+                        {cargandoLiquidaciones ? (
+                          <span className="text-sm text-gray-400">Cargando...</span>
+                        ) : (
+                          `$${liquidacionesMes.reduce((sum, l) => sum + l.monto, 0).toLocaleString('es-CO')}`
+                        )}
+                      </dd>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {liquidacionesMes.length} pago{liquidacionesMes.length !== 1 ? 's' : ''} registrado{liquidacionesMes.length !== 1 ? 's' : ''}
+                      </p>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Resumen de Pagos a Personal */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">💼 Resumen de Pagos a Personal</h3>
+            {cargandoLiquidaciones ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                <p className="text-gray-600 mt-4">Cargando pagos...</p>
+              </div>
+            ) : liquidacionesMes.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Persona</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Método</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Monto</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {liquidacionesMes.map((liquidacion) => (
+                      <tr key={liquidacion.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          {new Date(liquidacion.fecha_liquidacion).toLocaleDateString('es-CO')}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          {liquidacion.persona ? `${liquidacion.persona.nombre} ${liquidacion.persona.apellido}` : 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                          {liquidacion.tipo_persona === 'vendedor' ? 'Vendedor' : 'Trabajador'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                          {liquidacion.metodo_pago || 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-gray-900 text-right">
+                          ${liquidacion.monto.toLocaleString('es-CO')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-50">
+                    <tr>
+                      <td colSpan={4} className="px-4 py-3 text-sm font-semibold text-gray-900 text-right">
+                        Total:
+                      </td>
+                      <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right">
+                        ${liquidacionesMes.reduce((sum, l) => sum + l.monto, 0).toLocaleString('es-CO')}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No hay pagos registrados para este período</p>
+                <p className="text-sm text-gray-400 mt-2">Los pagos se registran desde la página de Gestión de Personal</p>
+              </div>
+            )}
           </div>
 
           {/* Segunda fila: Desglose de Costos */}

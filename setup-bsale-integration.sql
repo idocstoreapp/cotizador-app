@@ -21,3 +21,4 @@ COMMENT ON COLUMN facturas.bsale_document_id IS 'ID del documento en Bsale (para
 
 
 
+

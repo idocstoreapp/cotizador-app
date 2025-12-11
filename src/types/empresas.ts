@@ -28,7 +28,7 @@ export const EMPRESAS: Record<Empresa, EmpresaInfo> = {
     numeroInicial: 400,
     prefijoNumero: 'CASA',
     rut: '77.064.513-1',
-    direccion: 'Barnechea 420, Independencia',
+    direccion: 'Santa Elena 803, Santiago',
     emails: ['Contacto@muebleriacasablanca.cl', 'Muebleriacasablanca.cl@gmail.com'],
     telefonos: ['+56964295258', '226458059'],
     sitioWeb: 'https://muebleriacasablanca.cl/',
@@ -41,7 +41,7 @@ export const EMPRESAS: Record<Empresa, EmpresaInfo> = {
     logo: '/images/logo-kubica.png',
     numeroInicial: 1000,
     prefijoNumero: 'KUB',
-    direccion: 'Barnechea 420, Independencia',
+    direccion: 'Santa Elena 803, Santiago',
     emails: ['kubicamobiliario@gmail.com'],
     telefonos: ['+56964295258', '226458059'], // Mismos teléfonos
     sitioWeb: 'kubicamobiliario.cl',

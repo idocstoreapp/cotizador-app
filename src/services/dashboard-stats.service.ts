@@ -13,8 +13,14 @@ export interface EstadisticasDashboard {
   cotizacionesPendientes: number;
   cotizacionesRechazadas: number;
   
-  // Financiero del mes - VENTAS
-  ventasTotalesMes: number; // Total de cotizaciones aceptadas del mes
+  // Financiero del mes - VENTAS (SOLO PAGADAS)
+  ventasTotalesMes: number; // Total de cotizaciones PAGADAS del mes
+  
+  // Cotizaciones aceptadas en proceso
+  cotizacionesAceptadasEnProceso: number; // Cantidad de cotizaciones aceptadas no pagadas o pagadas parcialmente
+  cotizacionesPagadasCompletamente: number; // Cantidad de cotizaciones pagadas completamente
+  totalAbonado: number; // Suma de todos los montos pagados (incluyendo parciales)
+  totalPendiente: number; // Suma de lo que resta por pagar (total - monto_pagado para no pagadas/parciales)
   
   // Financiero del mes - COSTOS REALES (TODOS)
   gastosMaterialesMes: number;
@@ -69,54 +75,69 @@ function calcularTotalDesdeItems(cotizacion: Cotizacion): number {
 }
 
 /**
- * Obtiene estadísticas del dashboard para un mes específico
+ * Obtiene estadísticas del dashboard para un rango de fechas específico
  * MEJORADO: Incluye TODOS los costos reales
- * @param mes - Mes a consultar (0-11, donde 0 = enero). Si no se proporciona, usa el mes actual
- * @param año - Año a consultar. Si no se proporciona, usa el año actual
+ * @param fechaInicio - Fecha de inicio del rango (ISO string). Si no se proporciona, usa el mes actual
+ * @param fechaFin - Fecha de fin del rango (ISO string). Si no se proporciona, usa el mes actual
+ * @param mes - Mes a consultar (0-11, donde 0 = enero). Se usa como fallback si no hay fechas
+ * @param año - Año a consultar. Se usa como fallback si no hay fechas
  */
-export async function obtenerEstadisticasDashboard(mes?: number, año?: number): Promise<EstadisticasDashboard> {
+export async function obtenerEstadisticasDashboard(
+  fechaInicio?: string,
+  fechaFin?: string,
+  mes?: number,
+  año?: number
+): Promise<EstadisticasDashboard> {
   const ahora = new Date();
-  const mesSeleccionado = mes !== undefined ? mes : ahora.getMonth();
-  const añoSeleccionado = año !== undefined ? año : ahora.getFullYear();
+  let inicioPeriodo: Date;
+  let finPeriodo: Date;
   
-  const inicioMes = new Date(añoSeleccionado, mesSeleccionado, 1);
-  const finMes = new Date(añoSeleccionado, mesSeleccionado + 1, 0, 23, 59, 59);
+  if (fechaInicio && fechaFin) {
+    // Usar rango de fechas proporcionado
+    inicioPeriodo = new Date(fechaInicio);
+    inicioPeriodo.setHours(0, 0, 0, 0);
+    finPeriodo = new Date(fechaFin);
+    finPeriodo.setHours(23, 59, 59, 999);
+  } else {
+    // Fallback a mes/año
+    const mesSeleccionado = mes !== undefined ? mes : ahora.getMonth();
+    const añoSeleccionado = año !== undefined ? año : ahora.getFullYear();
+    inicioPeriodo = new Date(añoSeleccionado, mesSeleccionado, 1);
+    inicioPeriodo.setHours(0, 0, 0, 0);
+    finPeriodo = new Date(añoSeleccionado, mesSeleccionado + 1, 0, 23, 59, 59);
+  }
   
-  const inicioMesAnterior = new Date(añoSeleccionado, mesSeleccionado - 1, 1);
-  const finMesAnterior = new Date(añoSeleccionado, mesSeleccionado, 0, 23, 59, 59);
+  // Calcular período anterior para comparación (mismo número de días)
+  const diasPeriodo = Math.ceil((finPeriodo.getTime() - inicioPeriodo.getTime()) / (1000 * 60 * 60 * 24));
+  const inicioPeriodoAnterior = new Date(inicioPeriodo);
+  inicioPeriodoAnterior.setDate(inicioPeriodoAnterior.getDate() - diasPeriodo);
+  const finPeriodoAnterior = new Date(inicioPeriodo);
+  finPeriodoAnterior.setDate(finPeriodoAnterior.getDate() - 1);
+  finPeriodoAnterior.setHours(23, 59, 59, 999);
 
   // Obtener todas las cotizaciones
   const todasLasCotizaciones = await obtenerCotizaciones();
   
-  // Filtrar cotizaciones CREADAS en el mes actual (para contar totales)
-  const cotizacionesMes = todasLasCotizaciones.filter(c => {
+  // Filtrar cotizaciones CREADAS en el período actual (para contar totales)
+  const cotizacionesPeriodo = todasLasCotizaciones.filter(c => {
     const fecha = new Date(c.created_at);
-    const fechaNormalizada = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
-    const inicioNormalizado = new Date(inicioMes.getFullYear(), inicioMes.getMonth(), inicioMes.getDate());
-    const finNormalizado = new Date(finMes.getFullYear(), finMes.getMonth(), finMes.getDate());
-    return fechaNormalizada >= inicioNormalizado && fechaNormalizada <= finNormalizado;
+    return fecha >= inicioPeriodo && fecha <= finPeriodo;
   });
 
-  // Filtrar cotizaciones ACEPTADAS en el mes actual (para ventas)
+  // Filtrar cotizaciones ACEPTADAS en el período actual (para ventas)
   // Usar updated_at si está disponible, sino created_at
-  const cotizacionesAceptadasMes = todasLasCotizaciones.filter(c => {
+  const cotizacionesAceptadasPeriodo = todasLasCotizaciones.filter(c => {
     if (c.estado !== 'aceptada') return false;
     // Si tiene updated_at y es diferente de created_at, usar updated_at (fecha de aceptación)
     const fechaAceptacion = c.updated_at && c.updated_at !== c.created_at 
       ? new Date(c.updated_at) 
       : new Date(c.created_at);
-    const fechaNormalizada = new Date(fechaAceptacion.getFullYear(), fechaAceptacion.getMonth(), fechaAceptacion.getDate());
-    const inicioNormalizado = new Date(inicioMes.getFullYear(), inicioMes.getMonth(), inicioMes.getDate());
-    const finNormalizado = new Date(finMes.getFullYear(), finMes.getMonth(), finMes.getDate());
-    return fechaNormalizada >= inicioNormalizado && fechaNormalizada <= finNormalizado;
+    return fechaAceptacion >= inicioPeriodo && fechaAceptacion <= finPeriodo;
   });
 
-  const cotizacionesMesAnterior = todasLasCotizaciones.filter(c => {
+  const cotizacionesPeriodoAnterior = todasLasCotizaciones.filter(c => {
     const fecha = new Date(c.created_at);
-    const fechaNormalizada = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
-    const inicioAnteriorNormalizado = new Date(inicioMesAnterior.getFullYear(), inicioMesAnterior.getMonth(), inicioMesAnterior.getDate());
-    const finAnteriorNormalizado = new Date(finMesAnterior.getFullYear(), finMesAnterior.getMonth(), finMesAnterior.getDate());
-    return fechaNormalizada >= inicioAnteriorNormalizado && fechaNormalizada <= finAnteriorNormalizado;
+    return fecha >= inicioPeriodoAnterior && fecha <= finPeriodoAnterior;
   });
 
   // Buscar K001 específicamente para debug
@@ -125,12 +146,12 @@ export async function obtenerEstadisticasDashboard(mes?: number, año?: number):
   // Debug: Log para verificar filtros
   console.log('📊 [Dashboard Stats] Filtros:', {
     totalCotizaciones: todasLasCotizaciones.length,
-    cotizacionesCreadasMes: cotizacionesMes.length,
-    cotizacionesAceptadasMes: cotizacionesAceptadasMes.length,
-    cotizacionesMesAnterior: cotizacionesMesAnterior.length,
-    rangoMes: {
-      inicio: inicioMes.toISOString().split('T')[0],
-      fin: finMes.toISOString().split('T')[0]
+    cotizacionesCreadasPeriodo: cotizacionesPeriodo.length,
+    cotizacionesAceptadasPeriodo: cotizacionesAceptadasPeriodo.length,
+    cotizacionesPeriodoAnterior: cotizacionesPeriodoAnterior.length,
+    rangoPeriodo: {
+      inicio: inicioPeriodo.toISOString().split('T')[0],
+      fin: finPeriodo.toISOString().split('T')[0]
     },
     k001: cotizacionK001 ? {
       id: cotizacionK001.id,
@@ -138,28 +159,49 @@ export async function obtenerEstadisticasDashboard(mes?: number, año?: number):
       estado: cotizacionK001.estado,
       created_at: cotizacionK001.created_at,
       updated_at: cotizacionK001.updated_at,
-      estaEnMes: cotizacionesAceptadasMes.some(c => c.id === cotizacionK001.id),
+      estaEnPeriodo: cotizacionesAceptadasPeriodo.some(c => c.id === cotizacionK001.id),
       fechaAceptacion: cotizacionK001.updated_at && cotizacionK001.updated_at !== cotizacionK001.created_at 
         ? new Date(cotizacionK001.updated_at).toISOString().split('T')[0]
         : new Date(cotizacionK001.created_at).toISOString().split('T')[0]
     } : 'No encontrada'
   });
 
-  // Estadísticas de cotizaciones del mes
-  const totalCotizaciones = cotizacionesMes.length;
-  const cotizacionesPendientesMes = cotizacionesMes.filter(c => c.estado === 'pendiente');
-  const cotizacionesRechazadasMes = cotizacionesMes.filter(c => c.estado === 'rechazada');
+  // Estadísticas de cotizaciones del período
+  const totalCotizaciones = cotizacionesPeriodo.length;
+  const cotizacionesPendientesPeriodo = cotizacionesPeriodo.filter(c => c.estado === 'pendiente');
+  const cotizacionesRechazadasPeriodo = cotizacionesPeriodo.filter(c => c.estado === 'rechazada');
 
-  // Ventas del mes (cotizaciones aceptadas en el mes actual)
-  const ventasTotalesMes = cotizacionesAceptadasMes.reduce((sum, c) => sum + calcularTotalDesdeItems(c), 0);
+  // Separar cotizaciones aceptadas por estado de pago
+  const cotizacionesPagadas = cotizacionesAceptadasPeriodo.filter(c => 
+    c.estado_pago === 'pagado' || (c.monto_pagado && c.monto_pagado > 0 && c.monto_pagado >= calcularTotalDesdeItems(c))
+  );
+  const cotizacionesEnProceso = cotizacionesAceptadasPeriodo.filter(c => 
+    !c.estado_pago || c.estado_pago === 'no_pagado' || c.estado_pago === 'pago_parcial' || 
+    (c.monto_pagado && c.monto_pagado > 0 && c.monto_pagado < calcularTotalDesdeItems(c))
+  );
 
-  // ====== COSTOS REALES DEL MES (TODOS) ======
-  // IMPORTANTE: Contar todos los costos reales de las cotizaciones aceptadas en el mes
-  // Esto refleja mejor la realidad: si una cotización fue aceptada en el mes,
-  // todos sus costos reales (sin importar cuándo ocurrieron) se asocian a esa venta del mes
+  // Ventas del período (SOLO cotizaciones PAGADAS)
+  const ventasTotalesPeriodo = cotizacionesPagadas.reduce((sum, c) => sum + calcularTotalDesdeItems(c), 0);
+
+  // Calcular total abonado (suma de todos los monto_pagado, incluyendo parciales)
+  const totalAbonado = cotizacionesAceptadasPeriodo.reduce((sum, c) => {
+    return sum + (c.monto_pagado || 0);
+  }, 0);
+
+  // Calcular total pendiente (lo que resta por pagar)
+  const totalPendiente = cotizacionesEnProceso.reduce((sum, c) => {
+    const total = calcularTotalDesdeItems(c);
+    const pagado = c.monto_pagado || 0;
+    return sum + (total - pagado);
+  }, 0);
+
+  // ====== COSTOS REALES DEL PERÍODO (TODOS) ======
+  // IMPORTANTE: Contar todos los costos reales de las cotizaciones aceptadas en el período
+  // Esto refleja mejor la realidad: si una cotización fue aceptada en el período,
+  // todos sus costos reales (sin importar cuándo ocurrieron) se asocian a esa venta del período
   
-  // Obtener IDs de cotizaciones aceptadas en el mes
-  const idsCotizacionesAceptadas = cotizacionesAceptadasMes.map(c => c.id);
+  // Obtener IDs de cotizaciones aceptadas en el período
+  const idsCotizacionesAceptadas = cotizacionesAceptadasPeriodo.map(c => c.id);
   
   // Si no hay cotizaciones aceptadas, los costos son 0
   let gastosMaterialesMes = 0;
@@ -177,7 +219,7 @@ export async function obtenerEstadisticasDashboard(mes?: number, año?: number):
     // IMPORTANTE: Obtener las cotizaciones con sus items para saber la cantidad del item
     // Los gastos reales están registrados para 1 unidad, necesitamos multiplicar por la cantidad
     const cotizacionesConItems = await Promise.all(
-      cotizacionesAceptadasMes.map(async (cotizacion) => {
+      cotizacionesAceptadasPeriodo.map(async (cotizacion) => {
         // Obtener la cantidad del item (los gastos reales están registrados para 1 unidad)
         let cantidadItem = 1;
         if (cotizacion.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0) {
@@ -340,7 +382,7 @@ export async function obtenerEstadisticasDashboard(mes?: number, año?: number):
   // Obtener cantidad por cotización si no está ya calculada
   let cantidadPorCotizacionDebug = new Map<string, number>();
   if (idsCotizacionesAceptadas.length > 0) {
-    cotizacionesAceptadasMes.forEach(cotizacion => {
+    cotizacionesAceptadasPeriodo.forEach(cotizacion => {
       let cantidadItem = 1;
       if (cotizacion.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0) {
         const itemConCantidad = cotizacion.items.find((item: any) => item.cantidad && item.cantidad > 1);
@@ -533,34 +575,31 @@ export async function obtenerEstadisticasDashboard(mes?: number, año?: number):
   const costosTotalesMes = gastosMaterialesMes + gastosManoObraMes + gastosHormigaMes + gastosTransporteMes + ivaRealMes;
 
   // GANANCIA REAL = Ventas - Costos Totales (incluye IVA)
-  const gananciaMes = ventasTotalesMes - costosTotalesMes;
+  const gananciaMes = ventasTotalesPeriodo - costosTotalesMes;
   
   // Margen de ganancia %
-  const margenGananciaMes = ventasTotalesMes > 0 ? (gananciaMes / ventasTotalesMes) * 100 : 0;
+  const margenGananciaMes = ventasTotalesPeriodo > 0 ? (gananciaMes / ventasTotalesPeriodo) * 100 : 0;
 
   // ====== COMPARACIÓN MES ANTERIOR ======
-  const totalCotizacionesAnterior = cotizacionesMesAnterior.length;
+  const totalCotizacionesAnterior = cotizacionesPeriodoAnterior.length;
   
-  // Cotizaciones aceptadas en el mes anterior (usar updated_at si está disponible)
-  const cotizacionesAceptadasMesAnterior = todasLasCotizaciones.filter(c => {
+  // Cotizaciones aceptadas en el período anterior (usar updated_at si está disponible)
+  const cotizacionesAceptadasPeriodoAnterior = todasLasCotizaciones.filter(c => {
     if (c.estado !== 'aceptada') return false;
     const fechaAceptacion = c.updated_at && c.updated_at !== c.created_at 
       ? new Date(c.updated_at) 
       : new Date(c.created_at);
-    const fechaNormalizada = new Date(fechaAceptacion.getFullYear(), fechaAceptacion.getMonth(), fechaAceptacion.getDate());
-    const inicioAnteriorNormalizado = new Date(inicioMesAnterior.getFullYear(), inicioMesAnterior.getMonth(), inicioMesAnterior.getDate());
-    const finAnteriorNormalizado = new Date(finMesAnterior.getFullYear(), finMesAnterior.getMonth(), finMesAnterior.getDate());
-    return fechaNormalizada >= inicioAnteriorNormalizado && fechaNormalizada <= finAnteriorNormalizado;
+    return fechaAceptacion >= inicioPeriodoAnterior && fechaAceptacion <= finPeriodoAnterior;
   });
-  
-  const ventasMesAnterior = cotizacionesAceptadasMesAnterior.reduce((sum, c) => sum + calcularTotalDesdeItems(c), 0);
+
+  const ventasPeriodoAnterior = cotizacionesAceptadasPeriodoAnterior.reduce((sum, c) => sum + calcularTotalDesdeItems(c), 0);
 
   const variacionCotizaciones = totalCotizacionesAnterior > 0
     ? ((totalCotizaciones - totalCotizacionesAnterior) / totalCotizacionesAnterior) * 100
     : 0;
 
-  const variacionVentas = ventasMesAnterior > 0
-    ? ((ventasTotalesMes - ventasMesAnterior) / ventasMesAnterior) * 100
+  const variacionVentas = ventasPeriodoAnterior > 0
+    ? ((ventasTotalesPeriodo - ventasPeriodoAnterior) / ventasPeriodoAnterior) * 100
     : 0;
 
   // ====== TOTALES HISTÓRICOS ======
@@ -838,18 +877,22 @@ export async function obtenerEstadisticasDashboard(mes?: number, año?: number):
 
   return {
     totalCotizaciones,
-    cotizacionesAceptadas: cotizacionesAceptadasMes.length,
-    cotizacionesPendientes: cotizacionesPendientesMes.length,
-    cotizacionesRechazadas: cotizacionesRechazadasMes.length,
-    ventasTotalesMes,
+    cotizacionesAceptadas: cotizacionesAceptadasPeriodo.length,
+    cotizacionesPendientes: cotizacionesPendientesPeriodo.length,
+    cotizacionesRechazadas: cotizacionesRechazadasPeriodo.length,
+    ventasTotalesMes: ventasTotalesPeriodo,
+    cotizacionesAceptadasEnProceso: cotizacionesEnProceso.length,
+    cotizacionesPagadasCompletamente: cotizacionesPagadas.length,
+    totalAbonado: totalAbonado,
+    totalPendiente: totalPendiente,
     gastosMaterialesMes,
     gastosManoObraMes,
     gastosHormigaMes,
     gastosTransporteMes,
     costosTotalesMes,
     ivaRealMes,
-    gananciaMes,
-    margenGananciaMes,
+    gananciaMes: ventasTotalesPeriodo - costosTotalesMes,
+    margenGananciaMes: ventasTotalesPeriodo > 0 ? ((ventasTotalesPeriodo - costosTotalesMes) / ventasTotalesPeriodo) * 100 : 0,
     variacionCotizaciones,
     variacionVentas,
     ventasTotalesHistorico,

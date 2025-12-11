@@ -8,67 +8,98 @@ import { EMPRESAS } from '../types/empresas';
  * Convierte una cotización guardada al formato del PDF profesional
  */
 export function convertirCotizacionAPDF(cotizacion: Cotizacion) {
-  // Construir items del PDF desde materiales y servicios
+  // Construir items del PDF
   const items: Array<{ concepto: string; precio: number; detalles?: any }> = [];
 
-  // Agrupar materiales y servicios en un solo item con detalles
-  const materiales = cotizacion.materiales && Array.isArray(cotizacion.materiales) 
-    ? cotizacion.materiales.map((material: any) => {
-        const nombreMaterial = material.material?.nombre || material.nombre || 'Material';
-        const cantidad = material.cantidad || 1;
-        const precioUnitario = material.precio_unitario || 0;
-        const subtotal = cantidad * precioUnitario;
+  // PRIORIDAD: Si hay items guardados en la cotización, usarlos directamente
+  if (cotizacion.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0) {
+    // Convertir items guardados al formato del PDF
+    cotizacion.items.forEach((item: any) => {
+      let concepto = '';
+      let precio = 0;
+
+      if (item.tipo === 'catalogo' && item.mueble) {
+        // Item del catálogo
+        concepto = item.mueble.nombre || 'Mueble del catálogo';
         
-        return {
-          nombre: nombreMaterial,
-          cantidad,
-          unidad: material.unidad || 'unidad',
-          precio_unitario: precioUnitario,
-          subtotal
-        };
-      })
-    : [];
-
-  const servicios = cotizacion.servicios && Array.isArray(cotizacion.servicios)
-    ? cotizacion.servicios.map((servicio: any) => {
-        const nombreServicio = servicio.servicio?.nombre || servicio.nombre || 'Servicio';
-        const horas = servicio.horas || 0;
-        const precioPorHora = servicio.precio_por_hora || 0;
-        const subtotal = horas * precioPorHora;
+        // Agregar detalles de opciones si existen
+        const detallesTexto: string[] = [];
+        if (item.opciones?.color) detallesTexto.push(`Color: ${item.opciones.color}`);
+        if (item.opciones?.material) detallesTexto.push(`Material: ${item.opciones.material}`);
+        if (item.opciones?.material_puertas) detallesTexto.push(`Puertas: ${item.opciones.material_puertas}`);
+        if (item.opciones?.tipo_topes) detallesTexto.push(`Topes: ${item.opciones.tipo_topes}`);
         
-        return {
-          nombre: nombreServicio,
-          horas,
-          precio_por_hora: precioPorHora,
-          subtotal
-        };
-      })
-    : [];
+        if (item.medidas) {
+          detallesTexto.push(`${item.medidas.ancho || ''}×${item.medidas.alto || ''}×${item.medidas.profundidad || ''} cm`);
+        }
 
-  // Crear un item principal con todos los detalles
-  if (materiales.length > 0 || servicios.length > 0) {
-    const detalles: any = {};
-    
-    if (materiales.length > 0) {
-      detalles.materiales = materiales;
-    }
-    
-    if (servicios.length > 0) {
-      detalles.servicios = servicios;
-    }
-    
-    if (cotizacion.margen_ganancia !== undefined) {
-      detalles.margen_ganancia = cotizacion.margen_ganancia;
-      detalles.subtotal_antes_margen = cotizacion.subtotal;
-    }
+        if (detallesTexto.length > 0) {
+          concepto += ` (${detallesTexto.join(', ')})`;
+        }
 
-    items.push({
-      concepto: 'Cotización Completa',
-      precio: cotizacion.total,
-      detalles
+        if (item.cantidad > 1) {
+          concepto += ` x${item.cantidad}`;
+        }
+
+        precio = item.precio_total || 0;
+      } else if (item.tipo === 'manual') {
+        // Item manual
+        concepto = item.nombre || 'Item manual';
+        if (item.descripcion) {
+          concepto += ` - ${item.descripcion}`;
+        }
+        if (item.medidas) {
+          concepto += ` (${item.medidas.ancho || ''}×${item.medidas.alto || ''}×${item.medidas.profundidad || ''} cm)`;
+        }
+        if (item.cantidad > 1) {
+          concepto += ` x${item.cantidad}`;
+        }
+        precio = item.precio_total || 0;
+      }
+
+      if (concepto && precio > 0) {
+        items.push({
+          concepto,
+          precio
+        });
+      }
     });
   } else {
-    // Fallback: agregar items individuales sin detalles
+    // Fallback: Si no hay items guardados, usar materiales y servicios
+    const materiales = cotizacion.materiales && Array.isArray(cotizacion.materiales) 
+      ? cotizacion.materiales.map((material: any) => {
+          const nombreMaterial = material.material?.nombre || material.nombre || 'Material';
+          const cantidad = material.cantidad || 1;
+          const precioUnitario = material.precio_unitario || 0;
+          const subtotal = cantidad * precioUnitario;
+          
+          return {
+            nombre: nombreMaterial,
+            cantidad,
+            unidad: material.unidad || 'unidad',
+            precio_unitario: precioUnitario,
+            subtotal
+          };
+        })
+      : [];
+
+    const servicios = cotizacion.servicios && Array.isArray(cotizacion.servicios)
+      ? cotizacion.servicios.map((servicio: any) => {
+          const nombreServicio = servicio.servicio?.nombre || servicio.nombre || 'Servicio';
+          const horas = servicio.horas || 0;
+          const precioPorHora = servicio.precio_por_hora || 0;
+          const subtotal = horas * precioPorHora;
+          
+          return {
+            nombre: nombreServicio,
+            horas,
+            precio_por_hora: precioPorHora,
+            subtotal
+          };
+        })
+      : [];
+
+    // Agregar items individuales
     materiales.forEach((mat: any) => {
       items.push({
         concepto: `${mat.nombre}${mat.cantidad > 1 ? ` x${mat.cantidad}` : ''}`,
@@ -163,13 +194,55 @@ export function convertirCotizacionAPDF(cotizacion: Cotizacion) {
     }
   }
 
+  // Obtener nombre del vendedor
+  let vendedorName: string | undefined;
+  if (cotizacion.vendedor) {
+    vendedorName = `${cotizacion.vendedor.nombre || ''} ${cotizacion.vendedor.apellido || ''}`.trim();
+  }
+
+  // Extraer cantidad y precio unitario de los items
+  const itemsConDetalles = items.map((item: any) => {
+    // Buscar en los items originales para obtener cantidad
+    if (cotizacion.items && Array.isArray(cotizacion.items)) {
+      const itemOriginal = cotizacion.items.find((it: any) => {
+        const conceptoItem = it.tipo === 'catalogo' 
+          ? (it.mueble?.nombre || '')
+          : (it.nombre || '');
+        return item.concepto.includes(conceptoItem);
+      });
+      
+      if (itemOriginal) {
+        const cantidad = itemOriginal.cantidad || 1;
+        const precioTotal = item.precio;
+        const precioUnitario = precioTotal / cantidad;
+        
+        return {
+          ...item,
+          cantidad,
+          precio_unitario: precioUnitario
+        };
+      }
+    }
+    
+    // Si no se encuentra, asumir cantidad 1
+    return {
+      ...item,
+      cantidad: 1,
+      precio_unitario: item.precio
+    };
+  });
+
   return {
     clientName: cotizacion.cliente_nombre,
+    clientEmail: cotizacion.cliente_email,
+    clientPhone: cotizacion.cliente_telefono,
+    clientAddress: cotizacion.cliente_direccion,
+    vendedorName,
     date: fecha,
     quoteNumber: cotizacion.numero,
     model,
     dimensions,
-    items,
+    items: itemsConDetalles,
     total: cotizacion.total,
     image,
     companyName,
