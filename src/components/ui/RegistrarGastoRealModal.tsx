@@ -120,11 +120,11 @@ export default function RegistrarGastoRealModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-      <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
-          <h2 className="text-xl font-bold text-gray-900">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-2 sm:p-4">
+      <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[95vh] flex flex-col">
+        {/* Header fijo */}
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900">
             {esModoEdicion ? '✏️ Editar Gasto Real' : 'Registrar Gasto Real'}
           </h2>
           <button
@@ -135,8 +135,8 @@ export default function RegistrarGastoRealModal({
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-6">
+        {/* Content scrolleable */}
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto flex-1 min-h-0">
           {/* Información del material */}
           <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-3">Material: {material.material_nombre || 'Material'}</h3>
@@ -349,22 +349,23 @@ export default function RegistrarGastoRealModal({
             </div>
           </div>
 
-          {/* Botones */}
-          <div className="flex gap-3 pt-4 border-t border-gray-200">
-            <button
-              onClick={handleGuardar}
-              disabled={guardando || cantidadReal <= 0 || precioUnitarioReal <= 0}
-              className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-medium py-3 px-6 rounded-lg transition-colors"
-            >
-              {guardando ? 'Guardando...' : esModoEdicion ? '💾 Actualizar Gasto Real' : '💾 Registrar Gasto Real'}
-            </button>
-            <button
-              onClick={onClose}
-              className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancelar
-            </button>
-          </div>
+        </div>
+
+        {/* Botones fijos en la parte inferior */}
+        <div className="flex gap-3 p-4 sm:p-6 border-t border-gray-200 bg-white flex-shrink-0">
+          <button
+            onClick={handleGuardar}
+            disabled={guardando || cantidadReal <= 0 || precioUnitarioReal <= 0}
+            className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-medium py-2 sm:py-3 px-4 sm:px-6 rounded-lg transition-colors text-sm sm:text-base"
+          >
+            {guardando ? 'Guardando...' : esModoEdicion ? '💾 Actualizar Gasto Real' : '💾 Registrar Gasto Real'}
+          </button>
+          <button
+            onClick={onClose}
+            className="px-4 sm:px-6 py-2 sm:py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm sm:text-base"
+          >
+            Cancelar
+          </button>
         </div>
       </div>
     </div>

@@ -14,6 +14,7 @@ import TransporteRealTab from './ui/TransporteRealTab';
 import ResumenCostosTab from './ui/ResumenCostosTab';
 import FacturasTab from './ui/FacturasTab';
 import UtilidadesTab from './ui/UtilidadesTab';
+import EditarCotizacionModal from './EditarCotizacionModal';
 import type { Cotizacion, UserProfile } from '../types/database';
 import type { ResumenCostosReales, ComparacionPresupuestoReal } from '../services/rentabilidad.service';
 
@@ -32,6 +33,7 @@ export default function ControlCostosPage({ cotizacionId }: ControlCostosPagePro
   const [tabActual, setTabActual] = useState<TabType>('resumen');
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mostrarEditarCotizacion, setMostrarEditarCotizacion] = useState(false);
 
   // Usar usuario del contexto o cargar directamente
   const usuario = contextoUsuario.usuario || usuarioLocal;
@@ -203,9 +205,34 @@ export default function ControlCostosPage({ cotizacionId }: ControlCostosPagePro
 
         {/* Tab Content */}
         <div className="p-4 sm:p-6">
-          {tabActual === 'resumen' && comparacion && (
-            <ResumenCostosTab comparacion={comparacion} />
+          {/* Botón para editar cotización si no hay datos presupuestados */}
+          {comparacion?.sinDatosPresupuestados && (
+            <div className="mb-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-yellow-900">
+                    ⚠️ Esta cotización fue creada sin datos de costos detallados
+                  </p>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    Para obtener comparativas precisas, edita la cotización y agrega los datos presupuestados reales.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setMostrarEditarCotizacion(true)}
+                  className="ml-4 px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 whitespace-nowrap"
+                >
+                  ✏️ Editar Cotización
+                </button>
+              </div>
+            </div>
           )}
+          {tabActual === 'resumen' && comparacion ? (
+            <ResumenCostosTab comparacion={comparacion} />
+          ) : tabActual === 'resumen' ? (
+            <div className="text-center py-8 text-gray-500">
+              Cargando comparación de costos...
+            </div>
+          ) : null}
           {tabActual === 'materiales' && (
             <MaterialesRealesTab
               cotizacionId={cotizacionId}
@@ -242,6 +269,22 @@ export default function ControlCostosPage({ cotizacionId }: ControlCostosPagePro
           )}
         </div>
       </div>
+
+      {/* Modal para editar cotización */}
+      {mostrarEditarCotizacion && cotizacion && usuario && (
+        <EditarCotizacionModal
+          cotizacion={cotizacion}
+          usuarioId={usuario.id}
+          onClose={() => {
+            setMostrarEditarCotizacion(false);
+            recargarDatos();
+          }}
+          onSuccess={() => {
+            setMostrarEditarCotizacion(false);
+            recargarDatos();
+          }}
+        />
+      )}
     </div>
   );
 }

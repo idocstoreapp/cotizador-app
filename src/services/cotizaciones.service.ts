@@ -448,6 +448,86 @@ export async function eliminarCotizacion(id: string): Promise<void> {
 }
 
 /**
+ * Obtiene todas las cotizaciones de un cliente por nombre o email
+ * @param clienteNombre - Nombre del cliente
+ * @param clienteEmail - Email del cliente (opcional)
+ * @returns Lista de cotizaciones del cliente
+ */
+export async function obtenerCotizacionesPorCliente(
+  clienteNombre: string,
+  clienteEmail?: string
+): Promise<Cotizacion[]> {
+  let query = supabase
+    .from('cotizaciones')
+    .select('*')
+    .eq('cliente_nombre', clienteNombre)
+    .order('created_at', { ascending: false });
+
+  // Si hay email, también buscar por email
+  if (clienteEmail) {
+    query = query.or(`cliente_nombre.eq.${clienteNombre},cliente_email.eq.${clienteEmail}`);
+  }
+
+  const { data: cotizaciones, error } = await query;
+
+  if (error) throw error;
+  if (!cotizaciones || cotizaciones.length === 0) return [];
+
+  // Cargar usuarios y vendedores
+  const usuarioIds = [...new Set(cotizaciones.map(c => c.usuario_id).filter(Boolean))];
+  const vendedorIds = [...new Set(cotizaciones.map(c => c.vendedor_id).filter(Boolean))];
+  const todosLosIds = [...new Set([...usuarioIds, ...vendedorIds])];
+  
+  let perfiles: any[] = [];
+  if (todosLosIds.length > 0) {
+    const { data: perfilesData } = await supabase
+      .from('perfiles')
+      .select('id, nombre, email, role')
+      .in('id', todosLosIds);
+    if (perfilesData) perfiles = perfilesData;
+  }
+
+  return cotizaciones.map(cotizacion => {
+    const perfil = perfiles.find(p => p.id === cotizacion.usuario_id);
+    const vendedor = cotizacion.vendedor_id 
+      ? perfiles.find(p => p.id === cotizacion.vendedor_id)
+      : null;
+    return {
+      ...cotizacion,
+      usuario: perfil || null,
+      vendedor: vendedor || null
+    } as Cotizacion;
+  });
+}
+
+/**
+ * Actualiza el estado de pago de una cotización
+ * @param id - ID de la cotización
+ * @param estadoPago - Nuevo estado de pago
+ * @param montoPagado - Monto pagado hasta el momento
+ * @returns Cotización actualizada
+ */
+export async function actualizarEstadoPagoCotizacion(
+  id: string,
+  estadoPago: 'no_pagado' | 'pago_parcial' | 'pagado',
+  montoPagado: number
+): Promise<Cotizacion> {
+  const { data, error } = await supabase
+    .from('cotizaciones')
+    .update({
+      estado_pago: estadoPago,
+      monto_pagado: montoPagado,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data as Cotizacion;
+}
+
+/**
  * Cambia el estado de una cotización
  * @param id - ID de la cotización
  * @param estado - Nuevo estado

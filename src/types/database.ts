@@ -163,6 +163,8 @@ export interface Cotizacion {
   margen_ganancia: number; // Porcentaje configurado
   total: number;
   estado: 'pendiente' | 'aceptada' | 'rechazada';
+  estado_pago?: 'no_pagado' | 'pago_parcial' | 'pagado'; // Estado de pago (solo para cotizaciones aceptadas)
+  monto_pagado?: number; // Monto total pagado hasta el momento
   usuario_id: string; // ID del usuario que creó la cotización
   usuario?: UserProfile; // Relación cargada
   vendedor_id?: string; // ID del vendedor que generó la cotización
@@ -272,7 +274,9 @@ export interface ManoObraReal {
   trabajador?: UserProfile; // Relación cargada
   horas_trabajadas: number;
   pago_por_hora: number;
-  total_pagado: number; // Calculado: horas_trabajadas * pago_por_hora
+  monto_manual?: number; // Monto manual cuando tipo_calculo es 'monto'
+  tipo_calculo?: 'horas' | 'monto'; // Tipo de cálculo: por horas o monto manual
+  total_pagado: number; // Calculado: horas_trabajadas * pago_por_hora o monto_manual
   fecha: string; // Fecha del trabajo
   comprobante_url?: string; // URL del comprobante
   notas?: string;

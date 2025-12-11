@@ -11,6 +11,9 @@ export default function ResumenCostosTab({ comparacion }: ResumenCostosTabProps)
   // Extraer información de items cotizados
   const itemsCotizados = comparacion.cotizacion?.items || [];
   
+  // Verificar si sinDatosPresupuestados existe (puede no estar en versiones antiguas)
+  const sinDatosPresupuestados = (comparacion as any).sinDatosPresupuestados || false;
+  
   return (
     <div className="space-y-4 sm:space-y-6 max-w-full overflow-x-hidden">
       {/* Detalle de lo Cotizado */}
@@ -99,18 +102,46 @@ export default function ResumenCostosTab({ comparacion }: ResumenCostosTabProps)
       {/* Diferencia y Utilidad */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         {/* Diferencia */}
-        <div className={`p-4 sm:p-6 rounded-lg ${comparacion.diferencia >= 0 ? 'bg-red-50' : 'bg-green-50'}`}>
+        <div className={`p-4 sm:p-6 rounded-lg ${
+          sinDatosPresupuestados 
+            ? 'bg-yellow-50 border-2 border-yellow-300' 
+            : comparacion.diferencia >= 0 
+              ? 'bg-red-50' 
+              : 'bg-green-50'
+        }`}>
           <h3 className="text-xs sm:text-sm font-medium text-gray-600 mb-2">Diferencia de Costos</h3>
-          <p className="text-xs text-gray-500 mb-1">
-            Real vs Presupuestado (solo costos base)
-          </p>
-          <p className={`text-2xl sm:text-3xl font-bold ${comparacion.diferencia >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-            {comparacion.diferencia >= 0 ? '+' : ''}${comparacion.diferencia.toLocaleString('es-CO')}
-          </p>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1">
-            {comparacion.diferenciaPorcentaje >= 0 ? '+' : ''}{comparacion.diferenciaPorcentaje.toFixed(2)}%
-            {comparacion.diferencia >= 0 ? ' (sobrepasaste)' : ' (ahorraste)'}
-          </p>
+          {sinDatosPresupuestados ? (
+            <>
+              <p className="text-xs text-yellow-800 mb-2 font-semibold">
+                ⚠️ No hay datos presupuestados para comparar
+              </p>
+              <p className="text-sm text-yellow-700">
+                Esta cotización fue creada sin datos de costos detallados. Los valores presupuestados son muy bajos o están marcados como "sin datos".
+              </p>
+              <p className="text-xs text-yellow-600 mt-2">
+                Puedes editar la cotización desde la página de costos para agregar los datos presupuestados reales.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-gray-500 mb-1">
+                Real vs Presupuestado (solo costos base)
+              </p>
+              <p className={`text-2xl sm:text-3xl font-bold ${comparacion.diferencia >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                {comparacion.diferencia >= 0 ? '+' : ''}${comparacion.diferencia.toLocaleString('es-CO')}
+              </p>
+              {comparacion.diferenciaPorcentaje !== null ? (
+                <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                  {comparacion.diferenciaPorcentaje >= 0 ? '+' : ''}{comparacion.diferenciaPorcentaje.toFixed(2)}%
+                  {comparacion.diferencia >= 0 ? ' (sobrepasaste)' : ' (ahorraste)'}
+                </p>
+              ) : (
+                <p className="text-xs sm:text-sm text-yellow-600 mt-1">
+                  No se puede calcular porcentaje (sin datos presupuestados)
+                </p>
+              )}
+            </>
+          )}
         </div>
 
         {/* Utilidad Real */}
@@ -153,14 +184,26 @@ export default function ResumenCostosTab({ comparacion }: ResumenCostosTabProps)
                   <p className="text-xs sm:text-sm text-gray-600">Real</p>
                   <p className="font-medium text-sm sm:text-base">${comparacion.materiales.real.toLocaleString('es-CO')}</p>
                 </div>
-                <div className={`text-left sm:text-right flex-1 sm:flex-none min-w-[100px] ${comparacion.materiales.diferencia >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                <div className={`text-left sm:text-right flex-1 sm:flex-none min-w-[100px] ${
+                  (comparacion.materiales as any).sinDatosPresupuestados 
+                    ? 'text-yellow-600' 
+                    : comparacion.materiales.diferencia >= 0 
+                      ? 'text-red-600' 
+                      : 'text-green-600'
+                }`}>
                   <p className="text-xs sm:text-sm">Diferencia</p>
                   <p className="font-bold text-sm sm:text-base">
                     {comparacion.materiales.diferencia >= 0 ? '+' : ''}${comparacion.materiales.diferencia.toLocaleString('es-CO')}
                   </p>
-                  <p className="text-xs">
-                    ({comparacion.materiales.diferenciaPorcentaje >= 0 ? '+' : ''}{comparacion.materiales.diferenciaPorcentaje.toFixed(1)}%)
-                  </p>
+                  {(comparacion.materiales as any).sinDatosPresupuestados ? (
+                    <p className="text-xs text-yellow-600">⚠️ Sin datos presupuestados</p>
+                  ) : comparacion.materiales.diferenciaPorcentaje !== null ? (
+                    <p className="text-xs">
+                      ({comparacion.materiales.diferenciaPorcentaje >= 0 ? '+' : ''}{comparacion.materiales.diferenciaPorcentaje.toFixed(1)}%)
+                    </p>
+                  ) : (
+                    <p className="text-xs text-yellow-600">N/A</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -179,14 +222,26 @@ export default function ResumenCostosTab({ comparacion }: ResumenCostosTabProps)
                   <p className="text-xs sm:text-sm text-gray-600">Real</p>
                   <p className="font-medium text-sm sm:text-base">${comparacion.servicios.real.toLocaleString('es-CO')}</p>
                 </div>
-                <div className={`text-left sm:text-right flex-1 sm:flex-none min-w-[100px] ${comparacion.servicios.diferencia >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                <div className={`text-left sm:text-right flex-1 sm:flex-none min-w-[100px] ${
+                  (comparacion.servicios as any).sinDatosPresupuestados 
+                    ? 'text-yellow-600' 
+                    : comparacion.servicios.diferencia >= 0 
+                      ? 'text-red-600' 
+                      : 'text-green-600'
+                }`}>
                   <p className="text-xs sm:text-sm">Diferencia</p>
                   <p className="font-bold text-sm sm:text-base">
                     {comparacion.servicios.diferencia >= 0 ? '+' : ''}${comparacion.servicios.diferencia.toLocaleString('es-CO')}
                   </p>
-                  <p className="text-xs">
-                    ({comparacion.servicios.diferenciaPorcentaje >= 0 ? '+' : ''}{comparacion.servicios.diferenciaPorcentaje.toFixed(1)}%)
-                  </p>
+                  {(comparacion.servicios as any).sinDatosPresupuestados ? (
+                    <p className="text-xs text-yellow-600">⚠️ Sin datos presupuestados</p>
+                  ) : comparacion.servicios.diferenciaPorcentaje !== null ? (
+                    <p className="text-xs">
+                      ({comparacion.servicios.diferenciaPorcentaje >= 0 ? '+' : ''}{comparacion.servicios.diferenciaPorcentaje.toFixed(1)}%)
+                    </p>
+                  ) : (
+                    <p className="text-xs text-yellow-600">N/A</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -268,7 +323,13 @@ export default function ResumenCostosTab({ comparacion }: ResumenCostosTabProps)
                 </span>
                 <span className={`font-bold ${comparacion.materiales.diferencia >= 0 ? 'text-red-600' : 'text-green-600'}`}>
                   {comparacion.materiales.diferencia >= 0 ? '+' : ''}${comparacion.materiales.diferencia.toLocaleString('es-CO')}
-                  {' '}({comparacion.materiales.diferenciaPorcentaje >= 0 ? '+' : ''}{comparacion.materiales.diferenciaPorcentaje.toFixed(2)}%)
+                  {(comparacion.materiales as any).sinDatosPresupuestados ? (
+                    ' ⚠️ Sin datos presupuestados'
+                  ) : comparacion.materiales.diferenciaPorcentaje !== null ? (
+                    ` (${comparacion.materiales.diferenciaPorcentaje >= 0 ? '+' : ''}${comparacion.materiales.diferenciaPorcentaje.toFixed(2)}%)`
+                  ) : (
+                    ' (N/A)'
+                  )}
                 </span>
               </div>
               {comparacion.materiales.diferencia !== 0 && (
@@ -297,16 +358,45 @@ export default function ResumenCostosTab({ comparacion }: ResumenCostosTabProps)
                 <span className="text-gray-600">Real (pagos registrados × cantidad item):</span>
                 <span className="font-medium text-green-600">${comparacion.servicios.real.toLocaleString('es-CO')}</span>
               </div>
-              <div className={`flex justify-between pt-2 border-t ${comparacion.servicios.diferencia >= 0 ? 'border-red-200' : 'border-green-200'}`}>
-                <span className={`font-semibold ${comparacion.servicios.diferencia >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+              <div className={`flex justify-between pt-2 border-t ${
+                (comparacion.servicios as any).sinDatosPresupuestados 
+                  ? 'border-yellow-200' 
+                  : comparacion.servicios.diferencia >= 0 
+                    ? 'border-red-200' 
+                    : 'border-green-200'
+              }`}>
+                <span className={`font-semibold ${
+                  (comparacion.servicios as any).sinDatosPresupuestados 
+                    ? 'text-yellow-600' 
+                    : comparacion.servicios.diferencia >= 0 
+                      ? 'text-red-600' 
+                      : 'text-green-600'
+                }`}>
                   Diferencia:
                 </span>
-                <span className={`font-bold ${comparacion.servicios.diferencia >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                <span className={`font-bold ${
+                  (comparacion.servicios as any).sinDatosPresupuestados 
+                    ? 'text-yellow-600' 
+                    : comparacion.servicios.diferencia >= 0 
+                      ? 'text-red-600' 
+                      : 'text-green-600'
+                }`}>
                   {comparacion.servicios.diferencia >= 0 ? '+' : ''}${comparacion.servicios.diferencia.toLocaleString('es-CO')}
-                  {' '}({comparacion.servicios.diferenciaPorcentaje >= 0 ? '+' : ''}{comparacion.servicios.diferenciaPorcentaje.toFixed(2)}%)
+                  {(comparacion.servicios as any).sinDatosPresupuestados ? (
+                    ' ⚠️ Sin datos presupuestados'
+                  ) : comparacion.servicios.diferenciaPorcentaje !== null ? (
+                    ` (${comparacion.servicios.diferenciaPorcentaje >= 0 ? '+' : ''}${comparacion.servicios.diferenciaPorcentaje.toFixed(2)}%)`
+                  ) : (
+                    ' (N/A)'
+                  )}
                 </span>
               </div>
-              {comparacion.servicios.diferencia !== 0 && (
+              {(comparacion.servicios as any).sinDatosPresupuestados ? (
+                <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                  <strong>⚠️ Sin datos presupuestados:</strong> Esta cotización fue creada sin datos de costos de mano de obra. 
+                  Puedes editar la cotización desde la página de costos para agregar los datos presupuestados reales.
+                </div>
+              ) : comparacion.servicios.diferencia !== 0 && (
                 <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
                   <strong>⚠️ Posibles causas de diferencia:</strong>
                   <ul className="list-disc list-inside mt-1 space-y-1">
@@ -393,7 +483,13 @@ export default function ResumenCostosTab({ comparacion }: ResumenCostosTabProps)
                 </span>
                 <span className={`font-bold text-lg ${comparacion.diferencia >= 0 ? 'text-red-600' : 'text-green-600'}`}>
                   {comparacion.diferencia >= 0 ? '+' : ''}${comparacion.diferencia.toLocaleString('es-CO')}
-                  {' '}({comparacion.diferenciaPorcentaje >= 0 ? '+' : ''}{comparacion.diferenciaPorcentaje.toFixed(2)}%)
+                  {comparacion.sinDatosPresupuestados ? (
+                    ' ⚠️ Sin datos presupuestados'
+                  ) : comparacion.diferenciaPorcentaje !== null ? (
+                    ` (${comparacion.diferenciaPorcentaje >= 0 ? '+' : ''}${comparacion.diferenciaPorcentaje.toFixed(2)}%)`
+                  ) : (
+                    ' (N/A)'
+                  )}
                 </span>
               </div>
               <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
@@ -425,7 +521,10 @@ export default function ResumenCostosTab({ comparacion }: ResumenCostosTabProps)
             />
           </div>
           <p className="text-xs text-gray-500">
-            {Math.abs(comparacion.diferenciaPorcentaje).toFixed(1)}% de desviación
+            {comparacion.diferenciaPorcentaje !== null 
+              ? `${Math.abs(comparacion.diferenciaPorcentaje).toFixed(1)}% de desviación`
+              : 'Sin datos para calcular desviación'
+            }
           </p>
         </div>
 

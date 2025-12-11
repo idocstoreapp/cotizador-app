@@ -58,13 +58,15 @@ export interface ComparacionPresupuestoReal {
     presupuestado: number;
     real: number;
     diferencia: number;
-    diferenciaPorcentaje: number;
+    diferenciaPorcentaje: number | null; // null si no hay datos presupuestados
+    sinDatosPresupuestados?: boolean;
   };
   servicios: {
     presupuestado: number;
     real: number;
     diferencia: number;
-    diferenciaPorcentaje: number;
+    diferenciaPorcentaje: number | null; // null si no hay datos presupuestados
+    sinDatosPresupuestados?: boolean;
   };
   gastosHormiga: {
     presupuestado: number; // Siempre 0
@@ -126,7 +128,10 @@ export async function obtenerResumenCostosReales(cotizacionId: string): Promise<
   }, 0);
 
   const totalManoObra = manoObra.reduce((sum, m) => {
-    const costoPorUnidad = m.total_pagado || 0;
+    // Usar monto_manual si está disponible y tipo_calculo es 'monto', sino usar total_pagado
+    const costoPorUnidad = (m.tipo_calculo === 'monto' && m.monto_manual) 
+      ? m.monto_manual 
+      : (m.total_pagado || 0);
     let multiplicador = 1;
     
     if (m.alcance_gasto === 'unidad') {
@@ -405,13 +410,34 @@ export async function obtenerComparacionPresupuestoReal(cotizacionId: string): P
   console.log('  - Total Real Gastado (con IVA):', totalRealGastado);
   console.log('  - Utilidad Real (después de IVA):', utilidadReal);
 
+  // Verificar si hay datos presupuestados reales (no solo valores mínimos)
+  // Si el presupuestado es muy bajo (< 1000), probablemente no hay datos reales
+  const UMBRAL_SIN_DATOS = 1000; // Umbral para considerar que no hay datos presupuestados
+  const tieneDatosMateriales = subtotalMaterialesPresupuestado >= UMBRAL_SIN_DATOS;
+  const tieneDatosServicios = subtotalServiciosPresupuestado >= UMBRAL_SIN_DATOS;
+  const tieneDatosCostos = costoBasePresupuestado >= UMBRAL_SIN_DATOS;
+
+  // Verificar flags sin_datos_costos en items
+  let sinDatosCostosMateriales = false;
+  let sinDatosCostosManoObra = false;
+  
+  if (cotizacion?.items && Array.isArray(cotizacion.items)) {
+    const itemsConSinDatos = cotizacion.items.filter((item: any) => item.sin_datos_costos);
+    if (itemsConSinDatos.length > 0) {
+      sinDatosCostosMateriales = itemsConSinDatos.some((item: any) => item.sin_datos_costos?.materiales);
+      sinDatosCostosManoObra = itemsConSinDatos.some((item: any) => item.sin_datos_costos?.mano_obra);
+    }
+  }
+
   // Diferencia de costos base (solo materiales + servicios vs materiales + mano de obra)
   // NO incluir gastos hormiga ni transporte porque no están presupuestados
   const costoRealBase = costosReales.materiales.total + costosReales.manoObra.total;
   const diferencia = costoRealBase - costoBasePresupuestado;
-  const diferenciaPorcentaje = costoBasePresupuestado > 0
+  
+  // Solo calcular diferencia porcentaje si hay datos presupuestados reales
+  const diferenciaPorcentaje = (tieneDatosCostos && !sinDatosCostosMateriales && !sinDatosCostosManoObra && costoBasePresupuestado > 0)
     ? (diferencia / costoBasePresupuestado) * 100
-    : 0;
+    : null; // null indica que no hay datos para comparar
 
   // Desglose por categoría
   const diferenciaMateriales = costosReales.materiales.total - subtotalMaterialesPresupuestado;
@@ -426,6 +452,7 @@ export async function obtenerComparacionPresupuestoReal(cotizacionId: string): P
     totalReal: totalRealGastado, // Incluye IVA real
     diferencia,
     diferenciaPorcentaje,
+    sinDatosPresupuestados: !tieneDatosCostos || sinDatosCostosMateriales || sinDatosCostosManoObra,
     utilidadPresupuestada,
     utilidadReal, // Ya incluye la resta del IVA
     diferenciaUtilidad: utilidadReal - utilidadPresupuestada,
@@ -435,17 +462,19 @@ export async function obtenerComparacionPresupuestoReal(cotizacionId: string): P
       presupuestado: subtotalMaterialesPresupuestado,
       real: costosReales.materiales.total,
       diferencia: diferenciaMateriales,
-      diferenciaPorcentaje: subtotalMaterialesPresupuestado > 0
+      diferenciaPorcentaje: (tieneDatosMateriales && !sinDatosCostosMateriales && subtotalMaterialesPresupuestado > 0)
         ? (diferenciaMateriales / subtotalMaterialesPresupuestado) * 100
-        : 0
+        : null, // null indica que no hay datos para comparar
+      sinDatosPresupuestados: !tieneDatosMateriales || sinDatosCostosMateriales
     },
     servicios: {
       presupuestado: subtotalServiciosPresupuestado,
       real: costosReales.manoObra.total,
       diferencia: diferenciaServicios,
-      diferenciaPorcentaje: subtotalServiciosPresupuestado > 0
+      diferenciaPorcentaje: (tieneDatosServicios && !sinDatosCostosManoObra && subtotalServiciosPresupuestado > 0)
         ? (diferenciaServicios / subtotalServiciosPresupuestado) * 100
-        : 0
+        : null, // null indica que no hay datos para comparar
+      sinDatosPresupuestados: !tieneDatosServicios || sinDatosCostosManoObra
     },
     gastosHormiga: {
       presupuestado: 0,

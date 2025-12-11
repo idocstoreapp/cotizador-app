@@ -7,6 +7,8 @@ import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider
 import { obtenerMateriales, crearMaterial } from '../../services/materiales.service';
 import { useCotizacionStore } from '../../store/cotizacionStore';
 import type { MaterialMueble, MedidasMueble } from '../../types/muebles';
+import type { Material } from '../../types/database';
+import MaterialAutocomplete from './MaterialAutocomplete';
 
 interface AgregarItemManualProps {
   onClose: () => void;
@@ -71,6 +73,8 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
   // Materiales
   const [materialesSeleccionados, setMaterialesSeleccionados] = useState<MaterialMueble[]>([]);
   const [materialSeleccionado, setMaterialSeleccionado] = useState<string>('');
+  const [materialSeleccionadoObj, setMaterialSeleccionadoObj] = useState<Material | null>(null);
+  const [busquedaMaterial, setBusquedaMaterial] = useState<string>('');
   const [cantidadMaterial, setCantidadMaterial] = useState<string>('1');
   const [mostrarCrearMaterial, setMostrarCrearMaterial] = useState(false);
   const [nuevoMaterial, setNuevoMaterial] = useState({
@@ -91,6 +95,8 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
       queryClient.invalidateQueries({ queryKey: ['materiales'] });
       // Seleccionar el material recién creado
       setMaterialSeleccionado(materialCreado.id);
+      setMaterialSeleccionadoObj(materialCreado);
+      setBusquedaMaterial(materialCreado.nombre);
       setMostrarCrearMaterial(false);
       setNuevoMaterial({ nombre: '', tipo: '', unidad: 'unidad', costo_unitario: 0, proveedor: '' });
       alert('✅ Material creado exitosamente');
@@ -101,10 +107,14 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
   });
 
   // Mano de obra
+  const [tipoManoObra, setTipoManoObra] = useState<'horas' | 'monto'>('horas');
   const [horasMedidas, setHorasMedidas] = useState<number>(0);
   const [horasDiseno, setHorasDiseno] = useState<number>(0);
+  const [montoPintura, setMontoPintura] = useState<number>(0); // Pintura: monto total (no horas ni días)
   const [diasArmado, setDiasArmado] = useState<number>(0);
   const [diasInstalacion, setDiasInstalacion] = useState<number>(0);
+  const [montoManoObraManual, setMontoManoObraManual] = useState<number>(0);
+  const [porcentajeManoObra, setPorcentajeManoObra] = useState<number>(0); // Porcentaje adicional sobre mano de obra (no suma a utilidad)
 
   // Costos indirectos
   const [transporte, setTransporte] = useState<number>(0);
@@ -120,6 +130,11 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
   const [tipoUtilidad, setTipoUtilidad] = useState<'porcentaje' | 'manual'>('porcentaje');
   const [porcentajeUtilidad, setPorcentajeUtilidad] = useState<number>(25);
   const [ajusteManual, setAjusteManual] = useState<number>(0);
+
+  // Flags para indicar que no hay datos de costos aún
+  const [sinDatosCostosMateriales, setSinDatosCostosMateriales] = useState<boolean>(false);
+  const [sinDatosCostosManoObra, setSinDatosCostosManoObra] = useState<boolean>(false);
+  const [sinDatosCostosIndirectos, setSinDatosCostosIndirectos] = useState<boolean>(false);
 
   // Obtener materiales
   const { data: materiales = [], isLoading: loadingMateriales, error: errorMateriales } = useQuery({
@@ -148,12 +163,25 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
       return sum + (mat.cantidad * (mat.precio_unitario || 0));
     }, 0);
 
-    // Costo de mano de obra
-    const costoManoObra = 
-      (horasMedidas * PRECIO_HORA_MANO_OBRA) +
-      (horasDiseno * PRECIO_HORA_MANO_OBRA) +
-      (diasArmado * PRECIO_DIA_TRABAJO) +
-      (diasInstalacion * PRECIO_DIA_TRABAJO);
+    // Costo de mano de obra (sin pintura ni porcentaje)
+    const costoManoObraBase = tipoManoObra === 'monto'
+      ? montoManoObraManual
+      : (horasMedidas * PRECIO_HORA_MANO_OBRA) +
+        (horasDiseno * PRECIO_HORA_MANO_OBRA) +
+        (diasArmado * PRECIO_DIA_TRABAJO) +
+        (diasInstalacion * PRECIO_DIA_TRABAJO);
+    
+    // Pintura (monto total, se suma directamente)
+    const costoPintura = montoPintura;
+    
+    // Costo total de mano de obra (base + pintura)
+    const costoManoObraTotal = costoManoObraBase + costoPintura;
+    
+    // Porcentaje adicional sobre mano de obra (NO suma a utilidad, similar a gastos extras)
+    const porcentajeManoObraValor = costoManoObraTotal * (porcentajeManoObra / 100);
+    
+    // Costo de mano de obra final (con porcentaje)
+    const costoManoObra = costoManoObraTotal + porcentajeManoObraValor;
 
     // Costos indirectos
     const costosIndirectos = 
@@ -162,8 +190,10 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
       alquilerEspacio +
       cajaChica;
 
-    // Subtotal antes de gastos extras (materiales + mano de obra + costos indirectos)
-    const subtotalAntesExtras = costoMateriales + costoManoObra + costosIndirectos;
+    // Subtotal antes de gastos extras (SOLO materiales + costos indirectos)
+    // IMPORTANTE: La mano de obra (base, pintura y porcentaje) NO se incluye en el cálculo de utilidad
+    // La utilidad se aplica SOLO sobre materiales y costos indirectos
+    const subtotalAntesExtras = costoMateriales + costosIndirectos;
 
     // Gastos extras (porcentaje o monto fijo)
     let gastosExtrasValor = 0;
@@ -173,8 +203,8 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
       gastosExtrasValor = gastosExtrasMonto;
     }
 
-    // IMPORTANTE: Los gastos extras NO se incluyen en el cálculo de utilidad
-    // Aplicar utilidad SOLO sobre el subtotal antes de gastos extras
+    // IMPORTANTE: La utilidad se aplica SOLO sobre materiales + costos indirectos
+    // NO se aplica sobre: mano de obra, pintura, porcentaje de mano de obra, ni gastos extras
     let utilidad = 0;
     if (tipoUtilidad === 'porcentaje') {
       utilidad = subtotalAntesExtras * (porcentajeUtilidad / 100);
@@ -182,8 +212,9 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
       utilidad = ajusteManual;
     }
 
-    // Precio unitario final = subtotal + utilidad + gastos extras (sin utilidad sobre gastos extras)
-    const precioUnitario = Math.round((subtotalAntesExtras + utilidad + gastosExtrasValor) * 100) / 100;
+    // Precio unitario final = subtotal (materiales + costos indirectos) + utilidad + mano de obra completa + gastos extras
+    // Orden: materiales + costos indirectos → aplicar utilidad → sumar mano de obra (base + pintura + porcentaje) → sumar gastos extras
+    const precioUnitario = Math.round((subtotalAntesExtras + utilidad + costoManoObraTotal + porcentajeManoObraValor + gastosExtrasValor) * 100) / 100;
 
     // Precio total (unitario × cantidad)
     const precioTotal = precioUnitario * cantidad;
@@ -191,21 +222,30 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
     return {
       costoMateriales,
       costoManoObra,
+      costoManoObraBase,
+      costoPintura,
+      porcentajeManoObraValor,
       costosIndirectos,
       subtotalAntesExtras,
       gastosExtrasMonto: gastosExtrasValor,
       gastosExtrasPorcentaje,
-      subtotal: subtotalAntesExtras + gastosExtrasValor,
+      // Subtotal = materiales + costos indirectos + mano de obra completa (base + pintura + porcentaje) + gastos extras
+      // Este es el total de costos antes de aplicar la utilidad
+      subtotal: costoMateriales + costosIndirectos + costoManoObra + gastosExtrasValor,
       utilidad,
       precioUnitario,
       precioTotal
     };
   }, [
     materialesSeleccionados,
+    tipoManoObra,
     horasMedidas,
     horasDiseno,
+    montoPintura,
     diasArmado,
     diasInstalacion,
+    montoManoObraManual,
+    porcentajeManoObra,
     transporte,
     herramientas,
     alquilerEspacio,
@@ -238,8 +278,18 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
    * Agrega un material a la lista
    */
   const agregarMaterial = () => {
-    const material = materiales.find(m => m.id === materialSeleccionado);
-    if (!material) return;
+    // Usar materialSeleccionadoObj si está disponible, sino buscar por ID
+    let material: Material | undefined;
+    if (materialSeleccionadoObj) {
+      material = materialSeleccionadoObj;
+    } else if (materialSeleccionado) {
+      material = materiales.find(m => m.id === materialSeleccionado);
+    }
+    
+    if (!material) {
+      alert('Por favor selecciona un material de la lista');
+      return;
+    }
 
     const nuevoMaterial: MaterialMueble & { material_tipo?: string } = {
       material_id: material.id,
@@ -252,6 +302,8 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
 
     setMaterialesSeleccionados([...materialesSeleccionados, nuevoMaterial as MaterialMueble]);
     setMaterialSeleccionado('');
+    setMaterialSeleccionadoObj(null);
+    setBusquedaMaterial('');
     setCantidadMaterial('1');
   };
 
@@ -300,37 +352,62 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
 
     // Convertir mano de obra a formato de servicios
     const servicios = [];
-    if (horasMedidas > 0) {
-      servicios.push({
-        servicio_id: 'medidas',
-        servicio_nombre: 'Toma de medidas',
-        horas: horasMedidas,
-        precio_por_hora: PRECIO_HORA_MANO_OBRA
-      });
-    }
-    if (horasDiseno > 0) {
-      servicios.push({
-        servicio_id: 'diseno',
-        servicio_nombre: 'Diseño',
-        horas: horasDiseno,
-        precio_por_hora: PRECIO_HORA_MANO_OBRA
-      });
-    }
-    if (diasArmado > 0) {
-      servicios.push({
-        servicio_id: 'armado',
-        servicio_nombre: 'Armado',
-        horas: diasArmado * 8,
-        precio_por_hora: PRECIO_DIA_TRABAJO / 8
-      });
-    }
-    if (diasInstalacion > 0) {
-      servicios.push({
-        servicio_id: 'instalacion',
-        servicio_nombre: 'Instalación',
-        horas: diasInstalacion * 8,
-        precio_por_hora: PRECIO_DIA_TRABAJO / 8
-      });
+    if (tipoManoObra === 'monto') {
+      // Si es monto manual, guardar como un servicio especial
+      if (montoManoObraManual > 0) {
+        servicios.push({
+          servicio_id: 'mano_obra_manual',
+          servicio_nombre: 'Mano de Obra (Monto Manual)',
+          horas: 0,
+          precio_por_hora: 0,
+          monto_manual: montoManoObraManual,
+          tipo_calculo: 'monto'
+        });
+      }
+    } else {
+      // Si es por horas, guardar los servicios normalmente
+      if (horasMedidas > 0) {
+        servicios.push({
+          servicio_id: 'medidas',
+          servicio_nombre: 'Toma de medidas',
+          horas: horasMedidas,
+          precio_por_hora: PRECIO_HORA_MANO_OBRA
+        });
+      }
+      if (horasDiseno > 0) {
+        servicios.push({
+          servicio_id: 'diseno',
+          servicio_nombre: 'Diseño',
+          horas: horasDiseno,
+          precio_por_hora: PRECIO_HORA_MANO_OBRA
+        });
+      }
+      if (montoPintura > 0) {
+        servicios.push({
+          servicio_id: 'pintura',
+          servicio_nombre: 'Pintura',
+          horas: 0,
+          precio_por_hora: 0,
+          monto_manual: montoPintura,
+          tipo_calculo: 'monto'
+        });
+      }
+      if (diasArmado > 0) {
+        servicios.push({
+          servicio_id: 'armado',
+          servicio_nombre: 'Armado',
+          horas: diasArmado * 8,
+          precio_por_hora: PRECIO_DIA_TRABAJO / 8
+        });
+      }
+      if (diasInstalacion > 0) {
+        servicios.push({
+          servicio_id: 'instalacion',
+          servicio_nombre: 'Instalación',
+          horas: diasInstalacion * 8,
+          precio_por_hora: PRECIO_DIA_TRABAJO / 8
+        });
+      }
     }
 
     // Convertir costos indirectos a gastos extras
@@ -352,13 +429,10 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
     }
     // Agregar gastos extras (porcentaje o monto fijo)
     // NOTA: Los gastos extras de costos indirectos siempre van en el array
-    // Pero los gastos extras adicionales pueden ser porcentaje (número) o monto fijo (array)
-    let gastosExtrasFinal: number | Array<{ concepto: string; monto: number }> | undefined;
+    // Los gastos extras siempre se guardan como array
+    let gastosExtrasFinal: Array<{ concepto: string; monto: number }> | undefined;
     
-    if (tipoGastoExtra === 'porcentaje' && gastosExtrasPorcentaje > 0) {
-      // Guardar como número (porcentaje) para compatibilidad
-      gastosExtrasFinal = gastosExtrasPorcentaje;
-    } else if (tipoGastoExtra === 'monto' && gastosExtrasMonto > 0) {
+    if (tipoGastoExtra === 'monto' && gastosExtrasMonto > 0) {
       // Agregar al array de gastos extras existente
       gastosExtras.push({ 
         concepto: 'Gastos Extras (Monto fijo)', 
@@ -367,6 +441,7 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
       gastosExtrasFinal = gastosExtras.length > 0 ? gastosExtras : undefined;
     } else {
       // Si hay gastos extras de costos indirectos, usar el array
+      // Nota: Los gastos extras por porcentaje se calculan en tiempo real y no se guardan
       gastosExtrasFinal = gastosExtras.length > 0 ? gastosExtras : undefined;
     }
 
@@ -383,6 +458,7 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
       servicios: servicios.length > 0 ? servicios : undefined,
       gastos_extras: gastosExtrasFinal,
       dias_fabricacion: diasArmado || undefined,
+      porcentaje_mano_obra: porcentajeManoObra > 0 ? porcentajeManoObra : undefined,
       margen_ganancia: margenGanancia,
       cantidad
     });
@@ -501,20 +577,55 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
       case 'materiales':
         return (
           <div className="space-y-4">
+            {/* Checkbox para marcar sin datos de costos */}
+            <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={sinDatosCostosMateriales}
+                  onChange={(e) => setSinDatosCostosMateriales(e.target.checked)}
+                  className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                />
+                <div>
+                  <span className="text-sm font-semibold text-gray-900">⚠️ No hay datos de costos de materiales aún</span>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Marca esta opción si no tienes los precios reales de materiales. Los KPIs no mostrarán comparativas hasta que agregues los datos reales.
+                  </p>
+                </div>
+              </label>
+            </div>
             <div className="flex gap-2 mb-3">
-              <select
-                value={materialSeleccionado}
-                onChange={(e) => setMaterialSeleccionado(e.target.value)}
-                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              <MaterialAutocomplete
+                materiales={materiales}
+                value={busquedaMaterial}
+                onChange={(value) => {
+                  setBusquedaMaterial(value);
+                  // Si el valor coincide exactamente con un material, seleccionarlo
+                  const materialEncontrado = materiales.find(m => 
+                    m.nombre.toLowerCase() === value.toLowerCase()
+                  );
+                  if (materialEncontrado) {
+                    setMaterialSeleccionado(materialEncontrado.id);
+                    setMaterialSeleccionadoObj(materialEncontrado);
+                  } else {
+                    setMaterialSeleccionado('');
+                    setMaterialSeleccionadoObj(null);
+                  }
+                }}
+                onSelect={(material) => {
+                  if (material) {
+                    setMaterialSeleccionado(material.id);
+                    setMaterialSeleccionadoObj(material);
+                    setBusquedaMaterial(material.nombre);
+                  } else {
+                    setMaterialSeleccionado('');
+                    setMaterialSeleccionadoObj(null);
+                  }
+                }}
+                placeholder="Buscar o escribir material..."
                 disabled={loadingMateriales}
-              >
-                <option value="">Seleccionar material...</option>
-                {materiales.map((mat) => (
-                  <option key={mat.id} value={mat.id}>
-                    {mat.nombre} ({mat.tipo}) - ${mat.costo_unitario.toLocaleString('es-CO')} / {mat.unidad}
-                  </option>
-                ))}
-              </select>
+                showDetails={true}
+              />
               <input
                 type="number"
                 value={cantidadMaterial}
@@ -533,7 +644,7 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
               <button
                 type="button"
                 onClick={agregarMaterial}
-                disabled={!materialSeleccionado}
+                disabled={!materialSeleccionadoObj && !materialSeleccionado}
                 className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Agregar +
@@ -643,95 +754,212 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
 
       case 'mano-obra':
         return (
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Tiempos de Trabajo</h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">Toma de medidas (horas)</label>
+          <div className="space-y-6">
+            {/* Selector de tipo de cálculo */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <label className="block text-sm font-semibold text-gray-900 mb-3">
+                Tipo de Cálculo de Mano de Obra
+              </label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
-                    type="number"
-                    value={horasMedidas}
-                    onChange={(e) => setHorasMedidas(parseFloat(e.target.value) || 0)}
-                    min="0"
-                    step="0.5"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    type="radio"
+                    name="tipoManoObra"
+                    value="horas"
+                    checked={tipoManoObra === 'horas'}
+                    onChange={(e) => setTipoManoObra(e.target.value as 'horas' | 'monto')}
+                    className="w-4 h-4 text-indigo-600"
                   />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">Diseño (horas)</label>
+                  <span className="text-sm text-gray-700">Por Horas y Días</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
-                    type="number"
-                    value={horasDiseno}
-                    onChange={(e) => setHorasDiseno(parseFloat(e.target.value) || 0)}
-                    min="0"
-                    step="0.5"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    type="radio"
+                    name="tipoManoObra"
+                    value="monto"
+                    checked={tipoManoObra === 'monto'}
+                    onChange={(e) => setTipoManoObra(e.target.value as 'horas' | 'monto')}
+                    className="w-4 h-4 text-indigo-600"
                   />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">Armado (días)</label>
-                  <input
-                    type="number"
-                    value={diasArmado}
-                    onChange={(e) => setDiasArmado(parseFloat(e.target.value) || 0)}
-                    min="0"
-                    step="0.5"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">Instalación (días)</label>
-                  <input
-                    type="number"
-                    value={diasInstalacion}
-                    onChange={(e) => setDiasInstalacion(parseFloat(e.target.value) || 0)}
-                    min="0"
-                    step="0.5"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+                  <span className="text-sm text-gray-700">Monto Manual</span>
+                </label>
               </div>
             </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Costos por Tiempo</h3>
-              <div className="space-y-3">
+
+            {tipoManoObra === 'horas' ? (
+              <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Costo por hora</label>
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Tiempos de Trabajo</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Toma de medidas (horas)</label>
+                      <input
+                        type="number"
+                        value={horasMedidas}
+                        onChange={(e) => setHorasMedidas(parseFloat(e.target.value) || 0)}
+                        min="0"
+                        step="0.5"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Diseño (horas)</label>
+                      <input
+                        type="number"
+                        value={horasDiseno}
+                        onChange={(e) => setHorasDiseno(parseFloat(e.target.value) || 0)}
+                        min="0"
+                        step="0.5"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Pintura (monto total)</label>
+                      <input
+                        type="number"
+                        value={montoPintura}
+                        onChange={(e) => setMontoPintura(parseFloat(e.target.value) || 0)}
+                        min="0"
+                        step="1000"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Monto total de pintura"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Armado (días)</label>
+                      <input
+                        type="number"
+                        value={diasArmado}
+                        onChange={(e) => setDiasArmado(parseFloat(e.target.value) || 0)}
+                        min="0"
+                        step="0.5"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Instalación (días)</label>
+                      <input
+                        type="number"
+                        value={diasInstalacion}
+                        onChange={(e) => setDiasInstalacion(parseFloat(e.target.value) || 0)}
+                        min="0"
+                        step="0.5"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Costos por Tiempo</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Costo por hora</label>
+                      <input
+                        type="number"
+                        value={PRECIO_HORA_MANO_OBRA}
+                        disabled
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Costo por día</label>
+                      <input
+                        type="number"
+                        value={PRECIO_DIA_TRABAJO}
+                        disabled
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50"
+                      />
+                    </div>
+                    <div className="pt-3 border-t border-gray-200 space-y-2">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-600">Costo por horas:</span>
+                        <span className="font-medium">
+                          ${((horasMedidas + horasDiseno) * PRECIO_HORA_MANO_OBRA).toLocaleString('es-CO', { minimumFractionDigits: 0 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-600">Costo por días:</span>
+                        <span className="font-medium">
+                          ${((diasArmado + diasInstalacion) * PRECIO_DIA_TRABAJO).toLocaleString('es-CO', { minimumFractionDigits: 0 })}
+                        </span>
+                      </div>
+                      {montoPintura > 0 && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-600">Pintura:</span>
+                          <span className="font-medium">
+                            ${montoPintura.toLocaleString('es-CO', { minimumFractionDigits: 0 })}
+                          </span>
+                        </div>
+                      )}
+                      {porcentajeManoObra > 0 && (
+                        <div className="flex justify-between text-xs text-orange-600">
+                          <span>Margen adicional ({porcentajeManoObra}%):</span>
+                          <span className="font-medium">
+                            ${calculos.porcentajeManoObraValor.toLocaleString('es-CO', { minimumFractionDigits: 0 })}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-sm font-bold pt-2 border-t border-gray-300">
+                        <span>Total Mano de Obra:</span>
+                        <span>${calculos.costoManoObra.toLocaleString('es-CO', { minimumFractionDigits: 0 })}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-3">Monto Manual de Mano de Obra</h3>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Monto Total de Mano de Obra</label>
                   <input
                     type="number"
-                    value={PRECIO_HORA_MANO_OBRA}
-                    disabled
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50"
+                    value={montoManoObraManual}
+                    onChange={(e) => setMontoManoObraManual(parseFloat(e.target.value) || 0)}
+                    min="0"
+                    step="1000"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Ingrese el monto total"
                   />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">Costo por día</label>
-                  <input
-                    type="number"
-                    value={PRECIO_DIA_TRABAJO}
-                    disabled
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50"
-                  />
-                </div>
-                <div className="pt-3 border-t border-gray-200 space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-600">Costo por horas:</span>
-                    <span className="font-medium">
-                      ${((horasMedidas + horasDiseno) * PRECIO_HORA_MANO_OBRA).toLocaleString('es-CO', { minimumFractionDigits: 0 })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-600">Costo por días:</span>
-                    <span className="font-medium">
-                      ${((diasArmado + diasInstalacion) * PRECIO_DIA_TRABAJO).toLocaleString('es-CO', { minimumFractionDigits: 0 })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm font-bold pt-2 border-t border-gray-300">
-                    <span>Total Mano de Obra:</span>
-                    <span>${calculos.costoManoObra.toLocaleString('es-CO', { minimumFractionDigits: 0 })}</span>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Este monto se usará directamente como costo de mano de obra
+                  </p>
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                    <div className="flex justify-between text-sm font-bold">
+                      <span>Total Mano de Obra:</span>
+                      <span>${calculos.costoManoObra.toLocaleString('es-CO', { minimumFractionDigits: 0 })}</span>
+                    </div>
                   </div>
                 </div>
+              </div>
+            )}
+            
+            {/* Porcentaje adicional de mano de obra */}
+            <div className="mt-4 bg-orange-50 border-2 border-orange-200 rounded-lg p-4">
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
+                📊 Margen adicional sobre mano de obra (opcional)
+              </label>
+              <p className="text-xs text-gray-600 mb-3">
+                Este porcentaje se aplica sobre el costo total de mano de obra (incluyendo pintura). 
+                <strong className="text-orange-700"> NO se incluye en el cálculo de utilidad</strong> (similar a gastos extras).
+              </p>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  value={porcentajeManoObra}
+                  onChange={(e) => setPorcentajeManoObra(parseFloat(e.target.value) || 0)}
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  className="w-24 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  placeholder="0"
+                />
+                <span className="text-sm text-gray-700">%</span>
+                {porcentajeManoObra > 0 && (
+                  <span className="text-sm font-medium text-orange-700">
+                    = ${calculos.porcentajeManoObraValor.toLocaleString('es-CO', { minimumFractionDigits: 0 })}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -739,9 +967,27 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
 
       case 'costos':
         return (
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Gastos Adicionales</h3>
+          <div className="space-y-6">
+            {/* Checkbox para marcar sin datos de costos */}
+            <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={sinDatosCostosIndirectos}
+                  onChange={(e) => setSinDatosCostosIndirectos(e.target.checked)}
+                  className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                />
+                <div>
+                  <span className="text-sm font-semibold text-gray-900">⚠️ No hay datos de costos indirectos aún</span>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Marca esta opción si no tienes los costos reales de gastos indirectos. Los KPIs no mostrarán comparativas hasta que agregues los datos reales.
+                  </p>
+                </div>
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-3">Gastos Adicionales</h3>
               <div className="space-y-3">
                 <div>
                   <label className="flex items-center gap-2 mb-1">
@@ -938,6 +1184,7 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
                 </div>
               </div>
             </div>
+            </div>
           </div>
         );
 
@@ -946,6 +1193,12 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
           <div className="grid grid-cols-2 gap-6">
             <div>
               <h3 className="text-sm font-medium text-gray-700 mb-3">Ajuste de Utilidad</h3>
+              <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-3 mb-4">
+                <p className="text-xs text-yellow-800">
+                  <strong>⚠️ Importante:</strong> La utilidad se aplica <strong>SOLO sobre materiales + costos indirectos</strong>. 
+                  <strong> NO se aplica sobre mano de obra</strong> (base, pintura ni porcentaje adicional).
+                </p>
+              </div>
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs text-gray-600 mb-2">Tipo de utilidad</label>

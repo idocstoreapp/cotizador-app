@@ -391,7 +391,10 @@ export default function CotizacionCart({ onGenerarPDF, cotizacionId }: Cotizacio
       {/* Modal de editar item */}
       {itemEditando && (() => {
         const item = items.find(i => i.id === itemEditando);
-        if (!item) return null;
+        if (!item) {
+          setItemEditando(null);
+          return null;
+        }
         return (
           <EditarItemModal
             item={item}
@@ -401,6 +404,7 @@ export default function CotizacionCart({ onGenerarPDF, cotizacionId }: Cotizacio
               calcularTotales();
             }}
             onSave={() => {
+              setItemEditando(null);
               calcularTotales();
             }}
           />

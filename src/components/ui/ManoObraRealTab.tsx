@@ -19,10 +19,14 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
   const [cargando, setCargando] = useState(true);
   const [mostrarModal, setMostrarModal] = useState(false);
   const [editando, setEditando] = useState<ManoObraReal | null>(null);
+  const [tipoManoObra, setTipoManoObra] = useState<'horas' | 'monto'>('horas');
+  const [montoPintura, setMontoPintura] = useState<number>(0); // Pintura: monto total (no horas ni días)
+  const [porcentajeManoObra, setPorcentajeManoObra] = useState<number>(0); // Porcentaje adicional sobre mano de obra (no suma a utilidad)
   const [formData, setFormData] = useState({
     trabajador_id: '',
     horas_trabajadas: 0,
     pago_por_hora: 0,
+    monto_manual: 0,
     fecha: new Date().toISOString().split('T')[0],
     comprobante: null as File | null,
     notas: '',
@@ -54,8 +58,12 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
   };
 
   const handleGuardar = async () => {
-    if (formData.horas_trabajadas <= 0 || formData.pago_por_hora <= 0) {
+    if (tipoManoObra === 'horas' && (formData.horas_trabajadas <= 0 || formData.pago_por_hora <= 0)) {
       alert('Las horas trabajadas y el pago por hora deben ser mayores a 0');
+      return;
+    }
+    if (tipoManoObra === 'monto' && formData.monto_manual <= 0) {
+      alert('El monto manual debe ser mayor a 0');
       return;
     }
 
@@ -68,26 +76,64 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
         comprobanteUrl = await subirImagen(formData.comprobante, 'comprobantes');
       }
 
+      // Calcular costo base de mano de obra
+      const costoBase = tipoManoObra === 'monto'
+        ? formData.monto_manual
+        : formData.horas_trabajadas * formData.pago_por_hora;
+      
+      // Sumar pintura
+      const costoConPintura = costoBase + montoPintura;
+      
+      // Calcular porcentaje adicional
+      const porcentajeValor = costoConPintura * (porcentajeManoObra / 100);
+      
+      // Total final
+      const totalFinal = costoConPintura + porcentajeValor;
+      
+      // Si hay pintura o porcentaje, guardar como monto manual
+      const tienePinturaOPorcentaje = montoPintura > 0 || porcentajeManoObra > 0;
+      const tipoCalculoFinal = tienePinturaOPorcentaje ? 'monto' : tipoManoObra;
+      const montoManualFinal = tienePinturaOPorcentaje ? totalFinal : (tipoManoObra === 'monto' ? formData.monto_manual : undefined);
+      
+      // Construir notas con información de pintura y porcentaje
+      let notasFinal = formData.notas || '';
+      if (montoPintura > 0 || porcentajeManoObra > 0) {
+        const detalles: string[] = [];
+        if (montoPintura > 0) {
+          detalles.push(`Pintura: $${montoPintura.toLocaleString('es-CO')}`);
+        }
+        if (porcentajeManoObra > 0) {
+          detalles.push(`Margen adicional: ${porcentajeManoObra}% ($${porcentajeValor.toLocaleString('es-CO')})`);
+        }
+        if (detalles.length > 0) {
+          notasFinal = notasFinal ? `${notasFinal}\n\n${detalles.join(' | ')}` : detalles.join(' | ');
+        }
+      }
+
       if (editando) {
         await actualizarManoObraReal(editando.id, {
-          trabajador_id: formData.trabajador_id || undefined,
-          horas_trabajadas: formData.horas_trabajadas,
-          pago_por_hora: formData.pago_por_hora,
+          trabajador_id: formData.trabajador_id && formData.trabajador_id.trim() !== '' ? formData.trabajador_id : undefined,
+          horas_trabajadas: tipoCalculoFinal === 'horas' ? formData.horas_trabajadas : 0,
+          pago_por_hora: tipoCalculoFinal === 'horas' ? formData.pago_por_hora : 0,
+          monto_manual: montoManualFinal,
+          tipo_calculo: tipoCalculoFinal,
           fecha: formData.fecha,
           comprobante_url: comprobanteUrl,
-          notas: formData.notas || undefined,
+          notas: notasFinal || undefined,
           alcance_gasto: formData.alcance_gasto,
           cantidad_items_aplicados: formData.alcance_gasto === 'parcial' ? formData.cantidad_items_aplicados : undefined
         });
       } else {
         await crearManoObraReal({
           cotizacion_id: cotizacionId,
-          trabajador_id: formData.trabajador_id || undefined,
-          horas_trabajadas: formData.horas_trabajadas,
-          pago_por_hora: formData.pago_por_hora,
+          trabajador_id: formData.trabajador_id && formData.trabajador_id.trim() !== '' ? formData.trabajador_id : undefined,
+          horas_trabajadas: tipoCalculoFinal === 'horas' ? formData.horas_trabajadas : 0,
+          pago_por_hora: tipoCalculoFinal === 'horas' ? formData.pago_por_hora : 0,
+          monto_manual: montoManualFinal,
+          tipo_calculo: tipoCalculoFinal,
           fecha: formData.fecha,
           comprobante_url: comprobanteUrl,
-          notas: formData.notas || undefined,
+          notas: notasFinal || undefined,
           alcance_gasto: formData.alcance_gasto,
           cantidad_items_aplicados: formData.alcance_gasto === 'parcial' ? formData.cantidad_items_aplicados : undefined
         });
@@ -97,10 +143,14 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
       onUpdate();
       setMostrarModal(false);
       setEditando(null);
+      setTipoManoObra('horas');
+      setMontoPintura(0);
+      setPorcentajeManoObra(0);
       setFormData({
         trabajador_id: '',
         horas_trabajadas: 0,
         pago_por_hora: 0,
+        monto_manual: 0,
         fecha: new Date().toISOString().split('T')[0],
         comprobante: null,
         notas: '',
@@ -130,13 +180,44 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
 
   const handleEditar = (registro: ManoObraReal) => {
     setEditando(registro);
+    const tipo = (registro as any).tipo_calculo === 'monto' || (registro as any).monto_manual ? 'monto' : 'horas';
+    setTipoManoObra(tipo);
+    
+    // Extraer pintura y porcentaje de las notas si existen
+    let montoPinturaEdit = 0;
+    let porcentajeEdit = 0;
+    let notasLimpias = registro.notas || '';
+    
+    if (registro.notas) {
+      // Buscar "Pintura: $X" en las notas
+      const matchPintura = registro.notas.match(/Pintura:\s*\$?([\d.,]+)/);
+      if (matchPintura) {
+        montoPinturaEdit = parseFloat(matchPintura[1].replace(/[,.]/g, '')) || 0;
+        notasLimpias = notasLimpias.replace(/Pintura:\s*\$?[\d.,]+\s*\|\s*/g, '').replace(/\s*\|\s*Pintura:\s*\$?[\d.,]+/g, '');
+      }
+      
+      // Buscar "Margen adicional: X% ($Y)" en las notas
+      const matchPorcentaje = registro.notas.match(/Margen adicional:\s*([\d.]+)%/);
+      if (matchPorcentaje) {
+        porcentajeEdit = parseFloat(matchPorcentaje[1]) || 0;
+        notasLimpias = notasLimpias.replace(/Margen adicional:\s*[\d.]+%\s*\([^)]+\)\s*\|\s*/g, '').replace(/\s*\|\s*Margen adicional:\s*[\d.]+%\s*\([^)]+\)/g, '');
+      }
+      
+      // Limpiar separadores restantes
+      notasLimpias = notasLimpias.replace(/\s*\|\s*/g, '').trim();
+    }
+    
+    setMontoPintura(montoPinturaEdit);
+    setPorcentajeManoObra(porcentajeEdit);
+    
     setFormData({
       trabajador_id: registro.trabajador_id || '',
       horas_trabajadas: registro.horas_trabajadas,
       pago_por_hora: registro.pago_por_hora,
+      monto_manual: (registro as any).monto_manual || 0,
       fecha: registro.fecha,
       comprobante: null,
-      notas: registro.notas || '',
+      notas: notasLimpias,
       alcance_gasto: registro.alcance_gasto || 'unidad',
       cantidad_items_aplicados: registro.cantidad_items_aplicados || 1
     });
@@ -154,7 +235,10 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
   
   // IMPORTANTE: Calcular total considerando el alcance_gasto de cada registro
   const totalPagado = registros.reduce((sum, r) => {
-    const costoPorUnidad = r.total_pagado || 0;
+    // Usar monto_manual si está disponible y tipo_calculo es 'monto', sino usar total_pagado
+    const costoPorUnidad = (r.tipo_calculo === 'monto' && r.monto_manual) 
+      ? r.monto_manual 
+      : (r.total_pagado || 0);
     let multiplicador = 1;
     
     if (r.alcance_gasto === 'unidad') {
@@ -343,10 +427,14 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
         <button
           onClick={() => {
             setEditando(null);
+            setTipoManoObra('horas');
+            setMontoPintura(0);
+            setPorcentajeManoObra(0);
             setFormData({
               trabajador_id: '',
               horas_trabajadas: 0,
               pago_por_hora: 0,
+              monto_manual: 0,
               fecha: new Date().toISOString().split('T')[0],
               comprobante: null,
               notas: '',
@@ -383,18 +471,30 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
                 </div>
 
                 <div className="border-t border-gray-200 pt-2 mt-2 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500">Horas:</span>
-                    <span className="text-sm font-medium text-gray-900">{registro.horas_trabajadas}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500">Pago/hora:</span>
-                    <span className="text-sm text-gray-900">${registro.pago_por_hora.toLocaleString('es-CO')}</span>
-                  </div>
+                  {registro.tipo_calculo !== 'monto' && (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Horas:</span>
+                        <span className="text-sm font-medium text-gray-900">{registro.horas_trabajadas}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Pago/hora:</span>
+                        <span className="text-sm text-gray-900">${registro.pago_por_hora.toLocaleString('es-CO')}</span>
+                      </div>
+                    </>
+                  )}
+                  {registro.tipo_calculo === 'monto' && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Tipo:</span>
+                      <span className="text-xs text-gray-700 font-medium">Monto Manual</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-500">Total:</span>
                     <span className="text-sm font-semibold text-gray-900">
-                      ${registro.total_pagado.toLocaleString('es-CO')}
+                      ${((registro.tipo_calculo === 'monto' && registro.monto_manual) 
+                        ? registro.monto_manual 
+                        : registro.total_pagado).toLocaleString('es-CO')}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -466,9 +566,20 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
                       ? `${registro.trabajador.nombre || ''} ${registro.trabajador.apellido || ''}`.trim() || registro.trabajador.email || 'Sin nombre'
                       : 'No asignado'}
                   </td>
-                    <td className="px-4 py-4 whitespace-nowrap">{registro.horas_trabajadas}</td>
-                    <td className="px-4 py-4 whitespace-nowrap">${registro.pago_por_hora.toLocaleString('es-CO')}</td>
-                    <td className="px-4 py-4 whitespace-nowrap font-medium">${registro.total_pagado.toLocaleString('es-CO')}</td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      {registro.tipo_calculo === 'monto' ? 'N/A' : registro.horas_trabajadas}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      {registro.tipo_calculo === 'monto' ? 'N/A' : `$${registro.pago_por_hora.toLocaleString('es-CO')}`}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap font-medium">
+                      ${((registro.tipo_calculo === 'monto' && registro.monto_manual) 
+                        ? registro.monto_manual 
+                        : registro.total_pagado).toLocaleString('es-CO')}
+                      {registro.tipo_calculo === 'monto' && (
+                        <span className="text-xs text-gray-500 ml-1">(Manual)</span>
+                      )}
+                    </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="relative">
                         <button
@@ -536,13 +647,28 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
 
       {/* Modal */}
       {mostrarModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <h2 className="text-xl font-bold mb-4">
-              {editando ? 'Editar' : 'Agregar'} Mano de Obra Real
-            </h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[95vh] flex flex-col">
+            {/* Header fijo */}
+            <div className="p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg sm:text-xl font-bold">
+                  {editando ? 'Editar' : 'Agregar'} Mano de Obra Real
+                </h2>
+                <button
+                  onClick={() => {
+                    setMostrarModal(false);
+                    setEditando(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
 
-            <div className="space-y-4">
+            {/* Contenido scrolleable */}
+            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Trabajador</label>
                 <select
@@ -559,33 +685,102 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Horas Trabajadas *</label>
-                  <input
-                    type="number"
-                    value={formData.horas_trabajadas}
-                    onChange={(e) => setFormData({ ...formData, horas_trabajadas: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    min="0"
-                    step="0.5"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Pago por Hora *</label>
-                  <input
-                    type="number"
-                    value={formData.pago_por_hora}
-                    onChange={(e) => setFormData({ ...formData, pago_por_hora: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    min="0"
-                    step="1000"
-                    required
-                  />
+              {/* Selector de tipo de cálculo */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <label className="block text-sm font-semibold text-gray-900 mb-3">
+                  Tipo de Cálculo de Mano de Obra
+                </label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tipoManoObra"
+                      value="horas"
+                      checked={tipoManoObra === 'horas'}
+                      onChange={(e) => setTipoManoObra(e.target.value as 'horas' | 'monto')}
+                      className="w-4 h-4 text-indigo-600"
+                    />
+                    <span className="text-sm text-gray-700">Por Horas y Precio</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tipoManoObra"
+                      value="monto"
+                      checked={tipoManoObra === 'monto'}
+                      onChange={(e) => setTipoManoObra(e.target.value as 'horas' | 'monto')}
+                      className="w-4 h-4 text-indigo-600"
+                    />
+                    <span className="text-sm text-gray-700">Monto Manual</span>
+                  </label>
                 </div>
               </div>
+
+              {tipoManoObra === 'horas' ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Horas Trabajadas *</label>
+                    <input
+                      type="number"
+                      value={formData.horas_trabajadas}
+                      onChange={(e) => setFormData({ ...formData, horas_trabajadas: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      min="0"
+                      step="0.5"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Pago por Hora *</label>
+                    <input
+                      type="number"
+                      value={formData.pago_por_hora}
+                      onChange={(e) => setFormData({ ...formData, pago_por_hora: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      min="0"
+                      step="1000"
+                      required
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Monto Total de Mano de Obra *</label>
+                    <input
+                      type="number"
+                      value={formData.monto_manual}
+                      onChange={(e) => setFormData({ ...formData, monto_manual: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      min="0"
+                      step="1000"
+                      required
+                      placeholder="Ingrese el monto total"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Este monto se usará directamente como costo de mano de obra
+                    </p>
+                  </div>
+                  
+                  {/* Campo de Pintura */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Pintura (monto total)</label>
+                    <input
+                      type="number"
+                      value={montoPintura}
+                      onChange={(e) => setMontoPintura(parseFloat(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      min="0"
+                      step="1000"
+                      placeholder="Monto total de pintura"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Monto total de pintura (no horas ni días)
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fecha *</label>
@@ -618,14 +813,81 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
                 />
               </div>
 
-              {formData.horas_trabajadas > 0 && formData.pago_por_hora > 0 && (
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <p className="text-sm text-gray-600">Total a pagar:</p>
-                  <p className="text-xl font-bold text-blue-600">
-                    ${(formData.horas_trabajadas * formData.pago_por_hora).toLocaleString('es-CO')}
-                  </p>
+              {/* Resumen de costos */}
+              {(() => {
+                const costoBase = tipoManoObra === 'monto'
+                  ? formData.monto_manual
+                  : formData.horas_trabajadas * formData.pago_por_hora;
+                const costoConPintura = costoBase + montoPintura;
+                const porcentajeValor = costoConPintura * (porcentajeManoObra / 100);
+                const totalFinal = costoConPintura + porcentajeValor;
+                
+                if (costoBase > 0 || montoPintura > 0) {
+                  return (
+                    <div className="bg-blue-50 p-3 rounded-lg space-y-2">
+                      {costoBase > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Costo base:</span>
+                          <span className="font-medium">${costoBase.toLocaleString('es-CO')}</span>
+                        </div>
+                      )}
+                      {montoPintura > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Pintura:</span>
+                          <span className="font-medium">${montoPintura.toLocaleString('es-CO')}</span>
+                        </div>
+                      )}
+                      {porcentajeManoObra > 0 && (
+                        <div className="flex justify-between text-sm text-orange-600">
+                          <span>Margen adicional ({porcentajeManoObra}%):</span>
+                          <span className="font-medium">${porcentajeValor.toLocaleString('es-CO')}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-base font-bold pt-2 border-t border-blue-200">
+                        <span>Total a pagar:</span>
+                        <span className="text-blue-600">${totalFinal.toLocaleString('es-CO')}</span>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              {/* Porcentaje adicional de mano de obra */}
+              <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-4">
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  📊 Margen adicional sobre mano de obra (opcional)
+                </label>
+                <p className="text-xs text-gray-600 mb-3">
+                  Este porcentaje se aplica sobre el costo total de mano de obra (incluyendo pintura). 
+                  <strong className="text-orange-700"> NO se incluye en el cálculo de utilidad</strong> (similar a gastos extras).
+                </p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    value={porcentajeManoObra}
+                    onChange={(e) => setPorcentajeManoObra(parseFloat(e.target.value) || 0)}
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    className="w-24 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    placeholder="0"
+                  />
+                  <span className="text-sm text-gray-700">%</span>
+                  {porcentajeManoObra > 0 && (() => {
+                    const costoBase = tipoManoObra === 'monto'
+                      ? formData.monto_manual
+                      : formData.horas_trabajadas * formData.pago_por_hora;
+                    const costoConPintura = costoBase + montoPintura;
+                    const porcentajeValor = costoConPintura * (porcentajeManoObra / 100);
+                    return (
+                      <span className="text-sm font-medium text-orange-700">
+                        = ${porcentajeValor.toLocaleString('es-CO', { minimumFractionDigits: 0 })}
+                      </span>
+                    );
+                  })()}
                 </div>
-              )}
+              </div>
 
               {/* Selector de alcance del gasto */}
               <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
@@ -693,11 +955,16 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
+            {/* Botones fijos en la parte inferior */}
+            <div className="flex gap-3 pt-4 border-t border-gray-200 mt-4 flex-shrink-0">
               <button
                 onClick={handleGuardar}
-                disabled={guardando || formData.horas_trabajadas <= 0 || formData.pago_por_hora <= 0}
-                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-400"
+                disabled={
+                  guardando || 
+                  (tipoManoObra === 'horas' && (formData.horas_trabajadas <= 0 || formData.pago_por_hora <= 0)) ||
+                  (tipoManoObra === 'monto' && formData.monto_manual <= 0)
+                }
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-400 text-sm sm:text-base"
               >
                 {guardando ? 'Guardando...' : 'Guardar'}
               </button>
@@ -706,7 +973,7 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
                   setMostrarModal(false);
                   setEditando(null);
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm sm:text-base"
               >
                 Cancelar
               </button>

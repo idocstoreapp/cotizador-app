@@ -594,13 +594,28 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
 
       {/* Modal */}
       {mostrarModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <h2 className="text-xl font-bold mb-4">
-              {editando ? 'Editar' : 'Agregar'} Transporte Real
-            </h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[95vh] flex flex-col">
+            {/* Header fijo */}
+            <div className="p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg sm:text-xl font-bold">
+                  {editando ? 'Editar' : 'Agregar'} Transporte Real
+                </h2>
+                <button
+                  onClick={() => {
+                    setMostrarModal(false);
+                    setEditando(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
 
-            <div className="space-y-4">
+            {/* Contenido scrolleable */}
+            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tipo/Descripción *</label>
                 <input
@@ -731,11 +746,12 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
+            {/* Botones fijos en la parte inferior */}
+            <div className="flex gap-3 p-4 sm:p-6 border-t border-gray-200 bg-white flex-shrink-0">
               <button
                 onClick={handleGuardar}
                 disabled={guardando || !formData.tipo_descripcion.trim() || formData.costo <= 0}
-                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-400"
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-400 text-sm sm:text-base"
               >
                 {guardando ? 'Guardando...' : 'Guardar'}
               </button>
@@ -744,7 +760,7 @@ export default function TransporteRealTab({ cotizacionId, cotizacion, onUpdate }
                   setMostrarModal(false);
                   setEditando(null);
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm sm:text-base"
               >
                 Cancelar
               </button>

@@ -4,8 +4,10 @@
  */
 import { useState, useEffect } from 'react';
 import { obtenerGastosRealesPorCotizacion, eliminarGastoReal, crearGastoReal, actualizarGastoReal } from '../../services/gastos-reales.service';
+import { obtenerMateriales } from '../../services/materiales.service';
 import RegistrarGastoRealModal from './RegistrarGastoRealModal';
-import type { Cotizacion, GastoRealMaterial } from '../../types/database';
+import MaterialAutocomplete from './MaterialAutocomplete';
+import type { Cotizacion, GastoRealMaterial, Material } from '../../types/database';
 import type { MaterialMueble } from '../../types/muebles';
 
 interface MaterialesRealesTabProps {
@@ -27,6 +29,9 @@ function AgregarMaterialAdicionalModal({
   onSuccess: () => void; 
 }) {
   const [guardando, setGuardando] = useState(false);
+  const [materiales, setMateriales] = useState<Material[]>([]);
+  const [cargandoMateriales, setCargandoMateriales] = useState(true);
+  const [materialSeleccionado, setMaterialSeleccionado] = useState<Material | null>(null);
   const [formData, setFormData] = useState({
     material_nombre: '',
     cantidad: 1,
@@ -39,6 +44,22 @@ function AgregarMaterialAdicionalModal({
     alcance_gasto: 'total' as 'unidad' | 'parcial' | 'total',
     cantidad_items_aplicados: 1
   });
+
+  // Cargar materiales al montar
+  useEffect(() => {
+    const cargarMateriales = async () => {
+      try {
+        setCargandoMateriales(true);
+        const materialesData = await obtenerMateriales();
+        setMateriales(materialesData);
+      } catch (error) {
+        console.error('Error al cargar materiales:', error);
+      } finally {
+        setCargandoMateriales(false);
+      }
+    };
+    cargarMateriales();
+  }, []);
 
   // Obtener la cantidad de items de la cotización
   let cantidadItem = 1;
@@ -64,6 +85,18 @@ function AgregarMaterialAdicionalModal({
     
     return costoBase * multiplicador;
   };
+
+  // Actualizar formData cuando se selecciona un material
+  useEffect(() => {
+    if (materialSeleccionado) {
+      setFormData(prev => ({
+        ...prev,
+        material_nombre: materialSeleccionado.nombre,
+        precio_unitario: materialSeleccionado.costo_unitario,
+        unidad: materialSeleccionado.unidad
+      }));
+    }
+  }, [materialSeleccionado]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,9 +168,10 @@ function AgregarMaterialAdicionalModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[95vh] flex flex-col">
+        {/* Header fijo */}
+        <div className="p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold text-gray-900">➕ Agregar Material Adicional</h3>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
@@ -147,18 +181,41 @@ function AgregarMaterialAdicionalModal({
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        {/* Contenido scrolleable */}
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Nombre del Material *
             </label>
-            <input
-              type="text"
+            <MaterialAutocomplete
+              materiales={materiales}
               value={formData.material_nombre}
-              onChange={(e) => setFormData({ ...formData, material_nombre: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="Ej: Tornillos de 2 pulgadas"
-              required
+              onChange={(value) => {
+                setFormData({ ...formData, material_nombre: value });
+                // Si el valor coincide exactamente con un material, seleccionarlo
+                const materialEncontrado = materiales.find(m => 
+                  m.nombre.toLowerCase() === value.toLowerCase()
+                );
+                if (materialEncontrado) {
+                  setMaterialSeleccionado(materialEncontrado);
+                } else {
+                  setMaterialSeleccionado(null);
+                }
+              }}
+              onSelect={(material) => {
+                setMaterialSeleccionado(material);
+                if (material) {
+                  setFormData(prev => ({
+                    ...prev,
+                    material_nombre: material.nombre,
+                    precio_unitario: material.costo_unitario,
+                    unidad: material.unidad
+                  }));
+                }
+              }}
+              placeholder="Buscar o escribir material..."
+              disabled={cargandoMateriales}
+              showDetails={true}
             />
           </div>
 
@@ -363,7 +420,8 @@ function AgregarMaterialAdicionalModal({
             />
           </div>
 
-          <div className="flex gap-3 pt-4">
+          {/* Botones fijos en la parte inferior */}
+          <div className="flex gap-3 pt-4 border-t border-gray-200 mt-4 flex-shrink-0">
             <button
               type="button"
               onClick={onClose}

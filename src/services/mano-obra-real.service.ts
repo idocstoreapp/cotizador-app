@@ -12,21 +12,27 @@ export async function crearManoObraReal(manoObra: {
   trabajador_id?: string;
   horas_trabajadas: number;
   pago_por_hora: number;
+  monto_manual?: number;
+  tipo_calculo?: 'horas' | 'monto';
   fecha: string;
   comprobante_url?: string;
   notas?: string;
   alcance_gasto?: 'unidad' | 'parcial' | 'total';
   cantidad_items_aplicados?: number;
 }): Promise<ManoObraReal> {
-  const total_pagado = manoObra.horas_trabajadas * manoObra.pago_por_hora;
+  const total_pagado = manoObra.tipo_calculo === 'monto' && manoObra.monto_manual
+    ? manoObra.monto_manual
+    : manoObra.horas_trabajadas * manoObra.pago_por_hora;
 
   const { data, error } = await supabase
     .from('mano_obra_real')
     .insert({
       cotizacion_id: manoObra.cotizacion_id,
       trabajador_id: manoObra.trabajador_id || null,
-      horas_trabajadas: manoObra.horas_trabajadas,
-      pago_por_hora: manoObra.pago_por_hora,
+      horas_trabajadas: manoObra.horas_trabajadas || 0,
+      pago_por_hora: manoObra.pago_por_hora || 0,
+      monto_manual: manoObra.monto_manual || null,
+      tipo_calculo: manoObra.tipo_calculo || 'horas',
       total_pagado: total_pagado,
       fecha: manoObra.fecha,
       comprobante_url: manoObra.comprobante_url || null,
@@ -76,31 +82,45 @@ export async function obtenerManoObraRealPorCotizacion(cotizacionId: string): Pr
 export async function actualizarManoObraReal(
   id: string,
   updates: Partial<{
-    trabajador_id: string;
+    trabajador_id?: string;
     horas_trabajadas: number;
     pago_por_hora: number;
+    monto_manual?: number;
+    tipo_calculo?: 'horas' | 'monto';
     fecha: string;
-    comprobante_url: string;
-    notas: string;
-    alcance_gasto: 'unidad' | 'parcial' | 'total';
-    cantidad_items_aplicados: number;
+    comprobante_url?: string;
+    notas?: string;
+    alcance_gasto?: 'unidad' | 'parcial' | 'total';
+    cantidad_items_aplicados?: number;
   }>
 ): Promise<ManoObraReal> {
-  // Si se actualizan horas o pago, recalcular total
+  // Calcular total según el tipo de cálculo
   const updateData: any = { ...updates };
-  if (updates.horas_trabajadas !== undefined || updates.pago_por_hora !== undefined) {
-    // Necesitamos obtener el registro actual para calcular el total
-    const { data: actual } = await supabase
-      .from('mano_obra_real')
-      .select('horas_trabajadas, pago_por_hora')
-      .eq('id', id)
-      .single();
-    
-    if (actual) {
-      const horas = updates.horas_trabajadas ?? actual.horas_trabajadas;
-      const pago = updates.pago_por_hora ?? actual.pago_por_hora;
-      updateData.total_pagado = horas * pago;
+  const tipoCalculo = updates.tipo_calculo;
+  
+  if (tipoCalculo === 'monto' && updates.monto_manual !== undefined) {
+    updateData.total_pagado = updates.monto_manual;
+  } else if (tipoCalculo === 'horas' || !tipoCalculo) {
+    // Si se actualizan horas o pago, recalcular total
+    if (updates.horas_trabajadas !== undefined || updates.pago_por_hora !== undefined) {
+      // Necesitamos obtener el registro actual para calcular el total
+      const { data: actual } = await supabase
+        .from('mano_obra_real')
+        .select('horas_trabajadas, pago_por_hora')
+        .eq('id', id)
+        .single();
+      
+      if (actual) {
+        const horas = updates.horas_trabajadas ?? actual.horas_trabajadas;
+        const pago = updates.pago_por_hora ?? actual.pago_por_hora;
+        updateData.total_pagado = horas * pago;
+      }
     }
+  }
+
+  // Asegurar que trabajador_id sea null si no se proporciona
+  if (updates.trabajador_id === undefined || updates.trabajador_id === '') {
+    updateData.trabajador_id = null;
   }
 
   const { data, error } = await supabase

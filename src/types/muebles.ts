@@ -98,6 +98,8 @@ export interface ItemManualCotizacion {
     concepto: string;
     monto: number;
   }>;
+  porcentaje_mano_obra?: number; // Porcentaje adicional sobre mano de obra (no suma a utilidad)
+  monto_pintura?: number; // Monto total de pintura
   descuento?: number; // Porcentaje de descuento
   dias_fabricacion?: number;
   margen_ganancia?: number;
