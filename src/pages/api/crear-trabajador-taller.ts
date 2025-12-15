@@ -19,11 +19,29 @@ export const POST: APIRoute = async ({ request }) => {
 
     const token = authHeader.replace('Bearer ', '');
 
-    const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
-    const supabaseServiceKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY;
+    // Intentar obtener las variables desde diferentes fuentes (Vercel puede usar process.env)
+    const supabaseUrl = 
+      (typeof process !== 'undefined' && process.env?.PUBLIC_SUPABASE_URL) ||
+      import.meta.env.PUBLIC_SUPABASE_URL;
+    
+    const supabaseServiceKey = 
+      (typeof process !== 'undefined' && process.env?.SUPABASE_SERVICE_ROLE_KEY) ||
+      import.meta.env.SUPABASE_SERVICE_ROLE_KEY ||
+      import.meta.env.PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      return new Response(JSON.stringify({ error: 'Configuración del servidor incorrecta' }), {
+      console.error('❌ Variables de entorno faltantes. Variables disponibles:', {
+        supabaseUrl: !!supabaseUrl,
+        supabaseServiceKey: !!supabaseServiceKey,
+        hasProcessEnv: typeof process !== 'undefined',
+        processEnvKeys: typeof process !== 'undefined' 
+          ? Object.keys(process.env).filter(k => k.includes('SUPABASE'))
+          : [],
+        importMetaEnvKeys: Object.keys(import.meta.env).filter(k => k.includes('SUPABASE'))
+      });
+      return new Response(JSON.stringify({ 
+        error: `Configuración del servidor incorrecta: ${!supabaseUrl ? 'PUBLIC_SUPABASE_URL' : ''} ${!supabaseServiceKey ? 'SUPABASE_SERVICE_ROLE_KEY' : ''} no encontrada(s)` 
+      }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });

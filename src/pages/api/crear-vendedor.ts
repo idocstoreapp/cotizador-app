@@ -17,11 +17,21 @@ export const POST: APIRoute = async ({ request }) => {
 
     const token = authHeader.replace('Bearer ', '');
 
-    const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+    // Intentar obtener las variables desde diferentes fuentes
+    const supabaseUrl = 
+      (typeof process !== 'undefined' && process.env?.PUBLIC_SUPABASE_URL) ||
+      import.meta.env.PUBLIC_SUPABASE_URL;
+    
+    const supabaseAnonKey = 
+      (typeof process !== 'undefined' && process.env?.PUBLIC_SUPABASE_ANON_KEY) ||
+      import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseAnonKey) {
-      return new Response(JSON.stringify({ error: 'Configuración del servidor incorrecta' }), {
+      console.error('❌ Variables públicas de Supabase faltantes:', {
+        supabaseUrl: !!supabaseUrl,
+        supabaseAnonKey: !!supabaseAnonKey
+      });
+      return new Response(JSON.stringify({ error: 'Configuración del servidor incorrecta: Variables públicas de Supabase faltantes' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -69,10 +79,25 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    const supabaseServiceKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY;
+    // Intentar obtener la service role key desde diferentes fuentes (Vercel puede usar process.env)
+    const supabaseServiceKey = 
+      (typeof process !== 'undefined' && process.env?.SUPABASE_SERVICE_ROLE_KEY) ||
+      import.meta.env.SUPABASE_SERVICE_ROLE_KEY ||
+      import.meta.env.PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseServiceKey) {
-      return new Response(JSON.stringify({ error: 'Configuración del servidor incorrecta' }), {
+      console.error('❌ SUPABASE_SERVICE_ROLE_KEY no encontrada. Variables disponibles:', {
+        hasProcessEnv: typeof process !== 'undefined',
+        processEnvKey: typeof process !== 'undefined' ? !!process.env?.SUPABASE_SERVICE_ROLE_KEY : false,
+        importMetaEnvKey: !!import.meta.env.SUPABASE_SERVICE_ROLE_KEY,
+        publicKey: !!import.meta.env.PUBLIC_SUPABASE_SERVICE_ROLE_KEY,
+        allEnvKeys: typeof process !== 'undefined' 
+          ? Object.keys(process.env).filter(k => k.includes('SUPABASE'))
+          : Object.keys(import.meta.env).filter(k => k.includes('SUPABASE'))
+      });
+      return new Response(JSON.stringify({ 
+        error: 'Configuración del servidor incorrecta: SUPABASE_SERVICE_ROLE_KEY no encontrada' 
+      }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
