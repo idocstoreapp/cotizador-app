@@ -156,9 +156,15 @@ export default function QuotePDF({
           min-height: 297mm;
           background: ${isKubica ? '#f5f5f5' : (isCasablanca ? '#f5f5f5' : '#f5f5f0')};
           position: relative;
-          font-family: 'Arial', 'Helvetica', sans-serif;
+          font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', 'Arial', 'Helvetica', sans-serif;
           overflow: hidden;
           padding-bottom: ${(isKubica || isCasablanca) ? '120px' : '80px'};
+        }
+        
+        /* Asegurar que los emojis se rendericen correctamente */
+        * {
+          -webkit-font-feature-settings: "liga" on, "calt" on;
+          font-feature-settings: "liga" on, "calt" on;
         }
 
         /* Líneas curvas decorativas horizontales */
@@ -870,17 +876,44 @@ export default function QuotePDF({
               )}
               {empresaInfo.telefonos && empresaInfo.telefonos.length > 0 && (
                 <div className="company-detail-line">
-                  <span style={{ display: 'inline-block', width: '18px', textAlign: 'left', fontSize: '14px', marginRight: '6px', fontWeight: 'bold', color: empresaColors.primary, fontFamily: 'Arial, sans-serif' }}>☎</span> {empresaInfo.telefonos[0]}
+                  <span style={{ 
+                    display: 'inline-block', 
+                    width: '20px', 
+                    textAlign: 'center', 
+                    fontSize: '16px', 
+                    marginRight: '6px', 
+                    verticalAlign: 'middle',
+                    lineHeight: '1',
+                    fontFamily: 'Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Arial, sans-serif'
+                  }}>📱</span> {empresaInfo.telefonos[0]}
                 </div>
               )}
               {empresaInfo.emails && empresaInfo.emails.length > 0 && (
                 <div className="company-detail-line">
-                  <span style={{ display: 'inline-block', width: '18px', textAlign: 'left', fontSize: '14px', marginRight: '6px', fontWeight: 'bold', color: empresaColors.primary, fontFamily: 'Arial, sans-serif' }}>✉</span> {empresaInfo.emails[0]}
+                  <span style={{ 
+                    display: 'inline-block', 
+                    width: '20px', 
+                    textAlign: 'center', 
+                    fontSize: '16px', 
+                    marginRight: '6px', 
+                    verticalAlign: 'middle',
+                    lineHeight: '1',
+                    fontFamily: 'Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Arial, sans-serif'
+                  }}>✉️</span> {empresaInfo.emails[0]}
                 </div>
               )}
               {empresaInfo.sitioWeb && (
                 <div className="company-detail-line">
-                  <span style={{ display: 'inline-block', width: '18px', textAlign: 'left', fontSize: '14px', marginRight: '6px', fontWeight: 'bold', color: empresaColors.primary, fontFamily: 'Arial, sans-serif' }}>🌐</span> {empresaInfo.sitioWeb.startsWith('http') ? empresaInfo.sitioWeb : `https://${empresaInfo.sitioWeb}`}
+                  <span style={{ 
+                    display: 'inline-block', 
+                    width: '20px', 
+                    textAlign: 'center', 
+                    fontSize: '16px', 
+                    marginRight: '6px', 
+                    verticalAlign: 'middle',
+                    lineHeight: '1',
+                    fontFamily: 'Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Arial, sans-serif'
+                  }}>🌐</span> {empresaInfo.sitioWeb.startsWith('http') ? empresaInfo.sitioWeb : `https://${empresaInfo.sitioWeb}`}
                 </div>
               )}
             </div>

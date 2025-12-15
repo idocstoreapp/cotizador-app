@@ -86,7 +86,7 @@ export function renderQuoteToHTML(data: QuoteData): string {
     }
     
     body {
-      font-family: 'Arial', 'Helvetica', sans-serif;
+      font-family: 'Arial', 'Helvetica', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
       background: #f5f5f0;
       padding: 0;
       margin: 0;
@@ -97,9 +97,15 @@ export function renderQuoteToHTML(data: QuoteData): string {
       min-height: 297mm;
       background: #f5f5f0;
       position: relative;
-      font-family: 'Arial', 'Helvetica', sans-serif;
+      font-family: 'Arial', 'Helvetica', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
       overflow: hidden;
       margin: 0 auto;
+    }
+    
+    /* Asegurar que los emojis se rendericen correctamente */
+    * {
+      -webkit-font-feature-settings: "liga" on, "calt" on;
+      font-feature-settings: "liga" on, "calt" on;
     }
 
     /* Curvas decorativas */

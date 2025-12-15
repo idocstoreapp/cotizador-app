@@ -239,6 +239,18 @@ export const POST: APIRoute = async ({ request }) => {
     console.log('📄 Creando nueva página...');
     const page = await browser.newPage();
     
+    // Configurar para que los emojis se rendericen correctamente
+    await page.evaluateOnNewDocument(() => {
+      // Asegurar que los emojis se rendericen
+      const style = document.createElement('style');
+      style.textContent = `
+        * {
+          font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', Arial, sans-serif !important;
+        }
+      `;
+      document.head.appendChild(style);
+    });
+    
     console.log('📝 Configurando contenido HTML...');
     // Configurar el contenido HTML con timeout más corto para Vercel
     await page.setContent(html, {
