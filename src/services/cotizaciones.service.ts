@@ -12,7 +12,7 @@ import { asignarTrabajadoresACotizacion } from './cotizacion-trabajadores.servic
 
 /**
  * Genera un número único de cotización según la empresa
- * Formato: PREFIJO-NNNN (ej: CASA-400, KUB-1000)
+ * Formato: PREFIJO-NNNN (ej: C-400, K-1000)
  * @param empresa - Empresa que genera la cotización
  * @returns Número de cotización único
  */

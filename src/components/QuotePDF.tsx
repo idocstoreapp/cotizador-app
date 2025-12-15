@@ -271,6 +271,7 @@ export default function QuotePDF({
         .company-info-section {
           flex: 1;
           padding-left: 20px;
+          padding-right: 10px;
           border-left: 2px solid #d4a574;
         }
 
@@ -284,11 +285,13 @@ export default function QuotePDF({
         .company-details {
           font-size: 10px;
           color: #666;
-          line-height: 1.4;
+          line-height: 1.6;
+          padding: 5px 0;
         }
 
         .company-detail-line {
-          margin-bottom: 3px;
+          margin-bottom: 4px;
+          padding: 2px 0;
         }
 
         /* Número de orden y fecha en esquina superior derecha (solo Kubica) */
@@ -830,7 +833,18 @@ export default function QuotePDF({
             <img 
               src={companyLogo} 
               alt={companyName || 'Logo'} 
-              style={{ maxHeight: '80px', maxWidth: '200px', objectFit: 'contain' }}
+              style={{ 
+                maxHeight: '80px', 
+                maxWidth: '200px', 
+                objectFit: 'contain',
+                display: 'block',
+                height: 'auto',
+                width: 'auto'
+              }}
+              onError={(e) => {
+                console.error('Error al cargar logo:', companyLogo);
+                e.currentTarget.style.display = 'none';
+              }}
             />
           ) : (
             <div>
@@ -856,17 +870,17 @@ export default function QuotePDF({
               )}
               {empresaInfo.telefonos && empresaInfo.telefonos.length > 0 && (
                 <div className="company-detail-line">
-                  <span style={{ display: 'inline-block', width: '20px', textAlign: 'center', fontSize: '16px', marginRight: '4px' }}>📱</span> {empresaInfo.telefonos[0]}
+                  <span style={{ display: 'inline-block', width: '18px', textAlign: 'left', fontSize: '14px', marginRight: '6px', fontWeight: 'bold', color: empresaColors.primary, fontFamily: 'Arial, sans-serif' }}>☎</span> {empresaInfo.telefonos[0]}
                 </div>
               )}
               {empresaInfo.emails && empresaInfo.emails.length > 0 && (
                 <div className="company-detail-line">
-                  <span style={{ display: 'inline-block', width: '20px', textAlign: 'center', fontSize: '16px', marginRight: '4px' }}>✉️</span> {empresaInfo.emails[0]}
+                  <span style={{ display: 'inline-block', width: '18px', textAlign: 'left', fontSize: '14px', marginRight: '6px', fontWeight: 'bold', color: empresaColors.primary, fontFamily: 'Arial, sans-serif' }}>✉</span> {empresaInfo.emails[0]}
                 </div>
               )}
               {empresaInfo.sitioWeb && (
                 <div className="company-detail-line">
-                  <span style={{ display: 'inline-block', width: '20px', textAlign: 'center', fontSize: '16px', marginRight: '4px' }}>🌐</span> {empresaInfo.sitioWeb.startsWith('http') ? empresaInfo.sitioWeb : `https://${empresaInfo.sitioWeb}`}
+                  <span style={{ display: 'inline-block', width: '18px', textAlign: 'left', fontSize: '14px', marginRight: '6px', fontWeight: 'bold', color: empresaColors.primary, fontFamily: 'Arial, sans-serif' }}>🌐</span> {empresaInfo.sitioWeb.startsWith('http') ? empresaInfo.sitioWeb : `https://${empresaInfo.sitioWeb}`}
                 </div>
               )}
             </div>

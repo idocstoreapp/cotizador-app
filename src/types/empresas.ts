@@ -26,7 +26,7 @@ export const EMPRESAS: Record<Empresa, EmpresaInfo> = {
     nombreCompleto: 'FIX PRO SPA',
     logo: '/images/logo-muebleria.png',
     numeroInicial: 400,
-    prefijoNumero: 'CASA',
+    prefijoNumero: 'C',
     rut: '77.064.513-1',
     direccion: 'Santa Elena 803, Santiago',
     emails: ['Contacto@muebleriacasablanca.cl', 'Muebleriacasablanca.cl@gmail.com'],
@@ -40,7 +40,7 @@ export const EMPRESAS: Record<Empresa, EmpresaInfo> = {
     nombreCompleto: 'KUBICA Mobiliario',
     logo: '/images/logo-kubica.png',
     numeroInicial: 1000,
-    prefijoNumero: 'KUB',
+    prefijoNumero: 'K',
     direccion: 'Santa Elena 803, Santiago',
     emails: ['kubicamobiliario@gmail.com'],
     telefonos: ['+56964295258', '226458059'], // Mismos teléfonos

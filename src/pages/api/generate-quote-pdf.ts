@@ -106,11 +106,26 @@ export const POST: APIRoute = async ({ request }) => {
     let logoBase64 = companyLogo;
     if (companyLogo && !companyLogo.startsWith('data:image')) {
       console.log('📸 Convirtiendo logo a base64...', companyLogo);
-      logoBase64 = await convertirLogoABase64(companyLogo) || companyLogo;
-      if (logoBase64 !== companyLogo) {
-        console.log('✅ Logo convertido a base64 exitosamente');
-      } else {
-        console.warn('⚠️ No se pudo convertir el logo a base64, usando URL original');
+      try {
+        logoBase64 = await convertirLogoABase64(companyLogo);
+        if (logoBase64) {
+          console.log('✅ Logo convertido a base64 exitosamente');
+        } else {
+          // Si falla la conversión, intentar construir URL completa para producción
+          if (companyLogo.startsWith('/images/')) {
+            const productionUrl = `https://cotizador-app-two.vercel.app${companyLogo}`;
+            console.log('🔄 Intentando URL de producción:', productionUrl);
+            logoBase64 = await convertirLogoABase64(productionUrl) || companyLogo;
+          } else {
+            logoBase64 = companyLogo;
+          }
+          if (logoBase64 === companyLogo) {
+            console.warn('⚠️ No se pudo convertir el logo a base64, usando URL original');
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error al convertir logo:', error);
+        logoBase64 = companyLogo;
       }
     }
     

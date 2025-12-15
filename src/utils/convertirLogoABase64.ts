@@ -37,14 +37,32 @@ export async function convertirLogoABase64(imagePath: string): Promise<string | 
         // Si no se encontró en el sistema de archivos, intentar fetch
         let url = imagePath;
         if (imagePath.startsWith('/')) {
-          const baseUrl = process.env.PUBLIC_URL || 
-                         (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:4321');
+          // En producción (Vercel), usar la URL completa del sitio
+          const baseUrl = 
+            process.env.PUBLIC_URL || 
+            (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+            (process.env.VERCEL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL}` : null) ||
+            'http://localhost:4321';
           url = `${baseUrl}${imagePath}`;
+          console.log(`🔗 Intentando cargar logo desde: ${url}`);
         }
         
         const response = await fetch(url);
         if (!response.ok) {
-          console.error(`Error al cargar imagen: ${url}`, response.status);
+          console.error(`❌ Error al cargar imagen: ${url}`, response.status, response.statusText);
+          // Intentar con URL absoluta si es una ruta relativa
+          if (imagePath.startsWith('/images/')) {
+            const fallbackUrl = `https://cotizador-app-two.vercel.app${imagePath}`;
+            console.log(`🔄 Intentando URL alternativa: ${fallbackUrl}`);
+            const fallbackResponse = await fetch(fallbackUrl);
+            if (fallbackResponse.ok) {
+              const arrayBuffer = await fallbackResponse.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+              const base64 = buffer.toString('base64');
+              const contentType = fallbackResponse.headers.get('content-type') || 'image/png';
+              return `data:${contentType};base64,${base64}`;
+            }
+          }
           return null;
         }
         const arrayBuffer = await response.arrayBuffer();
