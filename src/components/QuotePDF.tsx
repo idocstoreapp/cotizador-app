@@ -760,7 +760,7 @@ export default function QuotePDF({
 
         /* Cuadro de total para Kubica y Casablanca - esquina derecha */
         .total-box {
-          background: ${empresaColors.secondary};
+          background: ${isCasablanca ? casablancaColors.accent : empresaColors.secondary};
           padding: 20px 30px;
           border-radius: 4px;
           position: absolute;
@@ -774,7 +774,7 @@ export default function QuotePDF({
         .total-label {
           font-size: 16px;
           font-weight: bold;
-          color: #fff;
+          color: ${isCasablanca ? empresaColors.dark : '#fff'};
           margin-bottom: 8px;
           text-transform: uppercase;
           letter-spacing: 1px;
@@ -783,7 +783,7 @@ export default function QuotePDF({
         .total-amount {
           font-size: 28px;
           font-weight: bold;
-          color: #fff;
+          color: ${isCasablanca ? empresaColors.dark : '#fff'};
           text-align: right;
         }
 

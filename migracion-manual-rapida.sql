@@ -20,3 +20,4 @@ ADD COLUMN IF NOT EXISTS monto_pagado NUMERIC DEFAULT 0;
 -- ✅ Listo! Las columnas deberían estar creadas ahora.
 
 
+
