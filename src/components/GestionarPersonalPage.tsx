@@ -35,9 +35,14 @@ function CrearEditarUsuarioModal({
   const [formData, setFormData] = useState({
     nombre: usuario?.nombre || '',
     apellido: usuario?.apellido || '',
+    rut: usuario?.rut || '',
+    direccion: usuario?.direccion || '',
+    telefono: usuario?.telefono || '',
     email: usuario?.email || '',
     password: '',
-    especialidad: usuario?.especialidad || ''
+    especialidad: usuario?.especialidad || '',
+    sueldo: usuario?.sueldo?.toString() || '',
+    frecuencia_pago: (usuario?.frecuencia_pago || 'mensual') as 'mensual' | 'quincenal' | 'semanal' | 'diario'
   });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,9 +53,14 @@ function CrearEditarUsuarioModal({
     setFormData({
       nombre: usuario?.nombre || '',
       apellido: usuario?.apellido || '',
+      rut: usuario?.rut || '',
+      direccion: usuario?.direccion || '',
+      telefono: usuario?.telefono || '',
       email: usuario?.email || '',
       password: '',
-      especialidad: usuario?.especialidad || ''
+      especialidad: usuario?.especialidad || '',
+      sueldo: usuario?.sueldo?.toString() || '',
+      frecuencia_pago: (usuario?.frecuencia_pago || 'mensual') as 'mensual' | 'quincenal' | 'semanal' | 'diario'
     });
   }, [usuario]);
 
@@ -64,11 +74,18 @@ function CrearEditarUsuarioModal({
         // Editar usuario existente
         const datosActualizacion: any = {
           nombre: formData.nombre,
-          apellido: formData.apellido
+          apellido: formData.apellido,
+          rut: formData.rut || null,
+          direccion: formData.direccion || null,
+          telefono: formData.telefono || null,
+          sueldo: formData.sueldo ? parseFloat(formData.sueldo) : null,
+          frecuencia_pago: formData.frecuencia_pago
         };
         
         if (tipo === 'trabajador_taller' && formData.especialidad) {
           datosActualizacion.especialidad = formData.especialidad;
+        } else if (tipo === 'vendedor') {
+          datosActualizacion.especialidad = 'vendedor';
         }
 
         const resultado = await actualizarUsuario(usuario.id, datosActualizacion);
@@ -99,9 +116,14 @@ function CrearEditarUsuarioModal({
           formData.nombre.trim(),
           formData.apellido.trim(),
           tipo,
-          tipo === 'trabajador_taller' ? formData.especialidad : undefined,
+          tipo === 'trabajador_taller' ? formData.especialidad : 'vendedor',
           tipo === 'vendedor' ? formData.email.trim() : undefined,
-          tipo === 'vendedor' ? formData.password : undefined
+          tipo === 'vendedor' ? formData.password : undefined,
+          formData.rut.trim() || undefined,
+          formData.direccion.trim() || undefined,
+          formData.telefono.trim() || undefined,
+          formData.sueldo ? parseFloat(formData.sueldo) : undefined,
+          formData.frecuencia_pago
         );
 
         if (resultado.error) {
@@ -170,6 +192,48 @@ function CrearEditarUsuarioModal({
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              RUT
+            </label>
+            <input
+              type="text"
+              value={formData.rut}
+              onChange={(e) => setFormData({ ...formData, rut: e.target.value })}
+              className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              disabled={guardando}
+              placeholder="RUT"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Dirección
+            </label>
+            <input
+              type="text"
+              value={formData.direccion}
+              onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
+              className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              disabled={guardando}
+              placeholder="Dirección"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Número de Teléfono
+            </label>
+            <input
+              type="tel"
+              value={formData.telefono}
+              onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+              className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              disabled={guardando}
+              placeholder="Número de teléfono"
+            />
+          </div>
+
           {tipo === 'vendedor' && !usuario && (
             <>
               <div>
@@ -222,6 +286,40 @@ function CrearEditarUsuarioModal({
               />
             </div>
           )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Sueldo
+            </label>
+            <input
+              type="number"
+              value={formData.sueldo}
+              onChange={(e) => setFormData({ ...formData, sueldo: e.target.value })}
+              className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              placeholder="0"
+              min="0"
+              step="0.01"
+              disabled={guardando}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Frecuencia de Pago *
+            </label>
+            <select
+              value={formData.frecuencia_pago}
+              onChange={(e) => setFormData({ ...formData, frecuencia_pago: e.target.value as any })}
+              className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              required
+              disabled={guardando}
+            >
+              <option value="mensual">Mensual</option>
+              <option value="quincenal">Quincenal</option>
+              <option value="semanal">Semanal</option>
+              <option value="diario">Diario</option>
+            </select>
+          </div>
 
           <div className="flex gap-3 pt-4">
             <button
@@ -888,13 +986,52 @@ interface ModalPagoPersonalProps {
 }
 
 function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePersona, onClose, onSuccess }: ModalPagoPersonalProps) {
+  // Función para generar número de referencia automático
+  const generarNumeroReferencia = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    return `PAGO-${year}${month}${day}-${hours}${minutes}${seconds}`;
+  };
+
   const [monto, setMonto] = useState('');
   const [fechaPago, setFechaPago] = useState(new Date().toISOString().split('T')[0]);
   const [metodoPago, setMetodoPago] = useState<'efectivo' | 'transferencia' | 'cheque' | 'otro'>('efectivo');
-  const [numeroReferencia, setNumeroReferencia] = useState('');
-  const [notas, setNotas] = useState('');
+  const [numeroReferencia, setNumeroReferencia] = useState(generarNumeroReferencia());
+  const [descripcion, setDescripcion] = useState('');
+  const [esPagoSueldo, setEsPagoSueldo] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Efecto para actualizar número de referencia cuando cambia la fecha
+  useEffect(() => {
+    if (fechaPago) {
+      const fecha = new Date(fechaPago + 'T12:00:00');
+      const year = fecha.getFullYear();
+      const month = String(fecha.getMonth() + 1).padStart(2, '0');
+      const day = String(fecha.getDate()).padStart(2, '0');
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      setNumeroReferencia(`PAGO-${year}${month}${day}-${hours}${minutes}${seconds}`);
+    }
+  }, [fechaPago]);
+
+  // Efecto para completar datos cuando se selecciona pago de sueldo
+  useEffect(() => {
+    if (esPagoSueldo && persona.sueldo) {
+      setMonto(persona.sueldo.toString());
+      const frecuencia = persona.frecuencia_pago || 'mensual';
+      const descripcionSueldo = `Pago de sueldo ${frecuencia} - ${persona.nombre} ${persona.apellido}`;
+      setDescripcion(descripcionSueldo);
+    }
+    // No limpiar automáticamente cuando se desmarca para permitir edición manual
+  }, [esPagoSueldo, persona.sueldo, persona.frecuencia_pago, persona.nombre, persona.apellido]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -929,8 +1066,8 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
         tipo_persona: persona.role as 'vendedor' | 'trabajador_taller',
         monto: montoNum,
         metodo_pago: metodoPago,
-        numero_referencia: numeroReferencia || undefined,
-        notas: notas || undefined
+        numero_referencia: numeroReferencia.trim() || undefined,
+        notas: descripcion.trim() || undefined
       });
 
       // Actualizar fecha_liquidacion manualmente si es diferente a hoy
@@ -949,8 +1086,9 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
       onSuccess();
       // No cerrar el modal automáticamente para permitir agregar más pagos
       setMonto('');
-      setNumeroReferencia('');
-      setNotas('');
+      setNumeroReferencia(generarNumeroReferencia());
+      setDescripcion('');
+      setEsPagoSueldo(false);
       setFechaPago(new Date().toISOString().split('T')[0]);
     } catch (err: any) {
       setError(err.message || 'Error al registrar pago');
@@ -1051,6 +1189,61 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Opción de pago de sueldo */}
+            {persona.sueldo && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={esPagoSueldo}
+                    onChange={(e) => setEsPagoSueldo(e.target.checked)}
+                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    disabled={guardando}
+                  />
+                  <span className="ml-2 text-sm font-medium text-gray-700">
+                    Es pago de sueldo ({persona.frecuencia_pago || 'mensual'})
+                  </span>
+                </label>
+                {esPagoSueldo && (
+                  <p className="text-xs text-blue-700 mt-2">
+                    Se completarán automáticamente: Monto ${persona.sueldo.toLocaleString('es-CO')} y descripción del pago
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Número de referencia *
+              </label>
+              <input
+                type="text"
+                value={numeroReferencia}
+                onChange={(e) => setNumeroReferencia(e.target.value)}
+                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                placeholder="Número de referencia del pago"
+                required
+                disabled={guardando}
+              />
+              <p className="text-xs text-gray-500 mt-1">Se genera automáticamente, pero puedes editarlo</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Descripción del pago *
+              </label>
+              <textarea
+                value={descripcion}
+                onChange={(e) => setDescripcion(e.target.value)}
+                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                rows={2}
+                placeholder="Descripción del pago (ej: Pago de sueldo mensual, Pago por comisión, etc.)"
+                required
+                disabled={guardando}
+              />
+              <p className="text-xs text-gray-500 mt-1">Describe qué se está pagando</p>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Monto del pago *
@@ -1101,34 +1294,6 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Número de referencia
-              </label>
-              <input
-                type="text"
-                value={numeroReferencia}
-                onChange={(e) => setNumeroReferencia(e.target.value)}
-                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                placeholder="Nº de transacción, cheque, etc."
-                disabled={guardando}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Notas
-              </label>
-              <textarea
-                value={notas}
-                onChange={(e) => setNotas(e.target.value)}
-                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                rows={2}
-                placeholder="Notas adicionales..."
-                disabled={guardando}
-              />
-            </div>
-
             {/* Historial de pagos */}
             {liquidaciones.length > 0 && (
               <div className="border-t border-gray-200 pt-4">
@@ -1146,6 +1311,9 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
                           </p>
                           {liquidacion.notas && (
                             <p className="text-xs text-gray-600 mt-1">{liquidacion.notas}</p>
+                          )}
+                          {liquidacion.numero_referencia && (
+                            <p className="text-xs text-gray-500 mt-1">Ref: {liquidacion.numero_referencia}</p>
                           )}
                         </div>
                       </div>

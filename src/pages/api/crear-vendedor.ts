@@ -63,7 +63,7 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     const body = await request.json();
-    const { nombre, apellido, email, password } = body;
+    const { nombre, apellido, rut, direccion, telefono, email, password, sueldo, frecuencia_pago } = body;
 
     if (!nombre || !apellido || !email || !password) {
       return new Response(JSON.stringify({ error: 'Faltan datos requeridos' }), {
@@ -142,8 +142,14 @@ export const POST: APIRoute = async ({ request }) => {
         id: authData.user.id,
         nombre,
         apellido,
+        rut: rut?.trim() || null,
+        direccion: direccion?.trim() || null,
+        telefono: telefono?.trim() || null,
         email: email.trim(),
-        role: 'vendedor'
+        role: 'vendedor',
+        especialidad: 'vendedor', // Especialidad por defecto para vendedores
+        sueldo: sueldo ? parseFloat(sueldo) : null,
+        frecuencia_pago: frecuencia_pago || 'mensual'
       })
       .select()
       .single();

@@ -28,6 +28,7 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
     pago_por_hora: 0,
     monto_manual: 0,
     fecha: new Date().toISOString().split('T')[0],
+    metodo_pago: '' as '' | 'efectivo' | 'transferencia',
     comprobante: null as File | null,
     notas: '',
     alcance_gasto: 'unidad' as 'unidad' | 'parcial' | 'total',
@@ -118,6 +119,7 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
           monto_manual: montoManualFinal,
           tipo_calculo: tipoCalculoFinal,
           fecha: formData.fecha,
+          metodo_pago: formData.metodo_pago || undefined,
           comprobante_url: comprobanteUrl,
           notas: notasFinal || undefined,
           alcance_gasto: formData.alcance_gasto,
@@ -132,6 +134,7 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
           monto_manual: montoManualFinal,
           tipo_calculo: tipoCalculoFinal,
           fecha: formData.fecha,
+          metodo_pago: formData.metodo_pago || undefined,
           comprobante_url: comprobanteUrl,
           notas: notasFinal || undefined,
           alcance_gasto: formData.alcance_gasto,
@@ -152,6 +155,7 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
         pago_por_hora: 0,
         monto_manual: 0,
         fecha: new Date().toISOString().split('T')[0],
+        metodo_pago: '',
         comprobante: null,
         notas: '',
         alcance_gasto: 'unidad',
@@ -216,6 +220,7 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
       pago_por_hora: registro.pago_por_hora,
       monto_manual: (registro as any).monto_manual || 0,
       fecha: registro.fecha,
+      metodo_pago: ((registro as any).metodo_pago || '') as '' | 'efectivo' | 'transferencia',
       comprobante: null,
       notas: notasLimpias,
       alcance_gasto: registro.alcance_gasto || 'unidad',
@@ -347,16 +352,18 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
                           <button
                             onClick={() => {
                               setEditando(null);
-                              setFormData({
-                                trabajador_id: '',
-                                horas_trabajadas: serv.horas,
-                                pago_por_hora: serv.precio_por_hora,
-                                fecha: new Date().toISOString().split('T')[0],
-                                comprobante: null,
-                                notas: `Desde presupuesto: ${serv.servicio_nombre} - ${serv.item_nombre}`,
-                                alcance_gasto: 'unidad',
-                                cantidad_items_aplicados: 1
-                              });
+            setFormData({
+              trabajador_id: '',
+              horas_trabajadas: serv.horas,
+              pago_por_hora: serv.precio_por_hora,
+              monto_manual: 0,
+              fecha: new Date().toISOString().split('T')[0],
+              metodo_pago: '',
+              comprobante: null,
+              notas: `Desde presupuesto: ${serv.servicio_nombre} - ${serv.item_nombre}`,
+              alcance_gasto: 'unidad',
+              cantidad_items_aplicados: 1
+            });
                               setMostrarModal(true);
                             }}
                             className="px-3 py-1 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700"
@@ -436,6 +443,7 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
               pago_por_hora: 0,
               monto_manual: 0,
               fecha: new Date().toISOString().split('T')[0],
+              metodo_pago: '',
               comprobante: null,
               notas: '',
               alcance_gasto: 'unidad',
@@ -791,6 +799,20 @@ export default function ManoObraRealTab({ cotizacionId, cotizacion, onUpdate }: 
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   required
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Método de Pago</label>
+                <select
+                  value={formData.metodo_pago}
+                  onChange={(e) => setFormData({ ...formData, metodo_pago: e.target.value as 'efectivo' | 'transferencia' | '' })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="">Seleccionar método de pago (opcional)</option>
+                  <option value="efectivo">Efectivo</option>
+                  <option value="transferencia">Transferencia</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Indica cómo se le pagó al trabajador</p>
               </div>
 
               <div>

@@ -412,37 +412,35 @@ export default function Dashboard({ usuario }: DashboardProps) {
           </div>
 
 
-          {/* Primera fila: Cotizaciones, Ventas, Cotizaciones en Proceso, Costos Totales, Ganancia, Pagos a Personal */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+          {/* Primera fila: Cotizaciones, Ventas, Cotizaciones en Proceso */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {/* Total Cotizaciones */}
-            <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-indigo-500">
-              <div className="p-5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-indigo-500 rounded-md flex items-center justify-center">
-                        <span className="text-white text-lg font-bold">📋</span>
-                      </div>
-                    </div>
-                    <div className="ml-4">
-                      <dt className="text-sm font-medium text-gray-500">Cotizaciones Creadas</dt>
-                      <dd className="text-2xl font-bold text-gray-900 mt-1">
-                        {estadisticasDashboard?.totalCotizaciones ?? totalCotizacionesPeriodo}
-                      </dd>
-                      <p className="text-xs text-gray-400 mt-1">Período seleccionado</p>
+            <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-indigo-500 min-h-0 flex flex-col">
+              <div className="p-3 sm:p-4 flex-1 flex flex-col min-w-0">
+                <div className="flex items-start gap-2 sm:gap-3 mb-2 sm:mb-3 min-w-0">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-indigo-500 rounded-md flex items-center justify-center">
+                      <span className="text-white text-sm sm:text-lg font-bold">📋</span>
                     </div>
                   </div>
+                  <div className="min-w-0 flex-1">
+                    <dt className="text-[clamp(0.625rem,0.5rem+0.5vw,0.875rem)] font-medium text-gray-500 leading-tight">Cotizaciones Creadas</dt>
+                    <dd className="text-[clamp(1.25rem,1rem+1vw,1.5rem)] font-bold text-gray-900 mt-0.5 sm:mt-1 leading-tight">
+                      {estadisticasDashboard?.totalCotizaciones ?? totalCotizacionesPeriodo}
+                    </dd>
+                    <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-0.5 leading-tight">Período seleccionado</p>
+                  </div>
                 </div>
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-500">✅ Aceptadas:</span>
-                    <span className="font-semibold text-green-600">
+                <div className="mt-auto pt-2 sm:pt-3 border-t border-gray-200 space-y-1">
+                  <div className="flex items-center justify-between text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)]">
+                    <span className="text-gray-500 truncate">✅ Aceptadas:</span>
+                    <span className="font-semibold text-green-600 ml-1 flex-shrink-0">
                       {estadisticasDashboard?.cotizacionesAceptadas ?? cotizacionesAceptadasPeriodo.length}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-xs mt-1">
-                    <span className="text-gray-500">⏳ Pendientes:</span>
-                    <span className="font-semibold text-yellow-600">
+                  <div className="flex items-center justify-between text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)]">
+                    <span className="text-gray-500 truncate">⏳ Pendientes:</span>
+                    <span className="font-semibold text-yellow-600 ml-1 flex-shrink-0">
                       {estadisticasDashboard?.cotizacionesPendientes ?? cotizacionesPendientesPeriodo.length}
                     </span>
                   </div>
@@ -451,23 +449,23 @@ export default function Dashboard({ usuario }: DashboardProps) {
             </div>
 
             {/* Ventas del Mes (SOLO PAGADAS) */}
-            <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-blue-500">
-              <div className="p-5">
-                <div className="flex items-center">
+            <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-blue-500 min-h-0 flex flex-col">
+              <div className="p-3 sm:p-4 flex-1 flex flex-col min-w-0">
+                <div className="flex items-start gap-2 sm:gap-3 min-w-0">
                   <div className="flex-shrink-0">
-                    <div className="w-10 h-10 bg-blue-500 rounded-md flex items-center justify-center">
-                      <span className="text-white text-lg font-bold">💰</span>
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-500 rounded-md flex items-center justify-center">
+                      <span className="text-white text-sm sm:text-lg font-bold">💰</span>
                     </div>
                   </div>
-                  <div className="ml-4 w-0 flex-1">
+                  <div className="min-w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">Ventas del Mes</dt>
-                      <dd className="text-2xl font-bold text-blue-600">
+                      <dt className="text-[clamp(0.625rem,0.5rem+0.5vw,0.875rem)] font-medium text-gray-500 truncate leading-tight">Ventas del Mes</dt>
+                      <dd className="text-[clamp(0.875rem,0.75rem+0.6vw,1.5rem)] font-bold text-blue-600 leading-tight mt-0.5 sm:mt-1 break-all">
                         ${(estadisticasDashboard?.ventasTotalesMes ?? 0).toLocaleString('es-CO')}
                       </dd>
-                      <p className="text-xs text-gray-400 mt-1">Solo cotizaciones pagadas completamente</p>
+                      <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-1 leading-tight">Solo cotizaciones pagadas completamente</p>
                       {estadisticasDashboard?.variacionVentas !== undefined && estadisticasDashboard.variacionVentas !== 0 && (
-                        <dd className={`text-xs mt-1 font-medium ${estadisticasDashboard.variacionVentas >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <dd className={`text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] mt-1 font-medium leading-tight ${estadisticasDashboard.variacionVentas >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {estadisticasDashboard.variacionVentas >= 0 ? '↑' : '↓'} {Math.abs(estadisticasDashboard.variacionVentas).toFixed(1)}% vs mes anterior
                         </dd>
                       )}
@@ -478,72 +476,77 @@ export default function Dashboard({ usuario }: DashboardProps) {
             </div>
 
             {/* Cotizaciones Aceptadas en Proceso */}
-            <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-orange-500">
-              <div className="p-5">
-                <div className="flex items-center">
+            <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-orange-500 min-h-0 flex flex-col">
+              <div className="p-3 sm:p-4 flex-1 flex flex-col min-w-0">
+                <div className="flex items-start gap-2 sm:gap-3 mb-2 min-w-0">
                   <div className="flex-shrink-0">
-                    <div className="w-10 h-10 bg-orange-500 rounded-md flex items-center justify-center">
-                      <span className="text-white text-lg font-bold">⏳</span>
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-orange-500 rounded-md flex items-center justify-center">
+                      <span className="text-white text-sm sm:text-lg font-bold">⏳</span>
                     </div>
                   </div>
-                  <div className="ml-4 w-0 flex-1">
+                  <div className="min-w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">Cotizaciones en Proceso</dt>
-                      <dd className="text-2xl font-bold text-orange-600">
+                      <dt className="text-[clamp(0.625rem,0.5rem+0.5vw,0.875rem)] font-medium text-gray-500 truncate leading-tight">Cotizaciones en Proceso</dt>
+                      <dd className="text-[clamp(1.25rem,1rem+1vw,1.5rem)] font-bold text-orange-600 leading-tight mt-0.5 sm:mt-1">
                         {estadisticasDashboard?.cotizacionesAceptadasEnProceso ?? 0}
                       </dd>
-                      <p className="text-xs text-gray-400 mt-1">Aceptadas pero no pagadas o pagadas parcialmente</p>
-                      <div className="mt-2 pt-2 border-t border-gray-200 grid grid-cols-2 gap-2">
-                        <div>
-                          <p className="text-xs text-gray-500">✅ Pagadas:</p>
-                          <p className="text-sm font-semibold text-green-600">
-                            {estadisticasDashboard?.cotizacionesPagadasCompletamente ?? 0}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">💰 Total Abonado:</p>
-                          <p className="text-sm font-semibold text-blue-600">
-                            ${(estadisticasDashboard?.totalAbonado ?? 0).toLocaleString('es-CO')}
-                          </p>
-                        </div>
-                        <div className="col-span-2">
-                          <p className="text-xs text-gray-500">📊 Pendiente por Pagar:</p>
-                          <p className="text-sm font-semibold text-red-600">
-                            ${(estadisticasDashboard?.totalPendiente ?? 0).toLocaleString('es-CO')}
-                          </p>
-                        </div>
-                      </div>
+                      <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-0.5 sm:mt-1 leading-tight" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>Aceptadas pero no pagadas o pagadas parcialmente</p>
                     </dl>
+                  </div>
+                </div>
+                <div className="mt-auto pt-2 border-t border-gray-200 space-y-1.5">
+                  <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+                    <div className="min-w-0">
+                      <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-500 leading-tight truncate">✅ Pagadas:</p>
+                      <p className="text-[clamp(0.75rem,0.625rem+0.4vw,0.875rem)] font-semibold text-green-600 leading-tight truncate">
+                        {estadisticasDashboard?.cotizacionesPagadasCompletamente ?? 0}
+                      </p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-500 leading-tight truncate">💰 Abonado:</p>
+                      <p className="text-[clamp(0.625rem,0.5rem+0.4vw,0.875rem)] font-semibold text-blue-600 leading-tight break-all">
+                        ${(estadisticasDashboard?.totalAbonado ?? 0).toLocaleString('es-CO')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-500 leading-tight truncate">📊 Pendiente:</p>
+                    <p className="text-[clamp(0.625rem,0.5rem+0.4vw,0.875rem)] font-semibold text-red-600 leading-tight break-all">
+                      ${(estadisticasDashboard?.totalPendiente ?? 0).toLocaleString('es-CO')}
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
 
+          {/* Segunda fila: Costos Totales, Ganancia, Pagos a Personal */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {/* Costos Totales del Mes - Dividido en 2 partes */}
-            <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-red-500">
-              <div className="p-5">
-                <div className="flex items-center">
+            <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-red-500 min-h-0 flex flex-col">
+              <div className="p-3 sm:p-4 flex-1 flex flex-col min-w-0">
+                <div className="flex items-start gap-2 sm:gap-3 mb-2 min-w-0">
                   <div className="flex-shrink-0">
-                    <div className="w-10 h-10 bg-red-500 rounded-md flex items-center justify-center">
-                      <span className="text-white text-lg font-bold">📊</span>
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-500 rounded-md flex items-center justify-center">
+                      <span className="text-white text-sm sm:text-lg font-bold">📊</span>
                     </div>
                   </div>
-                  <div className="ml-4 w-0 flex-1">
+                  <div className="min-w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">Costos Reales</dt>
-                      <dd className="text-2xl font-bold text-red-600">
+                      <dt className="text-[clamp(0.625rem,0.5rem+0.5vw,0.875rem)] font-medium text-gray-500 truncate leading-tight">Costos Reales</dt>
+                      <dd className="text-[clamp(0.875rem,0.75rem+0.6vw,1.5rem)] font-bold text-red-600 leading-tight mt-0.5 sm:mt-1 break-all">
                         ${(estadisticasDashboard?.costosTotalesMes ?? 0).toLocaleString('es-CO')}
                       </dd>
-                      <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-gray-200">
-                        <div>
-                          <p className="text-xs text-gray-500">Materiales + Mano Obra</p>
-                          <p className="text-sm font-semibold text-orange-600">
+                      <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mt-2 pt-2 border-t border-gray-200">
+                        <div className="min-w-0">
+                          <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-500 leading-tight truncate">Materiales + M.Obra</p>
+                          <p className="text-[clamp(0.625rem,0.5rem+0.4vw,0.875rem)] font-semibold text-orange-600 leading-tight break-all">
                             ${((estadisticasDashboard?.gastosMaterialesMes ?? 0) + (estadisticasDashboard?.gastosManoObraMes ?? 0)).toLocaleString('es-CO')}
                           </p>
                         </div>
-                        <div>
-                          <p className="text-xs text-gray-500">IVA (Utilidades)</p>
-                          <p className="text-sm font-semibold text-indigo-600">
+                        <div className="min-w-0">
+                          <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-500 leading-tight truncate">IVA (Util.)</p>
+                          <p className="text-[clamp(0.625rem,0.5rem+0.4vw,0.875rem)] font-semibold text-indigo-600 leading-tight break-all">
                             ${(estadisticasDashboard?.ivaRealMes ?? 0).toLocaleString('es-CO')}
                           </p>
                         </div>
@@ -555,25 +558,25 @@ export default function Dashboard({ usuario }: DashboardProps) {
             </div>
 
             {/* Ganancia Real del Mes */}
-            <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-green-500">
-              <div className="p-5">
-                <div className="flex items-center">
+            <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-green-500 min-h-0 flex flex-col">
+              <div className="p-3 sm:p-4 flex-1 flex flex-col min-w-0">
+                <div className="flex items-start gap-2 sm:gap-3 min-w-0">
                   <div className="flex-shrink-0">
-                    <div className={`w-10 h-10 rounded-md flex items-center justify-center ${
+                    <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-md flex items-center justify-center ${
                       (estadisticasDashboard?.gananciaMes ?? 0) >= 0 ? 'bg-green-500' : 'bg-red-500'
                     }`}>
-                      <span className="text-white text-lg font-bold">📈</span>
+                      <span className="text-white text-sm sm:text-lg font-bold">📈</span>
                     </div>
                   </div>
-                  <div className="ml-4 w-0 flex-1">
+                  <div className="min-w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">Ganancia Neta</dt>
-                      <dd className={`text-2xl font-bold ${
+                      <dt className="text-[clamp(0.625rem,0.5rem+0.5vw,0.875rem)] font-medium text-gray-500 truncate leading-tight">Ganancia Neta</dt>
+                      <dd className={`text-[clamp(0.875rem,0.75rem+0.6vw,1.5rem)] font-bold leading-tight mt-0.5 sm:mt-1 break-all ${
                         (estadisticasDashboard?.gananciaMes ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'
                       }`}>
                         ${(estadisticasDashboard?.gananciaMes ?? 0).toLocaleString('es-CO')}
                       </dd>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-1 leading-tight" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                         Ventas - Costos | Margen: {(estadisticasDashboard?.margenGananciaMes ?? 0).toFixed(1)}%
                       </p>
                     </dl>
@@ -583,25 +586,25 @@ export default function Dashboard({ usuario }: DashboardProps) {
             </div>
 
             {/* Pagos a Personal del Mes */}
-            <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-purple-500">
-              <div className="p-5">
-                <div className="flex items-center">
+            <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-purple-500 min-h-0 flex flex-col">
+              <div className="p-3 sm:p-4 flex-1 flex flex-col min-w-0">
+                <div className="flex items-start gap-2 sm:gap-3 min-w-0">
                   <div className="flex-shrink-0">
-                    <div className="w-10 h-10 bg-purple-500 rounded-md flex items-center justify-center">
-                      <span className="text-white text-lg font-bold">👥</span>
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-500 rounded-md flex items-center justify-center">
+                      <span className="text-white text-sm sm:text-lg font-bold">👥</span>
                     </div>
                   </div>
-                  <div className="ml-4 w-0 flex-1">
+                  <div className="min-w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">Pagos a Personal</dt>
-                      <dd className="text-2xl font-bold text-purple-600">
+                      <dt className="text-[clamp(0.625rem,0.5rem+0.5vw,0.875rem)] font-medium text-gray-500 truncate leading-tight">Pagos a Personal</dt>
+                      <dd className="text-[clamp(0.875rem,0.75rem+0.6vw,1.5rem)] font-bold text-purple-600 leading-tight mt-0.5 sm:mt-1 break-all">
                         {cargandoLiquidaciones ? (
-                          <span className="text-sm text-gray-400">Cargando...</span>
+                          <span className="text-[clamp(0.75rem,0.625rem+0.4vw,0.875rem)] text-gray-400">Cargando...</span>
                         ) : (
                           `$${liquidacionesMes.reduce((sum, l) => sum + l.monto, 0).toLocaleString('es-CO')}`
                         )}
                       </dd>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-1 leading-tight">
                         {liquidacionesMes.length} pago{liquidacionesMes.length !== 1 ? 's' : ''} registrado{liquidacionesMes.length !== 1 ? 's' : ''}
                       </p>
                     </dl>

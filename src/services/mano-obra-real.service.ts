@@ -15,6 +15,7 @@ export async function crearManoObraReal(manoObra: {
   monto_manual?: number;
   tipo_calculo?: 'horas' | 'monto';
   fecha: string;
+  metodo_pago?: 'efectivo' | 'transferencia';
   comprobante_url?: string;
   notas?: string;
   alcance_gasto?: 'unidad' | 'parcial' | 'total';
@@ -35,6 +36,7 @@ export async function crearManoObraReal(manoObra: {
       tipo_calculo: manoObra.tipo_calculo || 'horas',
       total_pagado: total_pagado,
       fecha: manoObra.fecha,
+      metodo_pago: manoObra.metodo_pago || null,
       comprobante_url: manoObra.comprobante_url || null,
       notas: manoObra.notas || null,
       alcance_gasto: manoObra.alcance_gasto || 'unidad',
@@ -88,6 +90,7 @@ export async function actualizarManoObraReal(
     monto_manual?: number;
     tipo_calculo?: 'horas' | 'monto';
     fecha: string;
+    metodo_pago?: 'efectivo' | 'transferencia';
     comprobante_url?: string;
     notas?: string;
     alcance_gasto?: 'unidad' | 'parcial' | 'total';

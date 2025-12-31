@@ -55,9 +55,14 @@ export async function crearUsuario(
   nombre: string,
   apellido: string,
   role: 'vendedor' | 'trabajador_taller',
-  especialidad?: string, // Solo para trabajador_taller
+  especialidad?: string, // Para trabajador_taller o "vendedor" para vendedores
   email?: string, // Solo para vendedor
-  password?: string // Solo para vendedor
+  password?: string, // Solo para vendedor
+  rut?: string,
+  direccion?: string,
+  telefono?: string,
+  sueldo?: number,
+  frecuencia_pago?: 'mensual' | 'quincenal' | 'semanal' | 'diario'
 ): Promise<{ usuario: UserProfile | null; error: string | null }> {
   try {
     // Obtener token de sesión actual para autenticación
@@ -82,8 +87,13 @@ export async function crearUsuario(
         body: JSON.stringify({
           nombre,
           apellido,
+          rut,
+          direccion,
+          telefono,
           email: email.trim(),
-          password
+          password,
+          sueldo,
+          frecuencia_pago: frecuencia_pago || 'mensual'
         })
       });
 
@@ -111,7 +121,12 @@ export async function crearUsuario(
         body: JSON.stringify({
           nombre,
           apellido,
-          especialidad: especialidad?.trim() || undefined
+          rut,
+          direccion,
+          telefono,
+          especialidad: especialidad?.trim() || undefined,
+          sueldo,
+          frecuencia_pago: frecuencia_pago || 'mensual'
         })
       });
 
@@ -142,7 +157,12 @@ export async function actualizarUsuario(
   datos: Partial<{
     nombre: string;
     apellido: string;
-    especialidad: string; // Solo para trabajador_taller
+    rut: string;
+    direccion: string;
+    telefono: string;
+    especialidad: string; // Para trabajador_taller o "vendedor" para vendedores
+    sueldo: number;
+    frecuencia_pago: 'mensual' | 'quincenal' | 'semanal' | 'diario';
   }>
 ): Promise<{ usuario: UserProfile | null; error: string | null }> {
   try {

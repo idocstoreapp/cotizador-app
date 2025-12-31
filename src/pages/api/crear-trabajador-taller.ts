@@ -80,7 +80,7 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     const body = await request.json();
-    const { nombre, apellido, especialidad } = body;
+    const { nombre, apellido, rut, direccion, telefono, especialidad, sueldo, frecuencia_pago } = body;
 
     if (!nombre || !apellido) {
       return new Response(JSON.stringify({ error: 'Nombre y apellido son requeridos' }), {
@@ -101,8 +101,13 @@ export const POST: APIRoute = async ({ request }) => {
         id: nuevoId,
         nombre: nombre.trim(),
         apellido: apellido.trim(),
+        rut: rut?.trim() || null,
+        direccion: direccion?.trim() || null,
+        telefono: telefono?.trim() || null,
         role: 'trabajador_taller',
-        especialidad: especialidad?.trim() || null
+        especialidad: especialidad?.trim() || null,
+        sueldo: sueldo ? parseFloat(sueldo) : null,
+        frecuencia_pago: frecuencia_pago || 'mensual'
       })
       .select()
       .single();

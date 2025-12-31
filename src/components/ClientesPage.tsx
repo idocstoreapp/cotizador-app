@@ -687,6 +687,33 @@ export default function ClientesPage() {
                     Máximo: ${cotizacionEditandoPago.total?.toLocaleString('es-CO') || '0'}
                   </p>
                 </div>
+                {/* Mostrar resumen de pago */}
+                {(cotizacionEditandoPago.monto_pagado || 0) > 0 && (
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-700">Total Cotización:</span>
+                        <span className="text-sm font-semibold text-gray-900">
+                          ${(cotizacionEditandoPago.total || 0).toLocaleString('es-CO')}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-700">Monto Pagado:</span>
+                        <span className="text-sm font-semibold text-green-600">
+                          ${(cotizacionEditandoPago.monto_pagado || 0).toLocaleString('es-CO')}
+                        </span>
+                      </div>
+                      <div className="border-t border-gray-300 pt-2 mt-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-semibold text-gray-900">Monto Pendiente:</span>
+                          <span className="text-sm font-bold text-red-600">
+                            ${((cotizacionEditandoPago.total || 0) - (cotizacionEditandoPago.monto_pagado || 0)).toLocaleString('es-CO')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex justify-end gap-2 px-6 pb-6">

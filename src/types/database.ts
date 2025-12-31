@@ -96,7 +96,12 @@ export interface UserProfile {
   role: UserRole;
   nombre?: string;
   apellido?: string; // Apellido para vendedores y trabajadores
-  especialidad?: string; // Solo para trabajadores de taller (ej: "carpintero", "pintor", etc.)
+  rut?: string; // RUT del trabajador o vendedor
+  direccion?: string; // Dirección del trabajador o vendedor
+  telefono?: string; // Número de teléfono del trabajador o vendedor
+  especialidad?: string; // Especialidad (para trabajadores de taller o "vendedor" para vendedores)
+  sueldo?: number; // Sueldo del trabajador o vendedor
+  frecuencia_pago?: 'mensual' | 'quincenal' | 'semanal' | 'diario'; // Frecuencia de pago del sueldo
   created_at: string;
 }
 
@@ -278,6 +283,7 @@ export interface ManoObraReal {
   tipo_calculo?: 'horas' | 'monto'; // Tipo de cálculo: por horas o monto manual
   total_pagado: number; // Calculado: horas_trabajadas * pago_por_hora o monto_manual
   fecha: string; // Fecha del trabajo
+  metodo_pago?: 'efectivo' | 'transferencia'; // Método de pago al trabajador
   comprobante_url?: string; // URL del comprobante
   notas?: string;
   alcance_gasto?: 'unidad' | 'parcial' | 'total'; // Indica si el gasto es por 1 unidad, parcial o total

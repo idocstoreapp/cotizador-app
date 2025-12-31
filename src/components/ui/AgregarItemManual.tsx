@@ -344,8 +344,9 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
       return;
     }
 
-    if (materialesSeleccionados.length === 0) {
-      alert('Debes agregar al menos un material');
+    // Solo validar materiales si no se marcó "sin datos de costos"
+    if (materialesSeleccionados.length === 0 && !sinDatosCostosMateriales) {
+      alert('Debes agregar al menos un material o marcar la opción "No hay datos de costos de materiales aún"');
       setTabActual('materiales');
       return;
     }
@@ -460,8 +461,13 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
       dias_fabricacion: diasArmado || undefined,
       porcentaje_mano_obra: porcentajeManoObra > 0 ? porcentajeManoObra : undefined,
       margen_ganancia: margenGanancia,
-      cantidad
-    });
+      cantidad,
+      sin_datos_costos: {
+        materiales: sinDatosCostosMateriales,
+        mano_obra: sinDatosCostosManoObra,
+        costos_indirectos: sinDatosCostosIndirectos
+      }
+    } as any);
 
     onClose();
   };
