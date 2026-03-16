@@ -1,0 +1,33 @@
+---
+/**
+ * Página de Caja de Ahorros
+ * Solo accesible para administradores. Saldo real libre de IVA; lo ahorrado no se usa para pagos.
+ */
+import Layout from '../components/Layout';
+import QueryProvider from '../components/QueryProvider';
+import CajaAhorrosPage from '../components/CajaAhorrosPage';
+import { obtenerUsuarioActual } from '../services/auth.service';
+
+let usuario = null;
+try {
+  usuario = await obtenerUsuarioActual();
+} catch (error) {
+  console.error('Error al verificar usuario en caja-ahorros (servidor):', error);
+}
+---
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Caja de Ahorros - Sistema de Cotizaciones</title>
+  </head>
+  <body>
+    <Layout client:load currentPath="/caja-ahorros">
+      <QueryProvider client:load>
+        <CajaAhorrosPage client:only="react" />
+      </QueryProvider>
+    </Layout>
+  </body>
+</html>

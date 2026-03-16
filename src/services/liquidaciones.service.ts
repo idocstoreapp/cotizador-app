@@ -61,73 +61,71 @@ export async function obtenerResumenLiquidaciones(): Promise<ResumenLiquidacione
   return data?.[0] as ResumenLiquidaciones || null;
 }
 
+const LIQUIDACIONES_SELECT_EMBED = `
+  *,
+  persona:perfiles!liquidaciones_persona_id_fkey (
+    id, nombre, apellido, email, role, especialidad
+  ),
+  liquidador:perfiles!liquidaciones_liquidado_por_fkey (
+    id, nombre, apellido, email
+  )
+`;
+
+async function selectLiquidaciones(query: any): Promise<Liquidacion[]> {
+  // supabase-js v2: .order() está disponible después de .select()
+  const withEmbed = query
+    .select(LIQUIDACIONES_SELECT_EMBED)
+    .order('fecha_liquidacion', { ascending: false });
+  const { data, error } = await withEmbed;
+  if (!error) return data as Liquidacion[];
+  if (error.code === 'PGRST200' || error.message?.includes('relationship')) {
+    const { data: dataFallback, error: errFallback } = await query
+      .select('*')
+      .order('fecha_liquidacion', { ascending: false });
+    if (!errFallback) return dataFallback as Liquidacion[];
+  }
+  throw error;
+}
+
 /**
  * Obtiene todas las liquidaciones
  */
 export async function obtenerLiquidaciones(): Promise<Liquidacion[]> {
-  const { data, error } = await supabase
-    .from('liquidaciones')
-    .select(`
-      *,
-      persona:perfiles!liquidaciones_persona_id_fkey (
-        id, nombre, apellido, email, role, especialidad
-      ),
-      liquidador:perfiles!liquidaciones_liquidado_por_fkey (
-        id, nombre, apellido, email
-      )
-    `)
-    .order('fecha_liquidacion', { ascending: false });
-
-  if (error) throw error;
-  return data as Liquidacion[];
+  const query = supabase
+    .from('liquidaciones');
+  return selectLiquidaciones(query);
 }
 
 /**
  * Obtiene liquidaciones filtradas por rango de fechas
  */
 export async function obtenerLiquidacionesPorFecha(
-  fechaInicio: string, // YYYY-MM-DD
-  fechaFin: string     // YYYY-MM-DD
+  fechaInicio: string,
+  fechaFin: string
 ): Promise<Liquidacion[]> {
-  const { data, error } = await supabase
+
+  const query = supabase
     .from('liquidaciones')
-    .select(`
-      *,
-      persona:perfiles!liquidaciones_persona_id_fkey (
-        id, nombre, apellido, email, role, especialidad
-      ),
-      liquidador:perfiles!liquidaciones_liquidado_por_fkey (
-        id, nombre, apellido, email
-      )
-    `)
+    .select('*')
     .gte('fecha_liquidacion', fechaInicio + 'T00:00:00')
-    .lte('fecha_liquidacion', fechaFin + 'T23:59:59')
-    .order('fecha_liquidacion', { ascending: false });
+    .lte('fecha_liquidacion', fechaFin + 'T23:59:59');
+
+  const { data, error } = await query;
 
   if (error) throw error;
+
   return data as Liquidacion[];
 }
 
 /**
  * Obtiene las liquidaciones de una persona específica
+ * (persona_id o trabajador_id según lo que exista en el esquema)
  */
 export async function obtenerLiquidacionesPorPersona(personaId: string): Promise<Liquidacion[]> {
-  const { data, error } = await supabase
-    .from('liquidaciones')
-    .select(`
-      *,
-      persona:perfiles!liquidaciones_persona_id_fkey (
-        id, nombre, apellido, email, role, especialidad
-      ),
-      liquidador:perfiles!liquidaciones_liquidado_por_fkey (
-        id, nombre, apellido, email
-      )
-    `)
-    .eq('persona_id', personaId)
-    .order('fecha_liquidacion', { ascending: false });
-
-  if (error) throw error;
-  return data as Liquidacion[];
+  const query = (supabase
+    .from('liquidaciones') as any)
+    .or(`persona_id.eq.${personaId},trabajador_id.eq.${personaId}`);
+  return selectLiquidaciones(query);
 }
 
 /**
@@ -222,11 +220,11 @@ export async function calcularBalancePersona(personaId: string): Promise<{
     totalGanado = trabajos?.reduce((sum, t) => sum + (t.pago_trabajador || 0), 0) || 0;
   }
 
-  // Obtener total liquidado
+  // Obtener total liquidado (persona_id o trabajador_id según esquema)
   const { data: liquidaciones } = await supabase
     .from('liquidaciones')
     .select('monto')
-    .eq('persona_id', personaId);
+    .or(`persona_id.eq.${personaId},trabajador_id.eq.${personaId}`);
 
   const totalLiquidado = liquidaciones?.reduce((sum, l) => sum + (l.monto || 0), 0) || 0;
 

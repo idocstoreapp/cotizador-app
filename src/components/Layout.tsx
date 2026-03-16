@@ -338,7 +338,8 @@ export default function Layout({ children, currentPath }: LayoutProps) {
             { path: '/clientes', label: 'Clientes', icon: '👤' },
             { path: '/admin/precios', label: 'Precios', icon: '💰' },
             { path: '/admin/personal', label: 'Gestión de Personal', icon: '👥' },
-            { path: '/gastos-fijos', label: 'Gastos Fijos', icon: '💳' }
+            { path: '/gastos-fijos', label: 'Gastos Fijos', icon: '💳' },
+            { path: '/caja-ahorros', label: 'Caja de Ahorros', icon: '🐷' }
           ]
         : esVendedor
         ? [

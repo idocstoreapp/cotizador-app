@@ -1,0 +1,37 @@
+---
+description: IVA no es ganancia; siempre descontar en saldos y dinero disponible
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Regla: IVA no es ganancia
+
+El **IVA (Impuesto al Valor Agregado) NO es ganancia**. Es un impuesto que se paga al Estado, por tanto debe tratarse como costo y descontarse siempre que se calcule dinero real disponible o utilidad.
+
+## Criterios obligatorios
+
+1. **Saldos / dinero disponible**: Cualquier cálculo de "saldo disponible", "dinero real", "efectivo disponible" o "ganancia neta" debe restar el IVA (es decir, usar costos que ya incluyan IVA o restar explícitamente el IVA).
+2. **Costos totales**: Los costos totales (por período o histórico) deben incluir siempre el IVA presupuestado/cobrado como parte del costo, no como ingreso.
+3. **Métricas por período**: Exponer cuánto IVA se ha pagado/presupuestado en el período (semana, mes, quincena, rango, histórico) para trazabilidad.
+
+## Fórmulas correctas
+
+- **Costos totales** = Materiales + Mano de obra + Gastos hormiga + Transporte **+ IVA**
+- **Ganancia neta** = Ventas − Costos totales (ya con IVA incluido en costos)
+- **Saldo real disponible** = Ventas cobradas − Costos (incl. IVA); equivalente a ganancia cuando el período es coherente.
+
+## Dónde aplicar
+
+- `dashboard-stats.service.ts`: costos del mes e histórico deben incluir IVA; exponer `ivaRealMes` e `ivaRealHistorico`.
+- `rentabilidad.service.ts`: utilidad real = total cotizado − (costos reales + IVA).
+- Cualquier vista que muestre "ganancia", "utilidad" o "saldo disponible": asegurar que el IVA esté descontado (no sumado como ingreso).
+
+## Ejemplo de error a evitar
+
+```ts
+// ❌ MAL: costos históricos sin IVA → ganancia histórica inflada
+costosTotalesHistorico = materiales + manoObra + hormiga + transporte;
+
+// ✅ BIEN: costos incluyen IVA
+costosTotalesHistorico = materiales + manoObra + hormiga + transporte + ivaRealHistorico;
+```

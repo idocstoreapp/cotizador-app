@@ -361,6 +361,7 @@ export default function CotizacionCart({ onGenerarPDF, cotizacionId }: Cotizacio
             <span>Impuestos (IVA 19%):</span>
             <span className="font-medium">${iva.toLocaleString('es-CO')}</span>
           </div>
+          <p className="text-xs text-gray-500 -mt-1 text-right">El IVA es impuesto, no ganancia</p>
           <div className="flex justify-between pt-3 border-t-2 border-gray-300">
             <span className="text-lg font-bold text-gray-900">Total Final:</span>
             <span className="text-2xl font-bold text-indigo-600">

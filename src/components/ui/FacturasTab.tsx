@@ -219,6 +219,7 @@ export default function FacturasTab({ cotizacionId, onUpdate }: FacturasTabProps
           <div>
             <p className="text-sm text-gray-600">Total Facturas</p>
             <p className="text-2xl font-bold text-indigo-600">${total.toLocaleString('es-CO')}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Total facturado (incluye IVA; el IVA no es ganancia)</p>
           </div>
           <div className="text-right">
             <p className="text-sm text-gray-600">Cantidad</p>

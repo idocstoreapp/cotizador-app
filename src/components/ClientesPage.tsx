@@ -6,11 +6,13 @@ import { useState, useEffect } from 'react';
 import { useUser } from '../contexts/UserContext';
 import { obtenerUsuarioActual } from '../services/auth.service';
 import { obtenerClientes, obtenerClienteConTrabajos } from '../services/clientes.service';
-import { obtenerCotizacionesPorCliente, actualizarEstadoPagoCotizacion } from '../services/cotizaciones.service';
+import { obtenerCotizacionesPorCliente } from '../services/cotizaciones.service';
+import { obtenerPagosPorCotizacion, agregarPagoCotizacion, asegurarHistorialPagos } from '../services/cotizacion-pagos.service';
 import { downloadQuotePDF } from '../utils/pdf';
 import { convertirCotizacionAPDF } from '../utils/convertirCotizacionAPDF';
 import EditarCotizacionModal from './EditarCotizacionModal';
 import type { Cliente, Cotizacion } from '../types/database';
+import type { CotizacionPago } from '../types/database';
 
 export default function ClientesPage() {
   const contextoUsuario = useUser();
@@ -24,6 +26,11 @@ export default function ClientesPage() {
   const [cotizacionesCliente, setCotizacionesCliente] = useState<Cotizacion[]>([]);
   const [cotizacionEditando, setCotizacionEditando] = useState<Cotizacion | null>(null);
   const [cotizacionEditandoPago, setCotizacionEditandoPago] = useState<Cotizacion | null>(null);
+  const [pagosCotizacionModal, setPagosCotizacionModal] = useState<CotizacionPago[]>([]);
+  const [nuevoPagoMonto, setNuevoPagoMonto] = useState<string>('');
+  const [nuevoPagoFecha, setNuevoPagoFecha] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [nuevoPagoNota, setNuevoPagoNota] = useState('');
+  const [guardandoPago, setGuardandoPago] = useState(false);
 
   // Usar usuario del contexto o cargar directamente
   const usuario = contextoUsuario.usuario || usuarioLocal;
@@ -106,6 +113,36 @@ export default function ClientesPage() {
     await cargarCotizacionesCliente(cliente);
   };
 
+  // Al abrir el modal de pago, cargar historial (y migrar si hay monto_pagado sin registros)
+  useEffect(() => {
+    if (!cotizacionEditandoPago) {
+      setPagosCotizacionModal([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        let pagos = await obtenerPagosPorCotizacion(cotizacionEditandoPago.id);
+        const montoActual = cotizacionEditandoPago.monto_pagado || 0;
+        if (pagos.length === 0 && montoActual > 0) {
+          await asegurarHistorialPagos(
+            cotizacionEditandoPago.id,
+            montoActual,
+            cotizacionEditandoPago.updated_at?.slice(0, 10) || new Date().toISOString().split('T')[0]
+          );
+          if (!cancelled) pagos = await obtenerPagosPorCotizacion(cotizacionEditandoPago.id);
+        }
+        if (!cancelled) setPagosCotizacionModal(pagos);
+        setNuevoPagoMonto('');
+        setNuevoPagoFecha(new Date().toISOString().split('T')[0]);
+        setNuevoPagoNota('');
+      } catch (e) {
+        if (!cancelled) setPagosCotizacionModal([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [cotizacionEditandoPago?.id]);
+
   // Generar PDF de cotización
   const generarPDF = async (cotizacion: Cotizacion) => {
     try {
@@ -116,30 +153,22 @@ export default function ClientesPage() {
     }
   };
 
-  // Actualizar estado de pago
-  const actualizarPago = async (cotizacion: Cotizacion, estadoPago: 'no_pagado' | 'pago_parcial' | 'pagado', montoPagado: number) => {
+  // Agregar pago (parcial o total) con fecha; actualiza historial y monto_pagado
+  const agregarPago = async (cotizacion: Cotizacion, monto: number, fechaPago: string, nota?: string) => {
     try {
-      await actualizarEstadoPagoCotizacion(cotizacion.id, estadoPago, montoPagado);
-      // Recargar cotizaciones para mostrar el estado actualizado
+      const total = cotizacion.total || 0;
+      const { montoPagadoTotal, estadoPago } = await agregarPagoCotizacion(cotizacion.id, monto, fechaPago, nota, total);
+      setCotizacionEditandoPago(prev => prev && prev.id === cotizacion.id ? { ...prev, monto_pagado: montoPagadoTotal, estado_pago: estadoPago } : prev);
+      const pagos = await obtenerPagosPorCotizacion(cotizacion.id);
+      setPagosCotizacionModal(pagos);
       if (clienteSeleccionado) {
         await cargarCotizacionesCliente(clienteSeleccionado);
-        // También recargar trabajos para actualizar el estado en la vista de trabajos
         await cargarTrabajosCliente(clienteSeleccionado.id);
       }
-      setCotizacionEditandoPago(null);
-      alert('✅ Estado de pago actualizado exitosamente');
+      alert('✅ Pago registrado correctamente');
     } catch (error: any) {
-      console.error('Error completo al actualizar estado de pago:', error);
-      // Si el error es porque la columna no existe, dar instrucciones
-      if (error.message?.includes('estado_pago') || error.message?.includes('schema cache')) {
-        alert('⚠️ Error: Las columnas de estado de pago no existen en la base de datos.\n\n' +
-              'Por favor, ejecuta esta migración SQL en Supabase:\n\n' +
-              'ALTER TABLE cotizaciones\n' +
-              'ADD COLUMN IF NOT EXISTS estado_pago TEXT CHECK (estado_pago IN (\'no_pagado\', \'pago_parcial\', \'pagado\')),\n' +
-              'ADD COLUMN IF NOT EXISTS monto_pagado NUMERIC DEFAULT 0;');
-      } else {
-        alert('Error al actualizar estado de pago: ' + (error.message || 'Error desconocido'));
-      }
+      console.error('Error al registrar pago:', error);
+      alert('Error al registrar pago: ' + (error.message || 'Error desconocido'));
     }
   };
 
@@ -418,12 +447,20 @@ export default function ClientesPage() {
                               </span>
                             </div>
                             {cotizacion.estado === 'aceptada' && (
-                              <div>
-                                <span className="font-medium">Pagado:</span>
-                                <span className="ml-2 font-semibold text-gray-900">
-                                  ${montoPagado.toLocaleString('es-CO')} / ${total.toLocaleString('es-CO')}
-                                </span>
-                              </div>
+                              <>
+                                <div>
+                                  <span className="font-medium">Pagado:</span>
+                                  <span className="ml-2 font-semibold text-gray-900">
+                                    ${montoPagado.toLocaleString('es-CO')} / ${total.toLocaleString('es-CO')}
+                                  </span>
+                                </div>
+                                <div className="col-span-2">
+                                  <span className="font-medium">Resta por cobrar:</span>
+                                  <span className="ml-2 font-semibold text-red-600">
+                                    ${(total - montoPagado).toLocaleString('es-CO')}
+                                  </span>
+                                </div>
+                              </>
                             )}
                           </div>
                           <div className="flex gap-2">
@@ -453,7 +490,7 @@ export default function ClientesPage() {
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                                 </svg>
-                                Estado Pago
+                                Pagos / Historial
                               </button>
                             )}
                           </div>
@@ -616,126 +653,134 @@ export default function ClientesPage() {
         />
       )}
 
-      {/* Modal para editar estado de pago */}
+      {/* Modal de pagos: historial + agregar pago (fecha y monto) */}
       {cotizacionEditandoPago && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Editar Estado de Pago</h2>
+              <h2 className="text-xl font-bold text-gray-900">Pagos – {cotizacionEditandoPago.numero}</h2>
               <button
-                onClick={() => setCotizacionEditandoPago(null)}
+                onClick={() => { setCotizacionEditandoPago(null); setPagosCotizacionModal([]); }}
                 className="text-gray-400 hover:text-gray-600 text-2xl"
               >
                 ×
               </button>
             </div>
-            <div className="p-6">
-              <div className="mb-4">
-                <p className="text-sm text-gray-600 mb-2">Cotización: <span className="font-semibold">{cotizacionEditandoPago.numero}</span></p>
-                <p className="text-sm text-gray-600">Total: <span className="font-semibold">${cotizacionEditandoPago.total?.toLocaleString('es-CO') || '0'}</span></p>
-              </div>
-              <div className="space-y-4">
+            <div className="p-6 overflow-y-auto flex-1">
+              <div className="mb-4 grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Estado de Pago
-                  </label>
-                  <select
-                    value={cotizacionEditandoPago.estado_pago || 'no_pagado'}
-                    onChange={(e) => {
-                      const nuevoEstado = e.target.value as 'no_pagado' | 'pago_parcial' | 'pagado';
-                      setCotizacionEditandoPago({
-                        ...cotizacionEditandoPago,
-                        estado_pago: nuevoEstado,
-                        monto_pagado: nuevoEstado === 'pagado' ? (cotizacionEditandoPago.total || 0) : nuevoEstado === 'no_pagado' ? 0 : (cotizacionEditandoPago.monto_pagado || 0)
-                      });
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="no_pagado">No Pagado</option>
-                    <option value="pago_parcial">Pago Parcial</option>
-                    <option value="pagado">Pagado</option>
-                  </select>
+                  <span className="text-gray-600">Total cotización:</span>
+                  <span className="ml-2 font-semibold">${(cotizacionEditandoPago.total || 0).toLocaleString('es-CO')}</span>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Monto Pagado
-                  </label>
+                  <span className="text-gray-600">Total pagado:</span>
+                  <span className="ml-2 font-semibold text-green-600">
+                    ${(cotizacionEditandoPago.monto_pagado ?? pagosCotizacionModal.reduce((s, p) => s + Number(p.monto), 0)).toLocaleString('es-CO')}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Resta por cobrar:</span>
+                  <span className="ml-2 font-bold text-red-600">
+                    ${((cotizacionEditandoPago.total || 0) - (cotizacionEditandoPago.monto_pagado ?? pagosCotizacionModal.reduce((s, p) => s + Number(p.monto), 0))).toLocaleString('es-CO')}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Estado:</span>
+                  <span className={`ml-2 font-semibold ${
+                    cotizacionEditandoPago.estado_pago === 'pagado' ? 'text-blue-600' :
+                    cotizacionEditandoPago.estado_pago === 'pago_parcial' ? 'text-orange-600' : 'text-gray-600'
+                  }`}>
+                    {cotizacionEditandoPago.estado_pago === 'pagado' ? 'Pagado' :
+                     cotizacionEditandoPago.estado_pago === 'pago_parcial' ? 'Pago parcial' : 'No pagado'}
+                  </span>
+                </div>
+              </div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Historial de pagos</h3>
+              {pagosCotizacionModal.length === 0 ? (
+                <p className="text-gray-500 text-sm mb-4">Aún no hay pagos registrados.</p>
+              ) : (
+                <div className="overflow-x-auto mb-4">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-2 text-gray-600 font-medium">Fecha</th>
+                        <th className="text-right py-2 text-gray-600 font-medium">Monto</th>
+                        <th className="text-left py-2 text-gray-600 font-medium">Nota</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pagosCotizacionModal.map((p) => (
+                        <tr key={p.id} className="border-b border-gray-100">
+                          <td className="py-2">{new Date(p.fecha_pago).toLocaleDateString('es-CO')}</td>
+                          <td className="py-2 text-right font-medium text-green-600">+${Number(p.monto).toLocaleString('es-CO')}</td>
+                          <td className="py-2 text-gray-500">{p.nota || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Agregar pago</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Monto</label>
                   <input
                     type="number"
-                    value={cotizacionEditandoPago.monto_pagado || 0}
-                    onChange={(e) => {
-                      const monto = parseFloat(e.target.value) || 0;
-                      const total = cotizacionEditandoPago.total || 0;
-                      let nuevoEstado: 'no_pagado' | 'pago_parcial' | 'pagado' = 'no_pagado';
-                      if (monto >= total) {
-                        nuevoEstado = 'pagado';
-                      } else if (monto > 0) {
-                        nuevoEstado = 'pago_parcial';
-                      }
-                      setCotizacionEditandoPago({
-                        ...cotizacionEditandoPago,
-                        monto_pagado: monto,
-                        estado_pago: nuevoEstado
-                      });
-                    }}
+                    value={nuevoPagoMonto}
+                    onChange={(e) => setNuevoPagoMonto(e.target.value)}
                     min="0"
-                    max={cotizacionEditandoPago.total || 0}
                     step="1000"
+                    placeholder="0"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Máximo: ${cotizacionEditandoPago.total?.toLocaleString('es-CO') || '0'}
-                  </p>
                 </div>
-                {/* Mostrar resumen de pago */}
-                {(cotizacionEditandoPago.monto_pagado || 0) > 0 && (
-                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-700">Total Cotización:</span>
-                        <span className="text-sm font-semibold text-gray-900">
-                          ${(cotizacionEditandoPago.total || 0).toLocaleString('es-CO')}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-700">Monto Pagado:</span>
-                        <span className="text-sm font-semibold text-green-600">
-                          ${(cotizacionEditandoPago.monto_pagado || 0).toLocaleString('es-CO')}
-                        </span>
-                      </div>
-                      <div className="border-t border-gray-300 pt-2 mt-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-semibold text-gray-900">Monto Pendiente:</span>
-                          <span className="text-sm font-bold text-red-600">
-                            ${((cotizacionEditandoPago.total || 0) - (cotizacionEditandoPago.monto_pagado || 0)).toLocaleString('es-CO')}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Fecha del pago</label>
+                  <input
+                    type="date"
+                    value={nuevoPagoFecha}
+                    onChange={(e) => setNuevoPagoFecha(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Nota (opcional)</label>
+                  <input
+                    type="text"
+                    value={nuevoPagoNota}
+                    onChange={(e) => setNuevoPagoNota(e.target.value)}
+                    placeholder="Ej. Abono inicial"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
               </div>
             </div>
-            <div className="flex justify-end gap-2 px-6 pb-6">
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-200">
               <button
-                onClick={() => setCotizacionEditandoPago(null)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-colors"
+                onClick={() => { setCotizacionEditandoPago(null); setPagosCotizacionModal([]); }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300"
               >
-                Cancelar
+                Cerrar
               </button>
               <button
-                onClick={() => {
-                  if (cotizacionEditandoPago) {
-                    actualizarPago(
-                      cotizacionEditandoPago,
-                      cotizacionEditandoPago.estado_pago || 'no_pagado',
-                      cotizacionEditandoPago.monto_pagado || 0
-                    );
+                disabled={guardandoPago || !nuevoPagoMonto || parseFloat(nuevoPagoMonto) <= 0}
+                onClick={async () => {
+                  if (!cotizacionEditandoPago) return;
+                  const monto = parseFloat(nuevoPagoMonto);
+                  if (isNaN(monto) || monto <= 0) return;
+                  setGuardandoPago(true);
+                  try {
+                    await agregarPago(cotizacionEditandoPago, monto, nuevoPagoFecha, nuevoPagoNota.trim() || undefined);
+                    setNuevoPagoMonto('');
+                    setNuevoPagoFecha(new Date().toISOString().split('T')[0]);
+                    setNuevoPagoNota('');
+                  } finally {
+                    setGuardandoPago(false);
                   }
                 }}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-medium rounded-lg"
               >
-                Guardar
+                {guardandoPago ? 'Guardando...' : 'Agregar pago'}
               </button>
             </div>
           </div>

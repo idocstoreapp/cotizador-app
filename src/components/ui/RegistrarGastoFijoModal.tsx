@@ -1,9 +1,11 @@
 /**
  * Modal/Componente para registrar un nuevo gasto fijo
+ * El pago se descuenta siempre del disponible para gastar (no de la caja de ahorros).
  */
 import { useState, useEffect } from 'react';
 import { crearGastoFijo, actualizarGastoFijo } from '../../services/fixed-expenses.service';
 import { obtenerCategoriasGastosFijos, crearCategoriaGastoFijo } from '../../services/fixed-expense-categories.service';
+import { obtenerSaldoDisponible } from '../../services/saldo-disponible.service';
 import type { FixedExpense, FixedExpenseCategory } from '../../types/database';
 
 interface RegistrarGastoFijoModalProps {
@@ -32,9 +34,17 @@ export default function RegistrarGastoFijoModal({
     date: new Date().toISOString().split('T')[0]
   });
   const [error, setError] = useState<string | null>(null);
+  const [disponibleParaGastar, setDisponibleParaGastar] = useState<number | null>(null);
 
   useEffect(() => {
     cargarCategorias();
+    if (!gastoEditar) {
+      obtenerSaldoDisponible()
+        .then((r) => setDisponibleParaGastar(r.disponibleParaGastar))
+        .catch(() => setDisponibleParaGastar(null));
+    } else {
+      setDisponibleParaGastar(null);
+    }
     
     // Si estamos editando, prellenar el formulario
     if (gastoEditar) {
@@ -147,6 +157,16 @@ export default function RegistrarGastoFijoModal({
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <p className="text-red-600 text-sm">{error}</p>
+        </div>
+      )}
+
+      {!gastoEditar && disponibleParaGastar !== null && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
+          <p className="text-amber-800 font-medium">Disponible para gastar: ${disponibleParaGastar.toLocaleString('es-CO')}</p>
+          <p className="text-amber-700 mt-0.5 text-xs">Este pago se descontará de ese saldo (no de la caja de ahorros).</p>
+          {formData.amount > 0 && formData.amount > disponibleParaGastar && (
+            <p className="text-red-600 font-medium mt-2">⚠️ El monto supera lo disponible para gastar.</p>
+          )}
         </div>
       )}
 

@@ -17,13 +17,10 @@ export async function obtenerGastosFijos(filtros?: {
   montoMinimo?: number;
   montoMaximo?: number;
 }): Promise<FixedExpense[]> {
-  let query = supabase
-    .from('fixed_expenses')
-    .select(`
-      *,
-      category:fixed_expense_categories(id, name, description)
-    `)
-    .order('date', { ascending: false });
+  // IMPORTANTE: en algunos proyectos migrados la relación (FK) con categorías puede no existir o
+  // PostgREST puede no reconocerla aún (schema cache). Para evitar 400 y bloquear la app,
+  // cargamos gastos fijos sin embed de categorías.
+  let query = supabase.from('fixed_expenses').select('*');
 
   // Aplicar filtros
   if (filtros?.mes && filtros?.anio) {
@@ -53,33 +50,40 @@ export async function obtenerGastosFijos(filtros?: {
   }
 
   const { data, error } = await query;
-
   if (error) throw error;
 
-  // Mapear categoría si existe
-  return (data || []).map((item: any) => ({
+  const lista = (data || []).map((item: any) => ({
     ...item,
-    category: item.category ? {
-      id: item.category.id,
-      name: item.category.name,
-      description: item.category.description
-    } : null
+    // category queda null; se puede reactivar embed cuando el esquema esté alineado
+    category: null
   })) as FixedExpense[];
+
+  // Ordenar en memoria por fecha descendente (usa date o created_at)
+  return lista.sort((a, b) => {
+    const da = new Date((a as any).date || (a as any).created_at || 0).getTime();
+    const db = new Date((b as any).date || (b as any).created_at || 0).getTime();
+    return db - da;
+  });
 }
 
 /**
  * Obtiene un gasto fijo por ID
  */
 export async function obtenerGastoFijoPorId(id: string): Promise<FixedExpense | null> {
+  //const { data, error } = await supabase
+  //.from('fixed_expenses')
+    //.select(`
+      //*,
+      //category:fixed_expense_categories(id, name, description)
+    //`)
+    //.eq('id', id)
+    //.single();
   const { data, error } = await supabase
     .from('fixed_expenses')
-    .select(`
-      *,
-      category:fixed_expense_categories(id, name, description)
-    `)
+    .select('*')
     .eq('id', id)
     .single();
-
+    
   if (error) {
     if (error.code === 'PGRST116') return null; // No encontrado
     throw error;
@@ -87,11 +91,7 @@ export async function obtenerGastoFijoPorId(id: string): Promise<FixedExpense | 
 
   return {
     ...data,
-    category: data.category ? {
-      id: data.category.id,
-      name: data.category.name,
-      description: data.category.description
-    } : null
+    category: null
   } as FixedExpense;
 }
 

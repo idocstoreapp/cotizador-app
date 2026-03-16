@@ -118,32 +118,35 @@ export async function obtenerCotizacionPorId(id: string): Promise<Cotizacion | n
     .eq('id', id)
     .single();
 
-  if (error) throw error;
+  if (error) {
+    if (error.code === 'PGRST116') return null; // No encontrada
+    throw error;
+  }
   if (!data) return null;
   
   // Cargar usuario y vendedor por separado
   let cotizacionConUsuario = data as Cotizacion;
   if (data.usuario_id) {
-    const { data: perfil } = await supabase
+    const { data: perfil, error: perfilError } = await supabase
       .from('perfiles')
       .select('id, nombre, email, role')
       .eq('id', data.usuario_id)
-      .single();
+      .maybeSingle();
     
-    if (perfil) {
+    if (!perfilError && perfil) {
       cotizacionConUsuario = { ...cotizacionConUsuario, usuario: perfil as any };
     }
   }
   
   // Cargar vendedor si existe
   if (data.vendedor_id) {
-    const { data: vendedor } = await supabase
+    const { data: vendedor, error: vendedorError } = await supabase
       .from('perfiles')
       .select('id, nombre, email, role')
       .eq('id', data.vendedor_id)
-      .single();
+      .maybeSingle();
     
-    if (vendedor) {
+    if (!vendedorError && vendedor) {
       cotizacionConUsuario = { ...cotizacionConUsuario, vendedor: vendedor as any };
     }
   }
@@ -281,8 +284,8 @@ export async function actualizarCotizacionConHistorial(
     // Calcular desde items si no se pasaron totales
     subtotalCalc = items.reduce((sum, item) => sum + (item.precio_total || 0), 0);
     const descuentoValor = descuento || 0;
-    const descuentoMonto = subtotalCalc * (descuentoValor / 100);
-    const subtotalConDescuento = subtotalCalc - descuentoMonto;
+    const descuentoMonto = subtotalCalc ? subtotalCalc * (descuentoValor / 100) : 0;
+    const subtotalConDescuento = subtotalCalc ? subtotalCalc - descuentoMonto : 0;
     const ivaPorcentaje = 19;
     ivaCalc = subtotalConDescuento * (ivaPorcentaje / 100);
     totalCalc = subtotalConDescuento + ivaCalc;
@@ -420,13 +423,13 @@ export async function actualizarCotizacion(
   // Cargar el usuario por separado si es necesario
   let cotizacionConUsuario = data as Cotizacion;
   if (data.usuario_id) {
-    const { data: perfil } = await supabase
+    const { data: perfil, error: perfilError } = await supabase
       .from('perfiles')
       .select('id, nombre, email, role')
       .eq('id', data.usuario_id)
-      .single();
+      .maybeSingle();
     
-    if (perfil) {
+    if (!perfilError && perfil) {
       cotizacionConUsuario = { ...cotizacionConUsuario, usuario: perfil as any };
     }
   }
@@ -620,13 +623,13 @@ export async function cambiarEstadoCotizacion(
   // Cargar el usuario por separado si es necesario
   let cotizacionConUsuario = data as Cotizacion;
   if (data.usuario_id) {
-    const { data: perfil } = await supabase
+    const { data: perfil, error: perfilError } = await supabase
       .from('perfiles')
       .select('id, nombre, email, role')
       .eq('id', data.usuario_id)
-      .single();
+      .maybeSingle();
     
-    if (perfil) {
+    if (!perfilError && perfil) {
       cotizacionConUsuario = { ...cotizacionConUsuario, usuario: perfil as any };
     }
   }

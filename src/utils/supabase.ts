@@ -2,52 +2,38 @@
  * Cliente de Supabase configurado para el proyecto
  * Se usa tanto en el cliente como en el servidor
  */
-import { createClient } from '@supabase/supabase-js';
+import { createClient} from '@supabase/supabase-js';
 import type { Database } from '../types/database';
 
-// Variables de entorno (deben estar en .env)
-// Valores por defecto para desarrollo (temporal)
-const DEFAULT_SUPABASE_URL = 'https://tnlkdtslqgoezfecvcbj.supabase.co';
-const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRubGtkdHNscWdvZXpmZWN2Y2JqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMzNzg5OTcsImV4cCI6MjA3ODk1NDk5N30.fBJhRkJg-Q4LuuQMoJWZXe56StEvFo-aIAUlWmULBsY';
+// Variables de entorno (deben estar en .env).
+let supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL ?? '';
+let supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY;
-
-// Validar que las variables estén configuradas
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Variables de entorno:', {
-    PUBLIC_SUPABASE_URL: import.meta.env.PUBLIC_SUPABASE_URL ? '✓ Configurada' : '✗ Faltante (usando valor por defecto)',
-    PUBLIC_SUPABASE_ANON_KEY: import.meta.env.PUBLIC_SUPABASE_ANON_KEY ? '✓ Configurada' : '✗ Faltante (usando valor por defecto)',
-    todasLasEnv: Object.keys(import.meta.env).filter(k => k.startsWith('PUBLIC_'))
-  });
-  
-  // En desarrollo, usar valores por defecto
+// Si el bundle tiene el placeholder o el .env no se cargó (caché Vite), usar proyecto nuevo en runtime.
+const PLACEHOLDER_URL = 'https://tu-proyecto.supabase.co';
+const NEW_PROJECT_URL = 'https://fulwwxntkzppgnrxopej.supabase.co';
+const NEW_PROJECT_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1bHd3eG50a3pwcGducnhvcGVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1OTY0MjYsImV4cCI6MjA4OTE3MjQyNn0.Dhv5srGNnRV4hitewthrWg9z3mYso8YQXq6InzaEm24';
+const isPlaceholderUrl = supabaseUrl?.includes('tu-proyecto') || supabaseUrl === PLACEHOLDER_URL;
+const isPlaceholderKey = !supabaseAnonKey || supabaseAnonKey === 'tu_clave_anon_public_aqui';
+if (isPlaceholderUrl || isPlaceholderKey) {
   if (import.meta.env.DEV) {
-    console.warn('⚠️ Modo desarrollo: Usando valores por defecto de Supabase');
-    console.warn('⚠️ Para usar variables de entorno, reinicia el servidor después de crear/modificar .env');
-  } else {
-    throw new Error(
-      'Faltan las variables de entorno de Supabase. ' +
-      'Asegúrate de tener PUBLIC_SUPABASE_URL y PUBLIC_SUPABASE_ANON_KEY en tu archivo .env. ' +
-      'Reinicia el servidor después de crear/modificar el archivo .env'
-    );
+    console.warn('[Supabase] Usando credenciales del proyecto nuevo (fulwwxntkzppgnrxopej). Si ya tienes .env correcto, haz Ctrl+C y "npm run dev" de nuevo.');
   }
+  supabaseUrl = NEW_PROJECT_URL;
+  supabaseAnonKey = NEW_PROJECT_ANON_KEY;
+}
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('[Supabase] No se pudo cargar URL o anon key. Revisa tu .env.');
+  if (!import.meta.env.DEV) throw new Error('Faltan PUBLIC_SUPABASE_URL o PUBLIC_SUPABASE_ANON_KEY en .env');
 }
 
 /**
  * Cliente de Supabase para uso en el navegador
  * Este cliente maneja automáticamente la autenticación y las sesiones
  */
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-    storageKey: 'sb-auth-token',
-    flowType: 'pkce'
-  }
-});
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 
 /**
  * Obtiene el cliente de Supabase con la sesión del usuario

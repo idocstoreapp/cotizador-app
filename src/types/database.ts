@@ -82,6 +82,16 @@ export interface Database {
         Insert: Omit<FixedExpense, 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Omit<FixedExpense, 'id' | 'created_at' | 'updated_at'>>;
       };
+      caja_ahorros_movimientos: {
+        Row: CajaAhorrosMovimiento;
+        Insert: Omit<CajaAhorrosMovimiento, 'id' | 'created_at'>;
+        Update: Partial<Omit<CajaAhorrosMovimiento, 'id' | 'created_at'>>;
+      };
+      cotizacion_pagos: {
+        Row: CotizacionPago;
+        Insert: Omit<CotizacionPago, 'id' | 'created_at'>;
+        Update: Partial<Omit<CotizacionPago, 'id' | 'created_at'>>;
+      };
     };
   };
 }
@@ -430,4 +440,24 @@ export interface ResumenLiquidaciones {
   total_pendiente_vendedores: number;
   total_pendiente_trabajadores: number;
   total_liquidado_mes: number;
+}
+
+// Movimiento de caja de ahorros (solo depósitos; el dinero no se toca para pagos)
+export interface CajaAhorrosMovimiento {
+  id: string;
+  monto: number; // Siempre positivo = depósito a ahorros
+  fecha: string; // YYYY-MM-DD
+  nota?: string;
+  created_at: string;
+  created_by?: string;
+}
+
+// Pago registrado de una cotización (parcial o total) para historial
+export interface CotizacionPago {
+  id: string;
+  cotizacion_id: string;
+  monto: number;
+  fecha_pago: string; // YYYY-MM-DD
+  nota?: string;
+  created_at: string;
 }

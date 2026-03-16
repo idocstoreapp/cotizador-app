@@ -16,6 +16,7 @@ import {
   obtenerLiquidacionesPorPersona,
   calcularBalancePersona
 } from '../services/liquidaciones.service';
+import { obtenerSaldoDisponible } from '../services/saldo-disponible.service';
 import { supabase } from '../utils/supabase';
 import type { UserProfile, Liquidacion } from '../types/database';
 
@@ -1006,6 +1007,13 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
   const [esPagoSueldo, setEsPagoSueldo] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [disponibleParaGastar, setDisponibleParaGastar] = useState<number | null>(null);
+
+  useEffect(() => {
+    obtenerSaldoDisponible()
+      .then((r) => setDisponibleParaGastar(r.disponibleParaGastar))
+      .catch(() => setDisponibleParaGastar(null));
+  }, []);
 
   // Efecto para actualizar número de referencia cuando cambia la fecha
   useEffect(() => {
@@ -1185,6 +1193,16 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
               {error}
+            </div>
+          )}
+
+          {disponibleParaGastar !== null && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
+              <p className="text-amber-800 font-medium">Disponible para gastar: ${disponibleParaGastar.toLocaleString('es-CO')}</p>
+              <p className="text-amber-700 mt-0.5 text-xs">Este pago se descontará de ese saldo (no de la caja de ahorros).</p>
+              {monto && parseFloat(monto) > disponibleParaGastar && (
+                <p className="text-red-600 font-medium mt-2">⚠️ El monto supera lo disponible para gastar.</p>
+              )}
             </div>
           )}
 

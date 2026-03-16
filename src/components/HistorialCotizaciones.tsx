@@ -1019,6 +1019,7 @@ export default function HistorialCotizaciones() {
                       ${cotizacionDetalles.iva.toLocaleString('es-CO')}
                     </span>
                   </div>
+                  <p className="text-xs text-gray-500 mt-0.5">El IVA es impuesto, no ganancia</p>
                   <div className="flex justify-between">
                     <span className="text-gray-700">Margen de Ganancia:</span>
                     <span className="font-medium text-gray-900">

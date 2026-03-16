@@ -212,6 +212,23 @@ export async function obtenerResumenCostosReales(cotizacionId: string): Promise<
 }
 
 /**
+ * Calcula el IVA presupuestado de una cotización (IVA no es ganancia; se incluye en costos).
+ */
+function calcularIVAPresupuestado(cotizacion: any): number {
+  if (cotizacion.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0) {
+    const subtotal = cotizacion.items.reduce((sum: number, item: any) => sum + (item.precio_total || 0), 0);
+    const descuento = cotizacion.descuento || 0;
+    const subtotalConDescuento = subtotal - subtotal * (descuento / 100);
+    const ivaPorcentaje = cotizacion.iva_porcentaje || 19;
+    return subtotalConDescuento * (ivaPorcentaje / 100);
+  }
+  const total = cotizacion.total || 0;
+  if (total <= 0) return 0;
+  const ivaPorcentaje = cotizacion.iva_porcentaje || 19;
+  return total * (ivaPorcentaje / 100) / (1 + ivaPorcentaje / 100);
+}
+
+/**
  * Calcula el total desde los items (igual que en HistorialCotizaciones)
  */
 function calcularTotalDesdeItems(cotizacion: any): number {
@@ -515,13 +532,14 @@ export async function obtenerEstadisticasRentabilidad(): Promise<{
   const cotizaciones = await obtenerCotizaciones();
   const cotizacionesAceptadas = cotizaciones.filter(c => c.estado === 'aceptada');
 
-  // Calcular rentabilidad para cada una
+  // Calcular rentabilidad para cada una (total_real incluye IVA: IVA no es ganancia)
   const proyectos = await Promise.all(
     cotizacionesAceptadas.map(async (cotizacion) => {
       try {
         const costosReales = await obtenerResumenCostosReales(cotizacion.id);
         const totalCotizado = cotizacion.total || 0;
-        const totalReal = costosReales.totalReal;
+        const ivaPresupuestado = calcularIVAPresupuestado(cotizacion);
+        const totalReal = costosReales.totalReal + ivaPresupuestado;
         const utilidad = totalCotizado - totalReal;
         const porcentajeUtilidad = totalCotizado > 0
           ? (utilidad / totalCotizado) * 100

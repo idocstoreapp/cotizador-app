@@ -84,10 +84,23 @@ export default function DashboardVendedor({ usuario }: DashboardVendedorProps) {
       return sum + total;
     }, 0);
   
-  // Ventas del mes (solo cotizaciones aceptadas en el mes)
-  const ventasTotalesMes = cotizacionesAceptadasMes.reduce((sum, c) => {
+  // Ventas cobradas del mes: solo cotizaciones aceptadas en el mes y pagadas completamente
+  const cotizacionesPagadasMes = cotizacionesAceptadasMes.filter(c => {
     const total = calcularTotalDesdeItems(c);
-    return sum + total;
+    const pagado = c.monto_pagado ?? 0;
+    return pagado >= total && total > 0;
+  });
+  const ventasTotalesMes = cotizacionesPagadasMes.reduce((sum, c) => sum + calcularTotalDesdeItems(c), 0);
+  // Por cobrar: aceptadas en el mes pero no pagadas totalmente
+  const porCobrarMes = cotizacionesAceptadasMes.filter(c => {
+    const total = calcularTotalDesdeItems(c);
+    const pagado = c.monto_pagado ?? 0;
+    return pagado < total;
+  });
+  const montoPorCobrarMes = porCobrarMes.reduce((sum, c) => {
+    const total = calcularTotalDesdeItems(c);
+    const pagado = c.monto_pagado ?? 0;
+    return sum + (total - pagado);
   }, 0);
 
   // Debug: Log de cálculos
@@ -230,7 +243,7 @@ export default function DashboardVendedor({ usuario }: DashboardVendedorProps) {
           </div>
         </div>
 
-        {/* Ventas del Mes */}
+        {/* Ventas cobradas del Mes - solo lo ya pagado */}
         <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-blue-500">
           <div className="p-5">
             <div className="flex items-center">
@@ -241,11 +254,16 @@ export default function DashboardVendedor({ usuario }: DashboardVendedorProps) {
               </div>
               <div className="ml-4 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Ventas del Mes</dt>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Ventas cobradas (mes)</dt>
                   <dd className="text-2xl font-bold text-blue-600">
                     ${ventasTotalesMes.toLocaleString('es-CO')}
                   </dd>
-                  <p className="text-xs text-gray-400 mt-1">Cotizaciones aceptadas</p>
+                  <p className="text-xs text-gray-400 mt-1">Solo lo ya pagado. Lo no cobrado no es venta.</p>
+                  {porCobrarMes.length > 0 && (
+                    <p className="text-xs text-orange-600 mt-0.5">
+                      Por cobrar: ${montoPorCobrarMes.toLocaleString('es-CO')} ({porCobrarMes.length} cot.)
+                    </p>
+                  )}
                 </dl>
               </div>
             </div>
@@ -289,7 +307,7 @@ export default function DashboardVendedor({ usuario }: DashboardVendedorProps) {
                   <dd className="text-2xl font-bold text-purple-600">
                     ${ventasTotales.toLocaleString('es-CO')}
                   </dd>
-                  <p className="text-xs text-gray-400 mt-1">Histórico</p>
+                  <p className="text-xs text-gray-400 mt-1">Histórico (con IVA; el IVA no es ganancia)</p>
                 </dl>
               </div>
             </div>

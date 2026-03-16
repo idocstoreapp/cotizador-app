@@ -459,11 +459,11 @@ export default function Dashboard({ usuario }: DashboardProps) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <dl>
-                      <dt className="text-[clamp(0.625rem,0.5rem+0.5vw,0.875rem)] font-medium text-gray-500 truncate leading-tight">Ventas del Mes</dt>
+                      <dt className="text-[clamp(0.625rem,0.5rem+0.5vw,0.875rem)] font-medium text-gray-500 truncate leading-tight">Ventas cobradas</dt>
                       <dd className="text-[clamp(0.875rem,0.75rem+0.6vw,1.5rem)] font-bold text-blue-600 leading-tight mt-0.5 sm:mt-1 break-all">
                         ${(estadisticasDashboard?.ventasTotalesMes ?? 0).toLocaleString('es-CO')}
                       </dd>
-                      <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-1 leading-tight">Solo cotizaciones pagadas completamente</p>
+                      <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-1 leading-tight">Solo lo ya pagado (dinero real). Lo no cobrado no es venta.</p>
                       {estadisticasDashboard?.variacionVentas !== undefined && estadisticasDashboard.variacionVentas !== 0 && (
                         <dd className={`text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] mt-1 font-medium leading-tight ${estadisticasDashboard.variacionVentas >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {estadisticasDashboard.variacionVentas >= 0 ? '↑' : '↓'} {Math.abs(estadisticasDashboard.variacionVentas).toFixed(1)}% vs mes anterior
@@ -486,20 +486,22 @@ export default function Dashboard({ usuario }: DashboardProps) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <dl>
-                      <dt className="text-[clamp(0.625rem,0.5rem+0.5vw,0.875rem)] font-medium text-gray-500 truncate leading-tight">Cotizaciones en Proceso</dt>
-                      <dd className="text-[clamp(1.25rem,1rem+1vw,1.5rem)] font-bold text-orange-600 leading-tight mt-0.5 sm:mt-1">
-                        {estadisticasDashboard?.cotizacionesAceptadasEnProceso ?? 0}
+                      <dt className="text-[clamp(0.625rem,0.5rem+0.5vw,0.875rem)] font-medium text-gray-500 truncate leading-tight">Por cobrar</dt>
+                      <dd className="text-[clamp(1.25rem,1rem+1vw,1.5rem)] font-bold text-orange-600 leading-tight mt-0.5 sm:mt-1 break-all">
+                        ${(estadisticasDashboard?.totalPendiente ?? 0).toLocaleString('es-CO')}
                       </dd>
-                      <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-0.5 sm:mt-1 leading-tight" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>Aceptadas pero no pagadas o pagadas parcialmente</p>
+                      <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-0.5 sm:mt-1 leading-tight">
+                        {(estadisticasDashboard?.cotizacionesAceptadasEnProceso ?? 0)} cotizaciones aceptadas sin cobrar total
+                      </p>
                     </dl>
                   </div>
                 </div>
                 <div className="mt-auto pt-2 border-t border-gray-200 space-y-1.5">
                   <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
                     <div className="min-w-0">
-                      <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-500 leading-tight truncate">✅ Pagadas:</p>
-                      <p className="text-[clamp(0.75rem,0.625rem+0.4vw,0.875rem)] font-semibold text-green-600 leading-tight truncate">
-                        {estadisticasDashboard?.cotizacionesPagadasCompletamente ?? 0}
+                      <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-500 leading-tight truncate">📋 En proceso:</p>
+                      <p className="text-[clamp(0.75rem,0.625rem+0.4vw,0.875rem)] font-semibold text-orange-600 leading-tight truncate">
+                        {estadisticasDashboard?.cotizacionesAceptadasEnProceso ?? 0}
                       </p>
                     </div>
                     <div className="min-w-0">
@@ -510,9 +512,9 @@ export default function Dashboard({ usuario }: DashboardProps) {
                     </div>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-500 leading-tight truncate">📊 Pendiente:</p>
-                    <p className="text-[clamp(0.625rem,0.5rem+0.4vw,0.875rem)] font-semibold text-red-600 leading-tight break-all">
-                      ${(estadisticasDashboard?.totalPendiente ?? 0).toLocaleString('es-CO')}
+                    <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-500 leading-tight truncate">✅ Cobradas (total):</p>
+                    <p className="text-[clamp(0.625rem,0.5rem+0.4vw,0.875rem)] font-semibold text-green-600 leading-tight break-all">
+                      {estadisticasDashboard?.cotizacionesPagadasCompletamente ?? 0} cotizaciones
                     </p>
                   </div>
                 </div>
@@ -537,18 +539,21 @@ export default function Dashboard({ usuario }: DashboardProps) {
                       <dd className="text-[clamp(0.875rem,0.75rem+0.6vw,1.5rem)] font-bold text-red-600 leading-tight mt-0.5 sm:mt-1 break-all">
                         ${(estadisticasDashboard?.costosTotalesMes ?? 0).toLocaleString('es-CO')}
                       </dd>
+                      <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-0.5 leading-tight">Total = costos operativos + IVA (el IVA no es ganancia)</p>
                       <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mt-2 pt-2 border-t border-gray-200">
                         <div className="min-w-0">
-                          <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-500 leading-tight truncate">Materiales + M.Obra</p>
+                          <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-500 leading-tight truncate">Costos operativos</p>
                           <p className="text-[clamp(0.625rem,0.5rem+0.4vw,0.875rem)] font-semibold text-orange-600 leading-tight break-all">
-                            ${((estadisticasDashboard?.gastosMaterialesMes ?? 0) + (estadisticasDashboard?.gastosManoObraMes ?? 0)).toLocaleString('es-CO')}
+                            ${((estadisticasDashboard?.gastosMaterialesMes ?? 0) + (estadisticasDashboard?.gastosManoObraMes ?? 0) + (estadisticasDashboard?.gastosHormigaMes ?? 0) + (estadisticasDashboard?.gastosTransporteMes ?? 0)).toLocaleString('es-CO')}
                           </p>
+                          <p className="text-[0.65rem] text-gray-400">Mat.+M.Obra+Hormiga+Transp.</p>
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-500 leading-tight truncate">IVA (Util.)</p>
+                          <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-500 leading-tight truncate">IVA (impuesto)</p>
                           <p className="text-[clamp(0.625rem,0.5rem+0.4vw,0.875rem)] font-semibold text-indigo-600 leading-tight break-all">
                             ${(estadisticasDashboard?.ivaRealMes ?? 0).toLocaleString('es-CO')}
                           </p>
+                          <p className="text-[0.65rem] text-gray-400">No es ganancia</p>
                         </div>
                       </div>
                     </dl>
@@ -577,7 +582,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
                         ${(estadisticasDashboard?.gananciaMes ?? 0).toLocaleString('es-CO')}
                       </dd>
                       <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-1 leading-tight" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        Ventas - Costos | Margen: {(estadisticasDashboard?.margenGananciaMes ?? 0).toFixed(1)}%
+                        Saldo real disponible (IVA ya descontado) · Margen: {(estadisticasDashboard?.margenGananciaMes ?? 0).toFixed(1)}%
                       </p>
                     </dl>
                   </div>
@@ -722,7 +727,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
                 <p className="text-sm font-bold text-gray-700">{cotizaciones.length}</p>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
               <div className="bg-white rounded-lg p-4 border border-blue-200 shadow-sm">
                 <p className="text-sm text-gray-600 font-medium mb-1">💰 Ventas Totales</p>
                 <p className="text-2xl font-bold text-blue-600">
@@ -738,17 +743,24 @@ export default function Dashboard({ usuario }: DashboardProps) {
                 <p className="text-2xl font-bold text-red-600">
                   ${(estadisticasDashboard?.costosTotalesHistorico ?? 0).toLocaleString('es-CO')}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">Todos los gastos reales registrados</p>
-                <p className="text-xs text-red-600 mt-2 font-medium">
-                  Materiales + M.Obra + Otros
+                <p className="text-xs text-gray-500 mt-1">Incluye materiales, M.Obra, otros e IVA</p>
+                <p className="text-xs text-indigo-600 mt-2 font-medium">
+                  IVA histórico: ${(estadisticasDashboard?.ivaRealHistorico ?? 0).toLocaleString('es-CO')}
                 </p>
               </div>
+              <div className="bg-white rounded-lg p-4 border border-indigo-200 shadow-sm">
+                <p className="text-sm text-gray-600 font-medium mb-1">📋 IVA pagado (histórico)</p>
+                <p className="text-2xl font-bold text-indigo-600">
+                  ${(estadisticasDashboard?.ivaRealHistorico ?? 0).toLocaleString('es-CO')}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">No es ganancia · ya descontado en costos</p>
+              </div>
               <div className="bg-white rounded-lg p-4 border border-green-200 shadow-sm">
-                <p className="text-sm text-gray-600 font-medium mb-1">📈 Ganancia Acumulada</p>
+                <p className="text-sm text-gray-600 font-medium mb-1">📈 Saldo real / Ganancia</p>
                 <p className={`text-2xl font-bold ${(estadisticasDashboard?.gananciaHistorica ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   ${(estadisticasDashboard?.gananciaHistorica ?? 0).toLocaleString('es-CO')}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">Ventas - Costos (histórico)</p>
+                <p className="text-xs text-gray-500 mt-1">Ventas − Costos (IVA incluido en costos)</p>
                 {estadisticasDashboard?.ventasTotalesHistorico && estadisticasDashboard.ventasTotalesHistorico > 0 && (
                   <p className="text-xs text-green-600 mt-2 font-medium">
                     Margen: {((estadisticasDashboard.gananciaHistorica / estadisticasDashboard.ventasTotalesHistorico) * 100).toFixed(1)}%
@@ -988,6 +1000,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
                       <dd className={`text-lg font-medium ${utilidadReal >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         ${utilidadReal.toLocaleString('es-CO')}
                       </dd>
+                      <p className="text-xs text-gray-400 mt-0.5">IVA ya descontado (no es ganancia)</p>
                     </dl>
                   </div>
                 </div>
@@ -1075,8 +1088,8 @@ export default function Dashboard({ usuario }: DashboardProps) {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Proyecto</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cotizado</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Real</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Utilidad</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Real (con IVA)</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Utilidad (IVA descontado)</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">%</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acción</th>
                       </tr>

@@ -27,7 +27,7 @@ export interface EstadisticasDashboard {
   gastosManoObraMes: number;
   gastosHormigaMes: number;
   gastosTransporteMes: number;
-  ivaRealMes: number; // IVA real desde facturas
+  ivaRealMes: number; // IVA presupuestado del período (no es ganancia)
   costosTotalesMes: number; // Suma de todos los costos (incluye IVA)
   
   // Financiero del mes - GANANCIA REAL
@@ -41,6 +41,7 @@ export interface EstadisticasDashboard {
   // Totales históricos
   ventasTotalesHistorico: number;
   costosTotalesHistorico: number;
+  ivaRealHistorico: number; // IVA presupuestado histórico (no es ganancia)
   gananciaHistorica: number;
   
   // Actividad
@@ -553,8 +554,8 @@ export async function obtenerEstadisticasDashboard(
   // Las facturas son solo registro administrativo, no afectan los cálculos
   let ivaRealMes = 0;
   try {
-    // Calcular IVA presupuestado de todas las cotizaciones aceptadas del mes
-    cotizacionesAceptadas.forEach(cotizacion => {
+    // Calcular IVA presupuestado de todas las cotizaciones aceptadas del período
+    cotizacionesAceptadasPeriodo.forEach(cotizacion => {
       const descuento = (cotizacion as any).descuento || 0;
       const subtotal = cotizacion.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0
         ? cotizacion.items.reduce((sum: number, item: any) => sum + (item.precio_total || 0), 0)
@@ -610,8 +611,9 @@ export async function obtenerEstadisticasDashboard(
   const ventasTotalesHistorico = cotizacionesAceptadasHistorico
     .reduce((sum, c) => sum + calcularTotalDesdeItems(c), 0);
 
-  // Costos históricos totales (solo de cotizaciones aceptadas)
+  // Costos históricos totales (solo de cotizaciones aceptadas, incluye IVA)
   let costosTotalesHistorico = 0;
+  let ivaRealHistorico = 0;
   
   if (idsCotizacionesAceptadasHistorico.length > 0) {
     // IMPORTANTE: Obtener la cantidad del item para cada cotización
@@ -749,9 +751,26 @@ export async function obtenerEstadisticasDashboard(
       console.log('⚠️ [Dashboard Stats] Transporte sin alcance_gasto (tratados como "total"):', transporteSinAlcance);
     }
 
-    costosTotalesHistorico = costosMaterialesHist + costosManoObraHist + costosHormigaHist + costosTransporteHist;
+    // IVA histórico: presupuestado de todas las cotizaciones aceptadas (IVA no es ganancia)
+    try {
+      cotizacionesAceptadasHistorico.forEach(cotizacion => {
+        const descuento = (cotizacion as any).descuento || 0;
+        const subtotal = cotizacion.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0
+          ? cotizacion.items.reduce((sum: number, item: any) => sum + (item.precio_total || 0), 0)
+          : ((cotizacion as any).subtotal || 0);
+        const descuentoMonto = subtotal * (descuento / 100);
+        const subtotalConDescuento = subtotal - descuentoMonto;
+        const ivaPorcentaje = (cotizacion as any).iva_porcentaje || 19;
+        ivaRealHistorico += subtotalConDescuento * (ivaPorcentaje / 100);
+      });
+      console.log('💰 [Dashboard] IVA histórico (presupuestado, no es ganancia):', ivaRealHistorico);
+    } catch (e) {
+      console.warn('⚠️ [Dashboard] Error al calcular IVA histórico:', e);
+    }
+
+    costosTotalesHistorico = costosMaterialesHist + costosManoObraHist + costosHormigaHist + costosTransporteHist + ivaRealHistorico;
     
-    console.log('📊 [Dashboard Stats] Costos históricos calculados (con alcance_gasto):');
+    console.log('📊 [Dashboard Stats] Costos históricos calculados (con alcance_gasto + IVA):');
     console.log('  - Materiales:', costosMaterialesHist.toLocaleString('es-CO'));
     console.log('  - Mano Obra:', costosManoObraHist.toLocaleString('es-CO'));
     console.log('  - Gastos Hormiga:', costosHormigaHist.toLocaleString('es-CO'));
@@ -897,6 +916,7 @@ export async function obtenerEstadisticasDashboard(
     variacionVentas,
     ventasTotalesHistorico,
     costosTotalesHistorico,
+    ivaRealHistorico,
     gananciaHistorica,
     cotizacionesRecientes
   };
