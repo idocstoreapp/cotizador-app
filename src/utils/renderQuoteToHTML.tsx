@@ -79,6 +79,11 @@ export function renderQuoteToHTML(data: QuoteData): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cotización ${data.quoteNumber}</title>
   <style>
+    @page {
+      size: A4;
+      margin: 15mm 10mm; /* arriba/abajo, izquierda/derecha */
+    }
+    
     * {
       margin: 0;
       padding: 0;
@@ -98,7 +103,7 @@ export function renderQuoteToHTML(data: QuoteData): string {
       background: #f5f5f0;
       position: relative;
       font-family: 'Arial', 'Helvetica', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
-      overflow: hidden;
+      page-break-after: auto;
       margin: 0 auto;
     }
     
@@ -328,7 +333,7 @@ export function renderQuoteToHTML(data: QuoteData): string {
 
     /* Footer */
     .quote-footer {
-      position: absolute;
+      position: relative;
       bottom: 0;
       left: 0;
       right: 0;

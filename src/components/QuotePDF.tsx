@@ -153,12 +153,11 @@ export default function QuotePDF({
       <style>{`
         .quote-pdf-container {
           width: 210mm;
-          min-height: 297mm;
           background: ${isKubica ? '#f5f5f5' : (isCasablanca ? '#f5f5f5' : '#f5f5f0')};
           position: relative;
           font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', 'Arial', 'Helvetica', sans-serif;
-          overflow: hidden;
-          padding-bottom: ${(isKubica || isCasablanca) ? '120px' : '80px'};
+          overflow: visible; /* permitir que el contenido fluya a varias páginas al imprimir */
+          padding-bottom: 40px;
         }
         
         /* Asegurar que los emojis se rendericen correctamente */
@@ -713,16 +712,13 @@ export default function QuotePDF({
 
         /* Footer - Total en cuadro para Kubica y Casablanca */
         .quote-footer {
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
           background: ${isKubica ? '#fafafa' : (isCasablanca ? empresaColors.light : '#f5f5f5')};
           color: ${(isKubica || isCasablanca) ? empresaColors.dark : '#333'};
-          padding: ${(isKubica || isCasablanca) ? '25px 40px 280px 40px' : '15px 40px'};
+          padding: ${(isKubica || isCasablanca) ? '16px 32px 16px 32px' : '12px 32px'};
           text-align: center;
           z-index: 10;
-          min-height: ${(isKubica || isCasablanca) ? '300px' : 'auto'};
+          min-height: auto;
+          page-break-inside: avoid;
         }
 
         .footer-text {
@@ -733,27 +729,26 @@ export default function QuotePDF({
         /* Cuadro de subtotal e IVA para Kubica y Casablanca */
         .subtotal-iva-box {
           background: ${isKubica ? empresaColors.light : (isCasablanca ? casablancaColors.secondary : '#fff')};
-          padding: 12px 20px;
+          padding: 8px 14px;
           border-radius: 4px;
-          position: absolute;
-          right: 40px;
-          bottom: 120px;
-          min-width: 250px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-          border: ${isKubica ? `2px solid ${empresaColors.primary}` : (isCasablanca ? `2px solid ${casablancaColors.accent}` : '1px solid #ddd')};
+          min-width: 50mm;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+          border: ${isKubica ? `1px solid ${empresaColors.primary}` : (isCasablanca ? `1px solid ${casablancaColors.accent}` : '1px solid #ddd')};
           z-index: 11;
+          margin-left: auto;
+          margin-bottom: 8px;
         }
 
         .subtotal-iva-row {
           display: flex;
           justify-content: space-between;
-          margin-bottom: 6px;
-          font-size: 13px;
+          margin-bottom: 4px;
+          font-size: 11px;
         }
 
         .subtotal-iva-row:last-child {
           margin-bottom: 0;
-          padding-top: 6px;
+          padding-top: 4px;
           border-top: 1px solid ${isKubica ? empresaColors.darkLight : (isCasablanca ? casablancaColors.darkLight : '#ddd')};
         }
 
@@ -770,31 +765,57 @@ export default function QuotePDF({
         /* Cuadro de total para Kubica y Casablanca - esquina derecha */
         .total-box {
           background: ${isCasablanca ? casablancaColors.accent : empresaColors.secondary};
-          padding: 20px 30px;
+          padding: 12px 18px;
           border-radius: 4px;
-          position: absolute;
-          right: 40px;
-          bottom: 25px;
-          min-width: 250px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+          min-width:50mm;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
           z-index: 12;
+          margin-left: auto;
         }
 
         .total-label {
-          font-size: 16px;
+          font-size: 13px;
           font-weight: bold;
           color: ${isCasablanca ? empresaColors.dark : '#fff'};
-          margin-bottom: 8px;
+          margin-bottom: 4px;
           text-transform: uppercase;
           letter-spacing: 1px;
         }
 
         .total-amount {
-          font-size: 28px;
+          font-size: 20px;
           font-weight: bold;
           color: ${isCasablanca ? empresaColors.dark : '#fff'};
           text-align: right;
         }
+
+        .totals-layout{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:30px;
+  margin-top:10px;
+}
+
+.payment-conditions{
+  max-width:320px;
+}
+
+.totals-column{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:8px;
+}
+
+.policies-box{
+  margin-top:14px;
+  background:white;
+  padding:10px 15px;
+  border-radius:4px;
+  font-size:10px;
+  text-align:left;
+}
 
         .footer-links {
           font-size: 11px;
@@ -816,14 +837,7 @@ export default function QuotePDF({
         }
       `}</style>
 
-      {/* Líneas curvas decorativas horizontales */}
-      <div className="decorative-line decorative-line-1"></div>
-      <div className="decorative-line decorative-line-2"></div>
-      <div className="decorative-line decorative-line-3"></div>
-      <div className="decorative-line decorative-line-4"></div>
-      <div className="decorative-line decorative-line-5"></div>
-      <div className="decorative-line decorative-line-6"></div>
-
+   
       {/* Número de orden y fecha en esquina superior derecha (Kubica y Casablanca) */}
       {(isKubica || isCasablanca) && (
         <div className="quote-number-date">
@@ -1056,132 +1070,94 @@ export default function QuotePDF({
 
       {/* Footer */}
       <div className="quote-footer">
-        {(isKubica || isCasablanca) ? (
-          <>
-            {/* Cuadro de Subtotal e IVA */}
-            <div className="subtotal-iva-box">
-              <div className="subtotal-iva-row">
-                <span className="subtotal-iva-label">Subtotal:</span>
-                <span className="subtotal-iva-value">${subtotal.toLocaleString('es-CO')}</span>
-              </div>
-              {iva > 0 && (
-                <div className="subtotal-iva-row">
-                  <span className="subtotal-iva-label">IVA:</span>
-                  <span className="subtotal-iva-value">${iva.toLocaleString('es-CO')}</span>
-                </div>
-              )}
-            </div>
 
-            <div className="total-box">
-              <div className="total-label">Total</div>
-              <div className="total-amount">${total.toLocaleString('es-CO')}</div>
-            </div>
-            
-            {/* Tabla de Condiciones de Pago */}
-            <div style={{ 
-              position: 'absolute', 
-              left: '40px', 
-              bottom: '25px', 
-              width: '550px',
-              background: 'white',
-              borderRadius: '4px',
-              padding: '10px 15px',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-            }}>
-              <div style={{
-                padding: '8px',
-                marginBottom: '8px',
-                textAlign: 'center',
-                border: 'none'
-              }}>
-                <div style={{ 
-                  padding: '4px',
-                  fontWeight: 'bold',
-                  fontSize: '12px',
-                  color: empresaColors.dark,
-                  border: 'none'
-                }}>
-                  CONDICIONES DE PAGO
-                </div>
-              </div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
-                <thead>
-                  <tr>
-                    <th style={{ 
-                      padding: '6px 8px', 
-                      textAlign: 'left', 
-                      borderBottom: `2px dotted ${empresaColors.primary}`,
-                      fontWeight: 'bold',
-                      color: empresaColors.dark,
-                      fontSize: '11px'
-                    }}>
-                      Anticipo
-                    </th>
-                    <th style={{ 
-                      padding: '6px 8px', 
-                      textAlign: 'left', 
-                      borderBottom: `2px dotted ${empresaColors.primary}`,
-                      fontWeight: 'bold',
-                      color: empresaColors.dark,
-                      fontSize: '11px'
-                    }}>
-                      Saldo
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td style={{ padding: '6px 8px', borderBottom: `1px dotted ${empresaColors.primary}` }}>50%</td>
-                    <td style={{ padding: '6px 8px', borderBottom: `1px dotted ${empresaColors.primary}` }}>50%</td>
-                  </tr>
-                  <tr style={{ background: empresaColors.primary, color: 'white' }}>
-                    <td style={{ padding: '6px 8px', borderBottom: `1px dotted ${empresaColors.secondary}` }}>
-                      ${Math.round(total * 0.5).toLocaleString('es-CO')}
-                    </td>
-                    <td style={{ padding: '6px 8px', borderBottom: `1px dotted ${empresaColors.secondary}` }}>
-                      ${Math.round(total * 0.5).toLocaleString('es-CO')}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style={{ padding: '4px 8px', fontSize: '10px', color: '#666' }}>días hábiles</td>
-                    <td style={{ padding: '4px 8px', fontSize: '10px', color: empresaColors.dark, fontWeight: 'bold' }}>
-                      {vendedorName ? `Cod_Vendedor: ${vendedorName}` : ''}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+  <div className="totals-layout">
 
-            {/* Políticas/Condiciones */}
-            <div style={{
-              position: 'absolute',
-              left: '40px',
-              bottom: '200px',
-              width: 'calc(100% - 500px)',
-              background: 'white',
-              borderRadius: '4px',
-              padding: '10px 15px',
-              fontSize: '10px',
-              lineHeight: '1.3',
-              color: '#333'
-            }}>
-              <div style={{ fontWeight: 'bold', marginBottom: '6px', color: empresaColors.dark, fontSize: '11px' }}>
-                CONDICIONES Y POLÍTICAS:
-              </div>
-              <div style={{ marginBottom: '2px' }}>
-                • No incluye Obra Gris (Demoler paredes, remover escombros) • Accesorios adicionales fuera de la cotización van por cuenta del cliente • SACAR MUEBLES PUEDE VARIAR LA COTIZACIÓN
-              </div>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="footer-text">Gracias por confiar en nosotros.</div>
-            <div className="footer-text" style={{ fontSize: '18px', fontWeight: 'bold', marginTop: '10px' }}>
-              TOTAL: ${total.toLocaleString('es-CO')}
-            </div>
-          </>
+    {/* IZQUIERDA - Condiciones de pago */}
+    <div className="payment-conditions">
+
+      <div style={{ 
+        background: 'white',
+        borderRadius: '4px',
+        padding: '10px 15px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+      }}>
+
+        <div style={{
+          fontWeight: 'bold',
+          fontSize: '12px',
+          marginBottom: '8px',
+          color: empresaColors.dark
+        }}>
+          CONDICIONES DE PAGO
+        </div>
+
+        <table style={{ width:'100%', fontSize:'11px', borderCollapse:'collapse' }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign:'left' }}>Anticipo</th>
+              <th style={{ textAlign:'left' }}>Saldo</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr>
+              <td>50%</td>
+              <td>50%</td>
+            </tr>
+
+            <tr style={{ background: empresaColors.primary, color:'white' }}>
+              <td>${Math.round(total * 0.5).toLocaleString('es-CO')}</td>
+              <td>${Math.round(total * 0.5).toLocaleString('es-CO')}</td>
+            </tr>
+          </tbody>
+        </table>
+
+      </div>
+
+    </div>
+
+
+    {/* DERECHA - Totales */}
+    <div className="totals-column">
+
+      <div className="subtotal-iva-box">
+        <div className="subtotal-iva-row">
+          <span className="subtotal-iva-label">Subtotal:</span>
+          <span className="subtotal-iva-value">${subtotal.toLocaleString('es-CO')}</span>
+        </div>
+
+        {iva > 0 && (
+          <div className="subtotal-iva-row">
+            <span className="subtotal-iva-label">IVA:</span>
+            <span className="subtotal-iva-value">${iva.toLocaleString('es-CO')}</span>
+          </div>
         )}
       </div>
+
+      <div className="total-box">
+        <div className="total-label">Total</div>
+        <div className="total-amount">${total.toLocaleString('es-CO')}</div>
+      </div>
+
     </div>
-  );
-}
+
+  </div>
+
+
+  {/* POLÍTICAS ABAJO */}
+  <div className="policies-box">
+
+    <div style={{ fontWeight:'bold', marginBottom:'6px' }}>
+      CONDICIONES Y POLÍTICAS
+    </div>
+
+    • No incluye obra gris  
+    • Accesorios adicionales fuera de la cotización van por cuenta del cliente  
+    • Sacar muebles puede variar la cotización
+
+  </div>
+
+</div>
+        
+        </div> )}
