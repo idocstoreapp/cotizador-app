@@ -4,21 +4,28 @@
  * la caja de ahorros no se toca.
  */
 import { obtenerCotizaciones } from './cotizaciones.service';
-import { obtenerEstadisticasDashboard } from './dashboard-stats.service';
 import { obtenerLiquidaciones } from './liquidaciones.service';
 import { obtenerGastosFijos } from './fixed-expenses.service';
 import { obtenerTotalAhorros } from './caja-ahorros.service';
+import { supabase } from '../utils/supabase';
 
 export interface SaldoDisponibleResult {
-  /** Total cobrado por clientes (cotizaciones aceptadas, monto_pagado) */
+  /** Total cobrado real por clientes (histórico) */
   totalCobradoHistorico: number;
-  /** Costos reales + IVA (histórico) */
-  costosTotalesHistorico: number;
-  /** Total pagado a personal (liquidaciones) */
+  /** Total pagado/egresos reales (histórico) */
+  totalPagadoHistorico: number;
+  /** IVA reservado (proporcional a lo cobrado, histórico) */
+  ivaReservadoHistorico: number;
+  /** Pagos a personal (liquidaciones) */
   totalLiquidacionesHistorico: number;
-  /** Total gastos fijos registrados */
+  /** Gastos fijos */
   totalGastosFijosHistorico: number;
-  /** Saldo real = cobrado - costos - liquidaciones - gastos fijos (libre de IVA y de todo) */
+  /** Costos reales operativos */
+  totalPagosMaterialesHistorico: number;
+  totalPagosManoObraHistorico: number;
+  totalPagosHormigaHistorico: number;
+  totalPagosTransporteHistorico: number;
+  /** Saldo real (cashflow) = cobrado - pagado - IVA reservado */
   saldoRealDisponible: number;
   /** Total en caja de ahorros (no se usa para pagar) */
   totalAhorros: number;
@@ -32,28 +39,99 @@ export interface SaldoDisponibleResult {
  * lo ahorrado no se toca.
  */
 export async function obtenerSaldoDisponible(): Promise<SaldoDisponibleResult> {
-  const [cotizaciones, stats, liquidaciones, gastosFijos, totalAhorros] = await Promise.all([
+  const [cotizaciones, liquidaciones, gastosFijos, totalAhorros] = await Promise.all([
     obtenerCotizaciones(),
-    obtenerEstadisticasDashboard(),
     obtenerLiquidaciones(),
     obtenerGastosFijos(),
     obtenerTotalAhorros()
   ]);
 
   const aceptadas = cotizaciones.filter(c => c.estado === 'aceptada');
-  const totalCobradoHistorico = aceptadas.reduce((sum, c) => sum + (c.monto_pagado || 0), 0);
-  const totalLiquidacionesHistorico = liquidaciones.reduce((sum, l) => sum + (l.monto || 0), 0);
-  const totalGastosFijosHistorico = gastosFijos.reduce((sum, g) => sum + (g.amount || 0), 0);
+  // 1) Cobros reales históricos
+  // Preferir tabla cotizacion_pagos; si no existe aún, usar monto_pagado.
+  let totalCobradoHistorico = 0;
+  const pagadoPorCotizacion = new Map<string, number>();
+  try {
+    const { data: pagos, error } = await supabase
+      .from('cotizacion_pagos')
+      .select('cotizacion_id, monto');
+    if (error) throw error;
+    (pagos || []).forEach((p: any) => {
+      const id = p.cotizacion_id;
+      const m = Number(p.monto) || 0;
+      pagadoPorCotizacion.set(id, (pagadoPorCotizacion.get(id) || 0) + m);
+      totalCobradoHistorico += m;
+    });
+  } catch {
+    // fallback
+    totalCobradoHistorico = aceptadas.reduce((sum, c) => sum + (Number(c.monto_pagado) || 0), 0);
+    aceptadas.forEach((c) => pagadoPorCotizacion.set(c.id, Number(c.monto_pagado) || 0));
+  }
 
-  const costosTotalesHistorico = stats.costosTotalesHistorico || 0;
-  const saldoRealDisponible = totalCobradoHistorico - costosTotalesHistorico - totalLiquidacionesHistorico - totalGastosFijosHistorico;
+  // 2) IVA reservado histórico (proporcional a lo cobrado, respeta aplica_iva=false)
+  const ivaReservadoHistorico = aceptadas.reduce((sum, c: any) => {
+    const aplicaIVA = c.aplica_iva !== undefined ? Boolean(c.aplica_iva) : true;
+    if (!aplicaIVA) return sum;
+
+    const totalCotizacion = Number(c.total) || 0;
+    if (totalCotizacion <= 0) return sum;
+
+    const ivaCotizacion = Number(c.iva) || 0;
+    if (ivaCotizacion <= 0) return sum;
+
+    const cobrado = Math.min(Number(pagadoPorCotizacion.get(c.id) || 0), totalCotizacion);
+    const proporcion = cobrado / totalCotizacion;
+    return sum + (ivaCotizacion * proporcion);
+  }, 0);
+
+  // 3) Pagos reales históricos (egresos)
+  const totalLiquidacionesHistorico = liquidaciones.reduce((sum, l) => sum + (Number(l.monto) || 0), 0);
+  const totalGastosFijosHistorico = gastosFijos.reduce((sum, g: any) => sum + (Number(g.amount) || 0), 0);
+
+  const [
+    materialesRes,
+    manoObraRes,
+    hormigaRes,
+    transporteRes
+  ] = await Promise.all([
+    supabase.from('gastos_reales_materiales').select('precio_unitario_real, cantidad_real'),
+    supabase.from('mano_obra_real').select('total_pagado'),
+    supabase.from('gastos_hormiga').select('monto'),
+    supabase.from('transporte_real').select('costo')
+  ]);
+
+  const totalPagosMaterialesHistorico = (materialesRes.data || []).reduce((sum: number, g: any) => {
+    return sum + ((Number(g.precio_unitario_real) || 0) * (Number(g.cantidad_real) || 0));
+  }, 0);
+  const totalPagosManoObraHistorico = (manoObraRes.data || []).reduce((sum: number, m: any) => sum + (Number(m.total_pagado) || 0), 0);
+  const totalPagosHormigaHistorico = (hormigaRes.data || []).reduce((sum: number, g: any) => sum + (Number(g.monto) || 0), 0);
+  const totalPagosTransporteHistorico = (transporteRes.data || []).reduce((sum: number, t: any) => sum + (Number(t.costo) || 0), 0);
+
+  const totalPagadoHistorico =
+    totalLiquidacionesHistorico +
+    totalGastosFijosHistorico +
+    totalPagosMaterialesHistorico +
+    totalPagosManoObraHistorico +
+    totalPagosHormigaHistorico +
+    totalPagosTransporteHistorico;
+
+    const saldoRealDisponible =
+    totalCobradoHistorico -
+    totalPagadoHistorico -
+    ivaReservadoHistorico;
+
   const disponibleParaGastar = saldoRealDisponible - totalAhorros;
 
   return {
     totalCobradoHistorico,
-    costosTotalesHistorico,
+    totalPagadoHistorico,
+    ivaReservadoHistorico,
     totalLiquidacionesHistorico,
     totalGastosFijosHistorico,
+    totalPagosMaterialesHistorico,
+    totalPagosManoObraHistorico,
+    totalPagosHormigaHistorico,
+    totalPagosTransporteHistorico,
     saldoRealDisponible,
     totalAhorros,
     disponibleParaGastar

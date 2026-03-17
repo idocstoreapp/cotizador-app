@@ -24,11 +24,12 @@ export default function EditarCotizacionModal({
   onClose,
   onSuccess
 }: EditarCotizacionModalProps) {
-  const { items, subtotal, descuento, iva, total, limpiarCotizacion, calcularTotales } = useCotizacionStore();
+  const { items, subtotal, descuento, iva, total, limpiarCotizacion, calcularTotales, setAplicaIVA } = useCotizacionStore();
   const [mostrarAgregarManual, setMostrarAgregarManual] = useState(false);
   const [descripcionModificacion, setDescripcionModificacion] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [cargandoItems, setCargandoItems] = useState(true);
+  const [aplicaIVA, setAplicaIVALocal] = useState<boolean>(cotizacion.aplica_iva !== undefined ? cotizacion.aplica_iva : true);
 
   // Cargar items de la cotización al abrir el modal
   useEffect(() => {
@@ -43,6 +44,8 @@ export default function EditarCotizacionModal({
 
         // Limpiar el store primero
         limpiarCotizacion();
+        // Asegurar que el cálculo del store respete el IVA de la cotización
+        setAplicaIVA(cotizacion.aplica_iva !== undefined ? cotizacion.aplica_iva : true);
 
         if (cotizacion.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0) {
           // Convertir items de la cotización al formato del store
@@ -116,7 +119,12 @@ export default function EditarCotizacionModal({
     };
 
     cargarItems();
-  }, [cotizacion.id, limpiarCotizacion, calcularTotales]);
+  }, [cotizacion.id, cotizacion.aplica_iva, limpiarCotizacion, calcularTotales, setAplicaIVA]);
+
+  // Mantener store y estado local sincronizados
+  useEffect(() => {
+    setAplicaIVA(aplicaIVA);
+  }, [aplicaIVA, setAplicaIVA]);
 
   const handleGuardar = async () => {
     if (!descripcionModificacion.trim()) {
@@ -141,7 +149,8 @@ export default function EditarCotizacionModal({
           email: cotizacion.cliente_email || '',
           direccion: cotizacion.cliente_direccion || ''
         },
-        cotizacion.margen_ganancia || 30
+        cotizacion.margen_ganancia || 30,
+        aplicaIVA
       );
 
       // Actualizar cotización con historial
@@ -190,6 +199,36 @@ export default function EditarCotizacionModal({
 
         {/* Content */}
         <div className="p-6 space-y-6">
+          {/* IVA */}
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">IVA</p>
+                <p className="text-xs text-gray-600">Aplica a esta cotización (afecta totales y PDF)</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="radio"
+                    name="editarAplicaIva"
+                    checked={aplicaIVA}
+                    onChange={() => setAplicaIVALocal(true)}
+                  />
+                  Con IVA (19%)
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="radio"
+                    name="editarAplicaIva"
+                    checked={!aplicaIVA}
+                    onChange={() => setAplicaIVALocal(false)}
+                  />
+                  Sin IVA (exento)
+                </label>
+              </div>
+            </div>
+          </div>
+
           {/* Descripción de la modificación */}
           <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
             <label className="block text-sm font-semibold text-gray-900 mb-2">

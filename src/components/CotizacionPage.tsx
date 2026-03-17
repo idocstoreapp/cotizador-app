@@ -16,7 +16,7 @@ import { obtenerVendedores } from '../services/usuarios.service';
 import type { UserProfile } from '../types/database';
 
 export default function CotizacionPage() {
-  const { items, subtotal, descuento, iva, total } = useCotizacionStore();
+  const { items, subtotal, descuento, iva, total, aplica_iva } = useCotizacionStore();
   const [mostrarAgregarManual, setMostrarAgregarManual] = useState(false);
   const [mostrarFormularioCliente, setMostrarFormularioCliente] = useState(false);
   const [mostrarSeleccionarEmpresa, setMostrarSeleccionarEmpresa] = useState(false);
@@ -76,7 +76,8 @@ export default function CotizacionPage() {
       const cotizacionInput = convertirItemsACotizacionInput(
         items,
         datosCliente,
-        30 // Margen de ganancia por defecto
+        30, // Margen de ganancia por defecto
+        aplica_iva
       );
 
       // Guardar cotización en la base de datos (estado: pendiente)

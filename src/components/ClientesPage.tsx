@@ -7,7 +7,7 @@ import { useUser } from '../contexts/UserContext';
 import { obtenerUsuarioActual } from '../services/auth.service';
 import { obtenerClientes, obtenerClienteConTrabajos } from '../services/clientes.service';
 import { obtenerCotizacionesPorCliente } from '../services/cotizaciones.service';
-import { obtenerPagosPorCotizacion, agregarPagoCotizacion, asegurarHistorialPagos } from '../services/cotizacion-pagos.service';
+import { obtenerPagosPorCotizacion, agregarPagoCotizacion, asegurarHistorialPagos, actualizarFechaPagoCotizacion } from '../services/cotizacion-pagos.service';
 import { downloadQuotePDF } from '../utils/pdf';
 import { convertirCotizacionAPDF } from '../utils/convertirCotizacionAPDF';
 import EditarCotizacionModal from './EditarCotizacionModal';
@@ -703,19 +703,46 @@ export default function ClientesPage() {
                   <table className="min-w-full text-sm">
                     <thead>
                       <tr className="border-b border-gray-200">
-                        <th className="text-left py-2 text-gray-600 font-medium">Fecha</th>
+                <th className="text-left py-2 text-gray-600 font-medium">Fecha</th>
                         <th className="text-right py-2 text-gray-600 font-medium">Monto</th>
                         <th className="text-left py-2 text-gray-600 font-medium">Nota</th>
+                {esAdmin && <th className="py-2 text-gray-600 font-medium text-center">Acciones</th>}
                       </tr>
                     </thead>
                     <tbody>
-                      {pagosCotizacionModal.map((p) => (
-                        <tr key={p.id} className="border-b border-gray-100">
-                          <td className="py-2">{new Date(p.fecha_pago).toLocaleDateString('es-CO')}</td>
-                          <td className="py-2 text-right font-medium text-green-600">+${Number(p.monto).toLocaleString('es-CO')}</td>
-                          <td className="py-2 text-gray-500">{p.nota || '—'}</td>
-                        </tr>
-                      ))}
+              {pagosCotizacionModal.map((p) => (
+                <tr key={p.id} className="border-b border-gray-100">
+                  <td className="py-2">
+                    {esAdmin ? (
+                      <input
+                        type="date"
+                        defaultValue={p.fecha_pago?.slice(0, 10) || ''}
+                        onChange={async (e) => {
+                          const nuevaFecha = e.target.value;
+                          if (!nuevaFecha) return;
+                          try {
+                            await actualizarFechaPagoCotizacion(p.id, nuevaFecha);
+                            const pagosActualizados = await obtenerPagosPorCotizacion(p.cotizacion_id);
+                            setPagosCotizacionModal(pagosActualizados);
+                          } catch (err: any) {
+                            alert('Error al actualizar fecha de pago: ' + (err.message || 'Error desconocido'));
+                          }
+                        }}
+                        className="px-2 py-1 border border-gray-300 rounded-md text-xs"
+                      />
+                    ) : (
+                      new Date(p.fecha_pago).toLocaleDateString('es-CO')
+                    )}
+                  </td>
+                  <td className="py-2 text-right font-medium text-green-600">+${Number(p.monto).toLocaleString('es-CO')}</td>
+                  <td className="py-2 text-gray-500">{p.nota || '—'}</td>
+                  {esAdmin && (
+                    <td className="py-2 text-center text-xs text-gray-400">
+                      (Solo fecha editable)
+                    </td>
+                  )}
+                </tr>
+              ))}
                     </tbody>
                   </table>
                 </div>

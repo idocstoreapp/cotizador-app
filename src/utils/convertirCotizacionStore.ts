@@ -16,7 +16,8 @@ export function convertirItemsACotizacionInput(
     telefono?: string;
     direccion?: string;
   },
-  margenGanancia: number = 30
+  margenGanancia: number = 30,
+  aplicaIVA: boolean = true
 ): CotizacionInput {
   const materiales: CotizacionMaterialInput[] = [];
   const servicios: CotizacionServicioInput[] = [];
@@ -89,6 +90,7 @@ export function convertirItemsACotizacionInput(
     materiales,
     servicios,
     margen_ganancia: margenGanancia,
+    aplica_iva: aplicaIVA,
     notas: undefined
   };
 }

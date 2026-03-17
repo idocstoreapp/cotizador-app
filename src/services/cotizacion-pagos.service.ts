@@ -58,6 +58,25 @@ export async function agregarPagoCotizacion(
 }
 
 /**
+ * Permite actualizar la fecha de un pago existente.
+ * Pensado para administradores, por ejemplo para pruebas o correcciones.
+ */
+export async function actualizarFechaPagoCotizacion(
+  pagoId: string,
+  nuevaFecha: string
+): Promise<CotizacionPago> {
+  const { data, error } = await supabase
+    .from('cotizacion_pagos')
+    .update({ fecha_pago: nuevaFecha })
+    .eq('id', pagoId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CotizacionPago;
+}
+
+/**
  * Si la cotización tiene monto_pagado pero no hay registros en cotizacion_pagos,
  * inserta un registro único para no perder el dato (migración suave).
  */

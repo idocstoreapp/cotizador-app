@@ -5,16 +5,15 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '../contexts/UserContext';
 import { obtenerUsuarioActual } from '../services/auth.service';
-import { obtenerSaldoDisponible } from '../services/saldo-disponible.service';
+import { obtenerSaldoDisponible, type SaldoDisponibleResult } from '../services/saldo-disponible.service';
 import { obtenerMovimientosAhorros, depositarAhorros } from '../services/caja-ahorros.service';
 import type { UserProfile } from '../types/database';
-import type { SaldoDisponibleResult } from '../services/saldo-disponible.service';
 import type { CajaAhorrosMovimiento } from '../types/database';
 
 export default function CajaAhorrosPage() {
   const { usuario: usuarioContexto } = useUser();
   const [usuarioLocal, setUsuarioLocal] = useState<UserProfile | null>(null);
-  const [saldo, setSaldo] = useState<SaldoDisponibleResult | null>(null);
+  const [saldo, setSaldo] = useState<SaldoDisponibleResult| null>(null);
   const [movimientos, setMovimientos] = useState<CajaAhorrosMovimiento[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +30,10 @@ export default function CajaAhorrosPage() {
       obtenerUsuarioActual().then(setUsuarioLocal).catch(() => {});
     }
   }, [usuarioContexto?.id]);
+
+  useEffect(() => {
+    console.log('SALDO CAJA:', saldo);
+  }, [saldo]);
 
   const recargar = async () => {
     if (!esAdmin) return;

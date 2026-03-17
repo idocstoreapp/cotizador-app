@@ -5,6 +5,7 @@
 import { supabase } from '../utils/supabase';
 import { obtenerCotizaciones } from './cotizaciones.service';
 import { obtenerEstadisticasGastosFijos } from './fixed-expenses.service';
+import { obtenerSaldoDisponible, type SaldoDisponibleResult } from './saldo-disponible.service';
 import type { Cotizacion } from '../types/database';
 
 
@@ -32,10 +33,24 @@ export interface EstadisticasDashboard {
   gastosFijosMes: number;
   ivaRealMes: number; // IVA presupuestado del período (no es ganancia)
   costosTotalesMes: number; // Suma de todos los costos (incluye IVA)
+
+  // Pagos reales del mes (SALIDAS por fecha, dinero efectivamente pagado/registrado)
+  pagosMaterialesMes: number;
+  pagosManoObraMes: number;
+  pagosHormigaMes: number;
+  pagosTransporteMes: number;
+  pagosGastosFijosMes: number;
+  pagosPersonalMes: number; // Liquidaciones pagadas a personal
+  pagosIVAMes: number; // IVA pagado/registrado (detectado en gastos fijos)
+  pagosTotalesMes: number; // Total de salidas del mes
   
   // Financiero del mes - GANANCIA REAL
   gananciaMes: number; // Ventas - Costos Totales
   margenGananciaMes: number; // (Ganancia / Ventas) * 100
+
+  // Financiero del mes - GANANCIA NETA REAL (cashflow)
+  gananciaNetaMes: number; // Ventas cobradas - Pagos totales del mes
+  margenGananciaNetaMes: number; // (GananciaNeta / Ventas) * 100
   
   // Comparación mes anterior
   variacionCotizaciones: number;
@@ -46,6 +61,11 @@ export interface EstadisticasDashboard {
   costosTotalesHistorico: number;
   ivaRealHistorico: number; // IVA presupuestado histórico (no es ganancia)
   gananciaHistorica: number;
+
+  // Caja / saldo real global (mismo cálculo que Caja de Ahorros)
+  saldoRealDisponible: number;
+  totalAhorros: number;
+  disponibleParaGastar: number;
   
   // Actividad
   cotizacionesRecientes: Array<{
@@ -60,13 +80,12 @@ export interface EstadisticasDashboard {
 
 /**
  * Función auxiliar para calcular total desde items de una cotización
- */
+ */      
 function calcularTotalDesdeItems(cotizacion: Cotizacion): number {
     if (cotizacion.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0) {
       const subtotal = cotizacion.items.reduce((sum: number, item: any) => {
         return sum + (item.precio_total || 0);
       }, 0);
-      
     const descuento = (cotizacion as any).descuento || 0;
       const descuentoMonto = subtotal * (descuento / 100);
       const subtotalConDescuento = subtotal - descuentoMonto;
@@ -92,6 +111,7 @@ export async function obtenerEstadisticasDashboard(
   mes?: number,
   año?: number
 ): Promise<EstadisticasDashboard> {
+
   const ahora = new Date();
   let inicioPeriodo: Date;
   let finPeriodo: Date;
@@ -559,6 +579,8 @@ export async function obtenerEstadisticasDashboard(
   try {
     // Calcular IVA presupuestado de todas las cotizaciones aceptadas del período
     cotizacionesAceptadasPeriodo.forEach(cotizacion => {
+      const aplicaIVA = (cotizacion as any).aplica_iva !== undefined ? (cotizacion as any).aplica_iva : true;
+      if (!aplicaIVA) return;
       const descuento = (cotizacion as any).descuento || 0;
       const subtotal = cotizacion.items && Array.isArray(cotizacion.items) && cotizacion.items.length > 0
         ? cotizacion.items.reduce((sum: number, item: any) => sum + (item.precio_total || 0), 0)
@@ -587,6 +609,142 @@ export async function obtenerEstadisticasDashboard(
     console.warn('⚠️ [Dashboard] Error al obtener estadísticas de gastos fijos:', error);
   }
 
+  // ====== PAGOS REALES DEL MES (SALIDAS POR FECHA) ======
+  const fechaInicioISO = inicioPeriodo.toISOString();
+  const fechaFinISO = finPeriodo.toISOString();
+
+  // IMPORTANTE: usar fecha local para filtros por columnas tipo DATE.
+  // toISOString() usa UTC y puede mover el día (ej: fin de mes → día siguiente), causando rangos incorrectos y 400.
+  const formatLocalYMD = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+  const fechaInicioYMD = formatLocalYMD(inicioPeriodo);
+  const fechaFinYMD = formatLocalYMD(finPeriodo);
+
+  let pagosMaterialesMes = 0;
+  let pagosManoObraMes = 0;
+  let pagosHormigaMes = 0;
+  let pagosTransporteMes = 0;
+  let pagosGastosFijosMes = 0;
+  let pagosPersonalMes = 0;
+  let pagosIVAMes = 0;
+
+  try {
+    const queryByYMDOrTimestampRange = async (table: string, select: string, field: string, extra?: (q: any) => any) => {
+      // 1) Intento con rango DATE (YYYY-MM-DD)
+      let q1: any = supabase.from(table).select(select).gte(field, fechaInicioYMD).lte(field, fechaFinYMD);
+      if (extra) q1 = extra(q1);
+      const res1 = await q1;
+      if (!res1.error) return res1;
+
+      // 2) Fallback con rango TIMESTAMP (YYYY-MM-DDT..)
+      let q2: any = supabase
+        .from(table)
+        .select(select)
+        .gte(field, `${fechaInicioYMD}T00:00:00`)
+        .lte(field, `${fechaFinYMD}T23:59:59`);
+      if (extra) q2 = extra(q2);
+      const res2 = await q2;
+      return res2;
+    };
+
+    const [
+      pagosMaterialesRes,
+      pagosManoObraRes,
+      pagosHormigaRes,
+      pagosTransporteRes,
+      pagosGastosFijosRes,
+      pagosPersonalRes
+    ] = await Promise.all([
+      // fecha_compra suele ser timestamp
+      supabase
+        .from('gastos_reales_materiales')
+        .select('precio_unitario_real, cantidad_real, fecha_compra')
+        .gte('fecha_compra', fechaInicioISO)
+        .lte('fecha_compra', fechaFinISO),
+
+      // fecha suele ser date (o timestamp en algunos esquemas)
+      queryByYMDOrTimestampRange('mano_obra_real', 'total_pagado, fecha', 'fecha'),
+      queryByYMDOrTimestampRange('gastos_hormiga', 'monto, fecha, descripcion', 'fecha'),
+      // En proyectos migrados, la columna puede no llamarse tipo_descripcion. No la pedimos para evitar 42703.
+      queryByYMDOrTimestampRange('transporte_real', 'costo, fecha', 'fecha'),
+
+      // fixed_expenses.date es DATE; si falla, intentar filtrar por created_at (timestamp)
+      (async () => {
+        // En proyectos migrados, description/provider pueden llamarse distinto (descripcion/proveedor).
+        // Usamos select('*') para evitar 42703 y normalizamos en memoria.
+        const r1 = await supabase
+          .from('fixed_expenses')
+          .select('*')
+          .gte('date', fechaInicioYMD)
+          .lte('date', fechaFinYMD);
+        if (!r1.error) return r1;
+        const r2 = await supabase
+          .from('fixed_expenses')
+          .select('*')
+          .gte('created_at', fechaInicioISO)
+          .lte('created_at', fechaFinISO);
+        return r2;
+      })(),
+
+      // liquidaciones.fecha_liquidacion suele ser timestamp
+      supabase
+        .from('liquidaciones')
+        .select('monto, fecha_liquidacion')
+        .gte('fecha_liquidacion', fechaInicioISO)
+        .lte('fecha_liquidacion', fechaFinISO)
+    ]);
+
+    if (pagosMaterialesRes.error) console.warn('⚠️ [Dashboard] Error pagos materiales:', pagosMaterialesRes.error);
+    if (pagosManoObraRes.error) console.warn('⚠️ [Dashboard] Error pagos mano de obra:', pagosManoObraRes.error);
+    if (pagosHormigaRes.error) console.warn('⚠️ [Dashboard] Error pagos hormiga:', pagosHormigaRes.error);
+    if (pagosTransporteRes.error) console.warn('⚠️ [Dashboard] Error pagos transporte:', pagosTransporteRes.error);
+    if (pagosGastosFijosRes.error) console.warn('⚠️ [Dashboard] Error pagos gastos fijos:', pagosGastosFijosRes.error);
+    if (pagosPersonalRes.error) console.warn('⚠️ [Dashboard] Error pagos personal (liquidaciones):', pagosPersonalRes.error);
+
+    pagosMaterialesMes = (pagosMaterialesRes.data || []).reduce((sum: number, g: any) => {
+      return sum + ((g.precio_unitario_real || 0) * (g.cantidad_real || 0));
+    }, 0);
+
+    pagosManoObraMes = (pagosManoObraRes.data || []).reduce((sum: number, m: any) => sum + (m.total_pagado || 0), 0);
+    pagosHormigaMes = (pagosHormigaRes.data || []).reduce((sum: number, g: any) => sum + (g.monto || 0), 0);
+    pagosTransporteMes = (pagosTransporteRes.data || []).reduce((sum: number, t: any) => sum + (t.costo || 0), 0);
+
+    const gastosFijosLista = pagosGastosFijosRes.data || [];
+    const getFixedExpenseAmount = (f: any) =>
+      (f.amount ?? f.monto ?? f.valor ?? 0) as number;
+    pagosGastosFijosMes = gastosFijosLista.reduce((sum: number, f: any) => sum + (getFixedExpenseAmount(f) || 0), 0);
+
+    // IVA pagado/registrado: heurística por texto (categorías pueden no estar embebidas en proyectos migrados)
+    pagosIVAMes = gastosFijosLista.reduce((sum: number, f: any) => {
+      const desc = f.description ?? f.descripcion ?? f.detalle ?? f.concepto ?? '';
+      const prov = f.provider ?? f.proveedor ?? f.vendor ?? '';
+      const texto = `${desc} ${prov}`.toLowerCase();
+      if (texto.includes('iva')) return sum + (getFixedExpenseAmount(f) || 0);
+      return sum;
+    }, 0);
+
+    pagosPersonalMes = (pagosPersonalRes.data || []).reduce((sum: number, l: any) => sum + (l.monto || 0), 0);
+  } catch (e) {
+    console.warn('⚠️ [Dashboard] Error al calcular pagos reales del mes:', e);
+  }
+
+  // IVA a considerar en “dinero real”: si no está registrado como pago, igual se descuenta como obligación del mes.
+  // Para evitar doble conteo: toma el mayor entre iva presupuestado y iva registrado/pagado.
+  const ivaAConsiderarMes = Math.max(ivaRealMes || 0, pagosIVAMes || 0);
+
+  const pagosTotalesMes =
+    pagosMaterialesMes +
+    pagosManoObraMes +
+    pagosHormigaMes +
+    pagosTransporteMes +
+    pagosGastosFijosMes +
+    pagosPersonalMes +
+    ivaAConsiderarMes;
+
   // COSTOS TOTALES = Materiales + Mano de Obra + Gastos Hormiga + Transporte + Gastos Fijos + IVA Presupuestado
   const costosTotalesMes = gastosMaterialesMes + gastosManoObraMes + gastosHormigaMes + gastosTransporteMes + gastosFijosMes + ivaRealMes;
 
@@ -595,6 +753,10 @@ export async function obtenerEstadisticasDashboard(
   
   // Margen de ganancia %
   const margenGananciaMes = ventasTotalesPeriodo > 0 ? (gananciaMes / ventasTotalesPeriodo) * 100 : 0;
+
+  // GANANCIA NETA REAL (cashflow): Ventas cobradas - pagos totales del mes
+  const gananciaNetaMes = ventasTotalesPeriodo - pagosTotalesMes;
+  const margenGananciaNetaMes = ventasTotalesPeriodo > 0 ? (gananciaNetaMes / ventasTotalesPeriodo) * 100 : 0;
 
   // ====== COMPARACIÓN MES ANTERIOR ======
   const totalCotizacionesAnterior = cotizacionesPeriodoAnterior.length;
@@ -899,6 +1061,20 @@ export async function obtenerEstadisticasDashboard(
 
   const gananciaHistorica = ventasTotalesHistorico - costosTotalesHistorico;
 
+  // ====== SALDO REAL GLOBAL (CAJA) ======
+  // Usar exactamente el mismo cálculo que la Caja de Ahorros para que los números coincidan.
+  let saldoRealDisponible = 0;
+  let totalAhorros = 0;
+  let disponibleParaGastar = 0;
+  try {
+    const saldoGlobal = await obtenerSaldoDisponible();
+    saldoRealDisponible = saldoGlobal.saldoRealDisponible;
+    totalAhorros = saldoGlobal.totalAhorros;
+    disponibleParaGastar = saldoGlobal.disponibleParaGastar;
+  } catch (e) {
+    console.warn('⚠️ [Dashboard] Error al obtener saldo real global:', e);
+  }
+
   // ====== COTIZACIONES RECIENTES ======
   const cotizacionesRecientes = todasLasCotizaciones.slice(0, 5).map(c => ({
     id: c.id,
@@ -928,12 +1104,27 @@ export async function obtenerEstadisticasDashboard(
     ivaRealMes,
     gananciaMes: ventasTotalesPeriodo - costosTotalesMes,
     margenGananciaMes: ventasTotalesPeriodo > 0 ? ((ventasTotalesPeriodo - costosTotalesMes) / ventasTotalesPeriodo) * 100 : 0,
+
+    pagosMaterialesMes,
+    pagosManoObraMes,
+    pagosHormigaMes,
+    pagosTransporteMes,
+    pagosGastosFijosMes,
+    pagosPersonalMes,
+    pagosIVAMes,
+    pagosTotalesMes,
+
+    gananciaNetaMes,
+    margenGananciaNetaMes,
     variacionCotizaciones,
     variacionVentas,
     ventasTotalesHistorico,
     costosTotalesHistorico,
     ivaRealHistorico,
     gananciaHistorica,
+    saldoRealDisponible,
+    totalAhorros,
+    disponibleParaGastar,
     cotizacionesRecientes
   };
 }

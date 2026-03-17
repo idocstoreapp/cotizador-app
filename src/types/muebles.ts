@@ -135,7 +135,8 @@ export interface EstadoCotizacion {
   items: ItemCotizacion[]; // Puede incluir muebles del catálogo e items manuales
   subtotal: number;
   descuento: number; // Porcentaje
-  iva: number; // Porcentaje (19%)
+  aplica_iva: boolean; // Si false, la cotización es sin IVA (exenta)
+  iva: number; // Monto de IVA calculado (0 si aplica_iva=false)
   total: number;
 }
 

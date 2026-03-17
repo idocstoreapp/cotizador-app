@@ -17,52 +17,94 @@ export async function obtenerGastosFijos(filtros?: {
   montoMinimo?: number;
   montoMaximo?: number;
 }): Promise<FixedExpense[]> {
-  // IMPORTANTE: en algunos proyectos migrados la relación (FK) con categorías puede no existir o
-  // PostgREST puede no reconocerla aún (schema cache). Para evitar 400 y bloquear la app,
-  // cargamos gastos fijos sin embed de categorías.
-  let query = supabase.from('fixed_expenses').select('*');
+  // Preferimos traer la categoría embebida para mostrarla en UI.
+  // Si el FK/relación no existe o PostgREST aún no lo reconoce (schema cache), hacemos fallback a select('*').
+  const buildQuery = (selectClause: string) => {
+    let query: any = supabase.from('fixed_expenses').select(selectClause);
 
-  // Aplicar filtros
-  // Dentro de obtenerGastosFijos, al aplicar filtro por mes/año
-if (filtros?.mes && filtros?.anio) {
-  const fechaInicio = `${filtros.anio}-${String(filtros.mes).padStart(2, '0')}-01`;
+    // Aplicar filtros
+    if (filtros?.mes && filtros?.anio) {
+      const fechaInicio = `${filtros.anio}-${String(filtros.mes).padStart(2, '0')}-01`;
+      const ultimoDia = new Date(filtros.anio, filtros.mes, 0).getDate();
+      const fechaFin = `${filtros.anio}-${String(filtros.mes).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
+      query = query.gte('date', fechaInicio).lte('date', fechaFin);
+    } else if (filtros?.fechaDesde) {
+      query = query.gte('date', filtros.fechaDesde);
+    } else if (filtros?.fechaHasta) {
+      query = query.lte('date', filtros.fechaHasta);
+    }
 
-  // Último día real del mes usando Date:
-  const ultimoDia = new Date(filtros.anio, filtros.mes, 0).getDate();
-  const fechaFin = `${filtros.anio}-${String(filtros.mes).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
+    if (filtros?.categoriaId) {
+      query = query.eq('category_id', filtros.categoriaId);
+    }
 
-  query = query.gte('date', fechaInicio).lte('date', fechaFin);
-}
-  else if (filtros?.fechaDesde) {
-    query = query.gte('date', filtros.fechaDesde);
-  } else if (filtros?.fechaHasta) {
-    query = query.lte('date', filtros.fechaHasta);
+    if (filtros?.proveedor) {
+      query = query.ilike('provider', `%${filtros.proveedor}%`);
+    }
+
+    if (filtros?.montoMinimo !== undefined) {
+      query = query.gte('amount', filtros.montoMinimo);
+    }
+
+    if (filtros?.montoMaximo !== undefined) {
+      query = query.lte('amount', filtros.montoMaximo);
+    }
+
+    return query;
+  };
+
+  const queryWithCategory = buildQuery(`
+    *,
+    category:fixed_expense_categories(id, name, description)
+  `);
+
+  const { data, error } = await queryWithCategory;
+
+  let lista: FixedExpense[] = [];
+  if (!error) {
+    lista = (data || []).map((item: any) => ({
+      ...item,
+      category: item.category ? {
+        id: item.category.id,
+        name: item.category.name,
+        description: item.category.description
+      } : null
+    })) as FixedExpense[];
+  } else {
+    const isRelationshipError =
+      error.code === 'PGRST200' ||
+      String(error.message || '').toLowerCase().includes('relationship') ||
+      String(error.message || '').toLowerCase().includes('schema cache');
+
+    if (!isRelationshipError) throw error;
+
+    // Fallback sin embed
+    const queryFallback = buildQuery('*');
+    const { data: dataFallback, error: errFallback } = await queryFallback;
+    if (errFallback) throw errFallback;
+
+    const raw = (dataFallback || []) as any[];
+
+    // Intentar hidratar categorías por category_id (sin depender de FK/relationship)
+    const categoryIds = Array.from(new Set(raw.map((x) => x.category_id).filter(Boolean)));
+    let categoriasMap = new Map<string, { id: string; name: string; description?: string }>();
+    if (categoryIds.length > 0) {
+      const { data: cats, error: catsErr } = await supabase
+        .from('fixed_expense_categories')
+        .select('id, name, description')
+        .in('id', categoryIds);
+      if (!catsErr && cats) {
+        categoriasMap = new Map(cats.map((c: any) => [c.id, { id: c.id, name: c.name, description: c.description }]));
+      }
+    }
+
+    lista = raw.map((item: any) => ({
+      ...item,
+      category: item.category_id && categoriasMap.has(item.category_id)
+        ? categoriasMap.get(item.category_id)!
+        : null
+    })) as FixedExpense[];
   }
-
-  if (filtros?.categoriaId) {
-    query = query.eq('category_id', filtros.categoriaId);
-  }
-
-  if (filtros?.proveedor) {
-    query = query.ilike('provider', `%${filtros.proveedor}%`);
-  }
-
-  if (filtros?.montoMinimo !== undefined) {
-    query = query.gte('amount', filtros.montoMinimo);
-  }
-
-  if (filtros?.montoMaximo !== undefined) {
-    query = query.lte('amount', filtros.montoMaximo);
-  }
-
-  const { data, error } = await query;
-  if (error) throw error;
-
-  const lista = (data || []).map((item: any) => ({
-    ...item,
-    // category queda null; se puede reactivar embed cuando el esquema esté alineado
-    category: null
-  })) as FixedExpense[];
 
   // Ordenar en memoria por fecha descendente (usa date o created_at)
   return lista.sort((a, b) => {
@@ -86,18 +128,48 @@ export async function obtenerGastoFijoPorId(id: string): Promise<FixedExpense | 
     //.single();
   const { data, error } = await supabase
     .from('fixed_expenses')
-    .select('*')
+    .select(`
+      *,
+      category:fixed_expense_categories(id, name, description)
+    `)
     .eq('id', id)
     .single();
     
   if (error) {
     if (error.code === 'PGRST116') return null; // No encontrado
-    throw error;
+
+    const isRelationshipError =
+      error.code === 'PGRST200' ||
+      String(error.message || '').toLowerCase().includes('relationship') ||
+      String(error.message || '').toLowerCase().includes('schema cache');
+
+    if (!isRelationshipError) throw error;
+
+    // Fallback sin embed
+    const { data: dataFallback, error: errFallback } = await supabase
+      .from('fixed_expenses')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (errFallback) {
+      if (errFallback.code === 'PGRST116') return null;
+      throw errFallback;
+    }
+
+    return {
+      ...dataFallback,
+      category: null
+    } as FixedExpense;
   }
 
   return {
     ...data,
-    category: null
+    category: (data as any).category ? {
+      id: (data as any).category.id,
+      name: (data as any).category.name,
+      description: (data as any).category.description
+    } : null
   } as FixedExpense;
 }
 

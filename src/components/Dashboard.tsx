@@ -8,11 +8,13 @@ import { obtenerCotizaciones } from '../services/cotizaciones.service';
 import { obtenerMateriales } from '../services/materiales.service';
 import { obtenerServicios } from '../services/servicios.service';
 import { obtenerEstadisticasRentabilidad } from '../services/rentabilidad.service';
-import { obtenerEstadisticasDashboard } from '../services/dashboard-stats.service';
+import { obtenerEstadisticasDashboard, type EstadisticasDashboard }  from '../services/dashboard-stats.service';
 import { obtenerLiquidacionesPorFecha } from '../services/liquidaciones.service';
 import DashboardVendedor from './DashboardVendedor';
+
+import { obtenerSaldoDisponible } from '../services/saldo-disponible.service';
 import type { UserProfile, Cotizacion, Material, Servicio, Liquidacion } from '../types/database';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 interface DashboardProps {
   usuario: UserProfile;
@@ -28,7 +30,8 @@ export default function Dashboard({ usuario }: DashboardProps) {
   }
   const [estadisticasRentabilidad, setEstadisticasRentabilidad] = useState<any>(null);
   const [cargandoRentabilidad, setCargandoRentabilidad] = useState(false);
-  const [estadisticasDashboard, setEstadisticasDashboard] = useState<any>(null);
+  const [saldo, setSaldo] = useState<any>(null);
+  const [estadisticasDashboard, setEstadisticasDashboard] = useState<EstadisticasDashboard | null>(null);
   const [cargandoDashboard, setCargandoDashboard] = useState(false);
   const [liquidacionesMes, setLiquidacionesMes] = useState<Liquidacion[]>([]);
   const [cargandoLiquidaciones, setCargandoLiquidaciones] = useState(false);
@@ -95,6 +98,15 @@ export default function Dashboard({ usuario }: DashboardProps) {
     }
   }, [esAdmin]);
 
+  useEffect(() => {
+  const cargarSaldo = async () => {
+    const s = await obtenerSaldoDisponible();
+    console.log('SALDO REAL:', s);
+    setSaldo(s);
+  };
+  cargarSaldo();
+}, []);
+
   // Calcular fechas según el tipo de filtro
   const calcularFechasFiltro = () => {
     let inicio: Date;
@@ -155,6 +167,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
     }
   }, [esAdmin, tipoFiltro, mesSeleccionado, añoSeleccionado, fechaInicio, fechaFin, semanasAtras, mesesAtras]);
 
+
   // Cargar estadísticas de rentabilidad (solo admin)
   useEffect(() => {
     if (esAdmin) {
@@ -198,6 +211,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
     }
   }, [esAdmin, tipoFiltro, mesSeleccionado, añoSeleccionado, fechaInicio, fechaFin, semanasAtras, mesesAtras]);
 
+  
   // Función auxiliar para obtener el total de la cotización
   // IMPORTANTE: Usa siempre el total guardado para evitar inconsistencias
   const calcularTotalDesdeItems = (cotizacion: any): number => {
@@ -260,6 +274,8 @@ export default function Dashboard({ usuario }: DashboardProps) {
     { name: 'Aceptada', cantidad: cotizaciones.filter(c => c.estado === 'aceptada').length },
     { name: 'Rechazada', cantidad: cotizaciones.filter(c => c.estado === 'rechazada').length }
   ];
+
+  const COLORS_ESTADOS = ['#F59E0B', '#10B981', '#EF4444'];
 
   if (loadingCotizaciones || (esAdmin && cargandoDashboard)) {
     return (
@@ -426,7 +442,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
                   <div className="min-w-0 flex-1">
                     <dt className="text-[clamp(0.625rem,0.5rem+0.5vw,0.875rem)] font-medium text-gray-500 leading-tight">Cotizaciones Creadas</dt>
                     <dd className="text-[clamp(1.25rem,1rem+1vw,1.5rem)] font-bold text-gray-900 mt-0.5 sm:mt-1 leading-tight">
-                      {estadisticasDashboard?.totalCotizaciones ?? totalCotizacionesPeriodo}
+                    ${(saldo?.saldoRealDisponible ?? 0).toLocaleString('es-CO')}
                     </dd>
                     <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-0.5 leading-tight">Período seleccionado</p>
                   </div>
@@ -570,13 +586,13 @@ export default function Dashboard({ usuario }: DashboardProps) {
               </div>
             </div>
 
-            {/* Ganancia Real del Mes */}
+            {/* Ganancia Neta Real del Mes (después de pagos) */}
             <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-green-500 min-h-0 flex flex-col">
               <div className="p-3 sm:p-4 flex-1 flex flex-col min-w-0">
                 <div className="flex items-start gap-2 sm:gap-3 min-w-0">
                   <div className="flex-shrink-0">
                     <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-md flex items-center justify-center ${
-                      (estadisticasDashboard?.gananciaMes ?? 0) >= 0 ? 'bg-green-500' : 'bg-red-500'
+                      (estadisticasDashboard?.gananciaNetaMes ?? 0) >= 0 ? 'bg-green-500' : 'bg-red-500'
                     }`}>
                       <span className="text-white text-sm sm:text-lg font-bold">📈</span>
                     </div>
@@ -585,12 +601,12 @@ export default function Dashboard({ usuario }: DashboardProps) {
                     <dl>
                       <dt className="text-[clamp(0.625rem,0.5rem+0.5vw,0.875rem)] font-medium text-gray-500 truncate leading-tight">Ganancia Neta</dt>
                       <dd className={`text-[clamp(0.875rem,0.75rem+0.6vw,1.5rem)] font-bold leading-tight mt-0.5 sm:mt-1 break-all ${
-                        (estadisticasDashboard?.gananciaMes ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                        (estadisticasDashboard?.gananciaNetaMes ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'
                       }`}>
-                        ${(estadisticasDashboard?.gananciaMes ?? 0).toLocaleString('es-CO')}
+                        ${(estadisticasDashboard?.gananciaNetaMes ?? 0).toLocaleString('es-CO')}
                       </dd>
                       <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-1 leading-tight" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        Saldo real disponible (IVA ya descontado) · Margen: {(estadisticasDashboard?.margenGananciaMes ?? 0).toFixed(1)}%
+                        Dinero real del mes después de pagar todo · Margen: {(estadisticasDashboard?.margenGananciaNetaMes ?? 0).toFixed(1)}%
                       </p>
                     </dl>
                   </div>
@@ -688,37 +704,73 @@ export default function Dashboard({ usuario }: DashboardProps) {
             )}
           </div>
 
-          {/* Segunda fila: Desglose de Costos */}
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">💸 Desglose de Costos Reales del Mes</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                <p className="text-sm text-orange-800 font-medium">🛒 Materiales</p>
-                <p className="text-xl font-bold text-orange-600">
-                  ${(estadisticasDashboard?.gastosMaterialesMes ?? 0).toLocaleString('es-CO')}
-                </p>
-                <p className="text-xs text-orange-600 mt-1">Compras de materiales</p>
+          {/* Segunda fila: Desglose de Costos y Pagos */}
+          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">💸 Desglose de Costos Reales del Mes</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <p className="text-sm text-orange-800 font-medium">🛒 Materiales</p>
+                  <p className="text-xl font-bold text-orange-600">
+                    ${(estadisticasDashboard?.gastosMaterialesMes ?? 0).toLocaleString('es-CO')}
+                  </p>
+                  <p className="text-xs text-orange-600 mt-1">Costos asociados a cotizaciones aceptadas</p>
+                </div>
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <p className="text-sm text-purple-800 font-medium">👷 Mano de Obra</p>
+                  <p className="text-xl font-bold text-purple-600">
+                    ${(estadisticasDashboard?.gastosManoObraMes ?? 0).toLocaleString('es-CO')}
+                  </p>
+                  <p className="text-xs text-purple-600 mt-1">Costos asociados a cotizaciones aceptadas</p>
+                </div>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-sm text-yellow-800 font-medium">🐜 Gastos Hormiga</p>
+                  <p className="text-xl font-bold text-yellow-600">
+                    ${(estadisticasDashboard?.gastosHormigaMes ?? 0).toLocaleString('es-CO')}
+                  </p>
+                  <p className="text-xs text-yellow-600 mt-1">Costos asociados a cotizaciones aceptadas</p>
+                </div>
+                <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
+                  <p className="text-sm text-cyan-800 font-medium">🚚 Transporte</p>
+                  <p className="text-xl font-bold text-cyan-600">
+                    ${(estadisticasDashboard?.gastosTransporteMes ?? 0).toLocaleString('es-CO')}
+                  </p>
+                  <p className="text-xs text-cyan-600 mt-1">Costos asociados a cotizaciones aceptadas</p>
+                </div>
               </div>
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <p className="text-sm text-purple-800 font-medium">👷 Mano de Obra</p>
-                <p className="text-xl font-bold text-purple-600">
-                  ${(estadisticasDashboard?.gastosManoObraMes ?? 0).toLocaleString('es-CO')}
-                </p>
-                <p className="text-xs text-purple-600 mt-1">Pagos a trabajadores</p>
-              </div>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <p className="text-sm text-yellow-800 font-medium">🐜 Gastos Hormiga</p>
-                <p className="text-xl font-bold text-yellow-600">
-                  ${(estadisticasDashboard?.gastosHormigaMes ?? 0).toLocaleString('es-CO')}
-                </p>
-                <p className="text-xs text-yellow-600 mt-1">Gastos menores</p>
-              </div>
-              <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
-                <p className="text-sm text-cyan-800 font-medium">🚚 Transporte</p>
-                <p className="text-xl font-bold text-cyan-600">
-                  ${(estadisticasDashboard?.gastosTransporteMes ?? 0).toLocaleString('es-CO')}
-                </p>
-                <p className="text-xs text-cyan-600 mt-1">Fletes y envíos</p>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">🏦 Pagos reales del mes (salidas)</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <p className="text-sm text-purple-800 font-medium">👥 Personal</p>
+                  <p className="text-xl font-bold text-purple-600">
+                    ${(estadisticasDashboard?.pagosPersonalMes ?? 0).toLocaleString('es-CO')}
+                  </p>
+                  <p className="text-xs text-purple-600 mt-1">Liquidaciones pagadas en el período</p>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                  <p className="text-sm text-slate-800 font-medium">🧾 Gastos fijos</p>
+                  <p className="text-xl font-bold text-slate-700">
+                    ${(estadisticasDashboard?.pagosGastosFijosMes ?? 0).toLocaleString('es-CO')}
+                  </p>
+                  <p className="text-xs text-slate-600 mt-1">Pagos registrados por fecha</p>
+                </div>
+                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                  <p className="text-sm text-indigo-800 font-medium">🧾 IVA pagado</p>
+                  <p className="text-xl font-bold text-indigo-600">
+                    ${(estadisticasDashboard?.pagosIVAMes ?? 0).toLocaleString('es-CO')}
+                  </p>
+                  <p className="text-xs text-indigo-600 mt-1">Detectado en gastos fijos (texto “iva”)</p>
+                </div>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <p className="text-sm text-green-800 font-medium">📤 Total salidas</p>
+                  <p className="text-xl font-bold text-green-700">
+                    ${(estadisticasDashboard?.pagosTotalesMes ?? 0).toLocaleString('es-CO')}
+                  </p>
+                  <p className="text-xs text-green-600 mt-1">Suma de pagos del mes</p>
+                </div>
               </div>
             </div>
           </div>
@@ -764,16 +816,27 @@ export default function Dashboard({ usuario }: DashboardProps) {
                 <p className="text-xs text-gray-500 mt-1">No es ganancia · ya descontado en costos</p>
               </div>
               <div className="bg-white rounded-lg p-4 border border-green-200 shadow-sm">
-                <p className="text-sm text-gray-600 font-medium mb-1">📈 Saldo real / Ganancia</p>
-                <p className={`text-2xl font-bold ${(estadisticasDashboard?.gananciaHistorica ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  ${(estadisticasDashboard?.gananciaHistorica ?? 0).toLocaleString('es-CO')}
+                <p className="text-sm text-gray-600 font-medium mb-1">📈 Saldo real disponible</p>
+                <p className={`text-2xl font-bold ${(estadisticasDashboard?.saldoRealDisponible ?? saldo?.saldoRealDisponible ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  ${(
+                    estadisticasDashboard?.saldoRealDisponible ??
+                    saldo?.saldoRealDisponible ??
+                    0
+                  ).toLocaleString('es-CO')}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">Ventas − Costos (IVA incluido en costos)</p>
-                {estadisticasDashboard?.ventasTotalesHistorico && estadisticasDashboard.ventasTotalesHistorico > 0 && (
-                  <p className="text-xs text-green-600 mt-2 font-medium">
-                    Margen: {((estadisticasDashboard.gananciaHistorica / estadisticasDashboard.ventasTotalesHistorico) * 100).toFixed(1)}%
-                  </p>
-                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Cobrado histórico − todos los pagos (incl. IVA y gastos fijos). Es el mismo saldo real que ves en Caja de Ahorros.
+                </p>
+                {(() => {
+                  const disponible =
+                    estadisticasDashboard?.disponibleParaGastar ?? saldo?.disponibleParaGastar;
+                  if (disponible === undefined) return null;
+                  return (
+                    <p className="text-xs text-amber-700 mt-2 font-medium">
+                      Disponible para gastar (sin tocar ahorros): ${disponible.toLocaleString('es-CO')}
+                    </p>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -915,14 +978,23 @@ export default function Dashboard({ usuario }: DashboardProps) {
           Cotizaciones por Estado
         </h3>
         <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={datosEstados}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
+          <PieChart>
+            <Pie
+              data={datosEstados}
+              cx="50%"
+              cy="50%"
+              labelLine={false}
+              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+              outerRadius={90}
+              dataKey="cantidad"
+            >
+              {datosEstados.map((_, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS_ESTADOS[index % COLORS_ESTADOS.length]} />
+              ))}
+            </Pie>
+            <Tooltip formatter={(value: number) => `${value} cot.`} />
             <Legend />
-            <Bar dataKey="cantidad" fill="#4F46E5" />
-          </BarChart>
+          </PieChart>
         </ResponsiveContainer>
       </div>
 

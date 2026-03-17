@@ -173,6 +173,7 @@ export interface Cotizacion {
   subtotal_servicios: number;
   subtotal: number;
   descuento?: number; // Porcentaje de descuento aplicado
+  aplica_iva?: boolean; // Si false, la cotización es sin IVA (exenta)
   iva: number; // Monto del IVA calculado
   iva_porcentaje?: number; // Porcentaje de IVA (default 19%)
   margen_ganancia: number; // Porcentaje configurado

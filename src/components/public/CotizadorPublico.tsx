@@ -1,6 +1,7 @@
 /**
  * Cotizador público - Muestra resumen y opciones de envío
  */
+import { useState } from 'react';
 import type { Mueble, OpcionesMueble } from '../../types/muebles';
 import EnviarCotizacion from './EnviarCotizacion';
 
@@ -19,9 +20,11 @@ export default function CotizadorPublico({
   precioFinal,
   onBack
 }: CotizadorPublicoProps) {
+  const [aplicaIVA, setAplicaIVA] = useState(true);
+
   // Calcular totales
   const precioTotal = precioFinal * cantidad;
-  const ivaMonto = precioTotal * 0.19;
+  const ivaMonto = aplicaIVA ? (precioTotal * 0.19) : 0;
   const totalConIva = precioTotal + ivaMonto;
 
   // Crear item de cotización para mostrar
@@ -48,6 +51,31 @@ export default function CotizadorPublico({
 
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Resumen de tu Cotización</h2>
+
+          {/* IVA */}
+          <div className="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <p className="text-sm font-semibold text-gray-900 mb-2">IVA</p>
+            <div className="flex items-center gap-4 flex-wrap">
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="radio"
+                  name="publicoAplicaIva"
+                  checked={aplicaIVA}
+                  onChange={() => setAplicaIVA(true)}
+                />
+                Con IVA (19%)
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="radio"
+                  name="publicoAplicaIva"
+                  checked={!aplicaIVA}
+                  onChange={() => setAplicaIVA(false)}
+                />
+                Sin IVA (exento)
+              </label>
+            </div>
+          </div>
           
           {/* Detalle del producto */}
           <div className="border-b border-gray-200 pb-6 mb-6">
@@ -89,7 +117,7 @@ export default function CotizadorPublico({
               <span className="font-medium">${precioTotal.toLocaleString('es-CO')}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">IVA (19%):</span>
+              <span className="text-gray-600">IVA ({aplicaIVA ? '19%' : 'exento'}):</span>
               <span className="font-medium">${ivaMonto.toLocaleString('es-CO')}</span>
             </div>
             <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">

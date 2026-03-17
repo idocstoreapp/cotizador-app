@@ -34,38 +34,9 @@ const newClient = createClient(NEW_URL, NEW_SERVICE_ROLE, {
 // Orden pensado para respetar llaves foráneas (primero "maestras", luego dependientes)
 const TABLES_IN_ORDER = [
   // Catálogos / maestros
-  'perfiles',
-  'clientes',
-  'materiales',
-  'servicios',
-  'muebles',
-  'fixed_expense_categories',
-
-  // Tablas principales de negocio
-  'cotizaciones',
-  'cotizaciones_publicas',
-  'trabajos',
-  'cotizacion_trabajadores',
-
-  // Costos reales por cotización
-  'gastos_reales_materiales',
-  'mano_obra_real',
-  'gastos_hormiga',
-  'transporte_real',
-
-  // Gastos fijos / finanzas
-  'fixed_expenses',
-  'balance_personal',
-  'liquidaciones',
-  'caja_ahorros_movimientos',
-
-  // Facturación
-  'facturas',
-  'factura_items',
-
-  // Historial / auditoría
-  'historial_modificaciones_cotizaciones',
-  'cotizacion_pagos'
+  
+  'fixed_expenses'
+  
 ];
 
 const PAGE_SIZE = 1000;
@@ -96,9 +67,57 @@ async function migrateTable(tableName) {
 
     console.log(`   → Lote ${from}-${from + data.length - 1} (${data.length} filas)`);
 
-    const { error: insertError } = await newClient
-      .from(tableName)
-      .insert(data);
+    // Normalizar filas para compatibilidad entre esquemas OLD/NEW
+    const normalized = (data || []).map((row) => {
+      const r = { ...row };
+
+      if (tableName === 'fixed_expense_categories') {
+        // En algunos esquemas: OLD tiene "name" y NEW exige "nombre" (NOT NULL)
+        if ((r.nombre === null || r.nombre === undefined || r.nombre === '') && r.name) {
+          r.nombre = r.name;
+        }
+      }
+
+      if (tableName === 'transporte_real') {
+        // En algunos esquemas: NEW exige "monto" (NOT NULL) y OLD usa "costo"
+        if ((r.monto === null || r.monto === undefined) && (r.costo !== null && r.costo !== undefined)) {
+          r.monto = r.costo;
+        }
+        // Si ambos vienen nulos, dejar 0 para evitar NOT NULL
+        if (r.monto === null || r.monto === undefined) {
+          r.monto = 0;
+        }
+      }
+
+      if (tableName === 'fixed_expenses') {
+        // En algunos esquemas: OLD usa "metodo_pago"
+        if ((r.payment_method === null || r.payment_method === undefined) && r.metodo_pago) {
+          r.payment_method = r.metodo_pago;
+        }
+        // En algunos esquemas NEW: existe "nombre" NOT NULL
+        if ((r.nombre === null || r.nombre === undefined || r.nombre === '') && (r.description || r.descripcion || r.detalle)) {
+          r.nombre = r.description || r.descripcion || r.detalle;
+        }
+      }
+
+      if (tableName === 'liquidaciones') {
+        // En algunos esquemas: OLD usa "referencia"
+        if ((r.numero_referencia === null || r.numero_referencia === undefined) && r.referencia) {
+          r.numero_referencia = r.referencia;
+        }
+      }
+
+      return r;
+    });
+
+    // IMPORTANTE:
+    // - En re-ejecuciones es normal tener IDs duplicados (PK). Usamos upsert para no frenar toda la migración.
+    // - Si una tabla no tiene columna id (raro aquí), Supabase rechazará onConflict.
+    const hasId = normalized.length > 0 && Object.prototype.hasOwnProperty.call(normalized[0], 'id');
+    const insertBuilder = newClient.from(tableName);
+    const { error: insertError } = hasId
+      ? await insertBuilder.upsert(normalized, { onConflict: 'id' })
+      : await insertBuilder.insert(normalized);
 
     if (insertError) {
       console.error(`❌ Error al insertar en ${tableName}:`, insertError.message || insertError);

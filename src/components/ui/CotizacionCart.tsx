@@ -12,7 +12,7 @@ interface CotizacionCartProps {
 }
 
 export default function CotizacionCart({ onGenerarPDF, cotizacionId }: CotizacionCartProps) {
-  const { items, subtotal, descuento, iva, total, eliminarItem, actualizarCantidad, setDescuento, calcularTotales } = useCotizacionStore();
+  const { items, subtotal, descuento, aplica_iva, iva, total, eliminarItem, actualizarCantidad, setDescuento, setAplicaIVA } = useCotizacionStore();
   const [descuentoInput, setDescuentoInput] = useState(descuento.toString());
   const [itemEditando, setItemEditando] = useState<string | null>(null);
 
@@ -357,8 +357,31 @@ export default function CotizacionCart({ onGenerarPDF, cotizacionId }: Cotizacio
               </span>
             </div>
           )}
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600">IVA:</span>
+            <div className="flex items-center gap-4">
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="radio"
+                  name="cartAplicaIva"
+                  checked={aplica_iva}
+                  onChange={() => setAplicaIVA(true)}
+                />
+                Con IVA (19%)
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="radio"
+                  name="cartAplicaIva"
+                  checked={!aplica_iva}
+                  onChange={() => setAplicaIVA(false)}
+                />
+                Sin IVA
+              </label>
+            </div>
+          </div>
           <div className="flex justify-between text-gray-600">
-            <span>Impuestos (IVA 19%):</span>
+            <span>Impuestos (IVA {aplica_iva ? '19%' : 'exento'}):</span>
             <span className="font-medium">${iva.toLocaleString('es-CO')}</span>
           </div>
           <p className="text-xs text-gray-500 -mt-1 text-right">El IVA es impuesto, no ganancia</p>

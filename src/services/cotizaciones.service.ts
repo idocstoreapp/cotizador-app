@@ -179,18 +179,21 @@ export async function crearCotizacion(
   let iva = 0;
   let total = 0;
   let margenGanancia = cotizacion.margen_ganancia || 30;
+  const aplicaIVA = cotizacion.aplica_iva !== undefined ? cotizacion.aplica_iva : true;
 
   if (items && items.length > 0 && totalDesdeItems !== undefined) {
     // Usar totales calculados desde items (más preciso)
     subtotal = subtotalDesdeItems || items.reduce((sum, item) => sum + (item.precio_total || 0), 0);
-    iva = ivaDesdeItems || 0;
+    iva = aplicaIVA ? (ivaDesdeItems || 0) : 0;
     total = totalDesdeItems;
     
     // Calcular subtotales de materiales y servicios para referencia
     const calculos = calcularCotizacionCompleta(
       cotizacion.materiales,
       cotizacion.servicios,
-      margenGanancia
+      margenGanancia,
+      19,
+      aplicaIVA
     );
     subtotalMateriales = calculos.subtotalMateriales;
     subtotalServicios = calculos.subtotalServicios;
@@ -199,7 +202,9 @@ export async function crearCotizacion(
     const calculos = calcularCotizacionCompleta(
       cotizacion.materiales,
       cotizacion.servicios,
-      margenGanancia
+      margenGanancia,
+      19,
+      aplicaIVA
     );
     subtotal = calculos.subtotal;
     subtotalMateriales = calculos.subtotalMateriales;
@@ -229,6 +234,7 @@ export async function crearCotizacion(
       subtotal_materiales: subtotalMateriales,
       subtotal_servicios: subtotalServicios,
       subtotal: subtotal,
+      aplica_iva: aplicaIVA,
       iva: iva,
       margen_ganancia: margenGanancia,
       total: total,
@@ -286,8 +292,11 @@ export async function actualizarCotizacionConHistorial(
     const descuentoValor = descuento || 0;
     const descuentoMonto = subtotalCalc ? subtotalCalc * (descuentoValor / 100) : 0;
     const subtotalConDescuento = subtotalCalc ? subtotalCalc - descuentoMonto : 0;
+    const aplicaIVA = cotizacion.aplica_iva !== undefined
+      ? cotizacion.aplica_iva
+      : (cotizacionActual.aplica_iva !== undefined ? cotizacionActual.aplica_iva : true);
     const ivaPorcentaje = 19;
-    ivaCalc = subtotalConDescuento * (ivaPorcentaje / 100);
+    ivaCalc = aplicaIVA ? (subtotalConDescuento * (ivaPorcentaje / 100)) : 0;
     totalCalc = subtotalConDescuento + ivaCalc;
   }
 
@@ -367,24 +376,27 @@ export async function actualizarCotizacion(
   let iva = 0;
   let total = 0;
   let margenGanancia = cotizacion.margen_ganancia ?? actual.margen_ganancia ?? 30;
+  const aplicaIVA = cotizacion.aplica_iva !== undefined
+    ? cotizacion.aplica_iva
+    : (actual.aplica_iva !== undefined ? actual.aplica_iva : true);
 
   if (items && items.length > 0 && totalDesdeItems !== undefined) {
     // Usar totales calculados desde items (más preciso)
     subtotal = subtotalDesdeItems || items.reduce((sum, item) => sum + (item.precio_total || 0), 0);
-    iva = ivaDesdeItems || 0;
+    iva = aplicaIVA ? (ivaDesdeItems || 0) : 0;
     total = totalDesdeItems;
     
     // Calcular subtotales de materiales y servicios para referencia
     const materiales = cotizacion.materiales || actual.materiales;
     const servicios = cotizacion.servicios || actual.servicios;
-    const calculos = calcularCotizacionCompleta(materiales, servicios, margenGanancia);
+    const calculos = calcularCotizacionCompleta(materiales, servicios, margenGanancia, 19, aplicaIVA);
     subtotalMateriales = calculos.subtotalMateriales;
     subtotalServicios = calculos.subtotalServicios;
   } else if (cotizacion.materiales || cotizacion.servicios) {
     // Fallback: calcular desde materiales y servicios
     const materiales = cotizacion.materiales || actual.materiales;
     const servicios = cotizacion.servicios || actual.servicios;
-    const calculos = calcularCotizacionCompleta(materiales, servicios, margenGanancia);
+    const calculos = calcularCotizacionCompleta(materiales, servicios, margenGanancia, 19, aplicaIVA);
     subtotal = calculos.subtotal;
     subtotalMateriales = calculos.subtotalMateriales;
     subtotalServicios = calculos.subtotalServicios;
@@ -405,6 +417,7 @@ export async function actualizarCotizacion(
     subtotal_materiales: subtotalMateriales,
     subtotal_servicios: subtotalServicios,
     subtotal: subtotal,
+    aplica_iva: aplicaIVA,
     iva: iva,
     margen_ganancia: margenGanancia,
     total: total,

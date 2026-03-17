@@ -20,6 +20,7 @@ export default function Cotizador() {
   const [clienteTelefono, setClienteTelefono] = useState('');
   const [clienteDireccion, setClienteDireccion] = useState('');
   const [margenGanancia, setMargenGanancia] = useState('30');
+  const [aplicaIVA, setAplicaIVA] = useState(true);
   const [notas, setNotas] = useState('');
 
   // Estado de materiales y servicios seleccionados
@@ -132,7 +133,9 @@ export default function Cotizador() {
     return calcularCotizacionCompleta(
       materialesInput,
       serviciosInput,
-      parseFloat(margenGanancia) || 30
+      parseFloat(margenGanancia) || 30,
+      19,
+      aplicaIVA
     );
   };
 
@@ -173,6 +176,7 @@ export default function Cotizador() {
         materiales: materialesInput,
         servicios: serviciosInput,
         margen_ganancia: parseFloat(margenGanancia) || 30,
+        aplica_iva: aplicaIVA,
         notas: notas || undefined
       });
 
@@ -189,6 +193,7 @@ export default function Cotizador() {
         setClienteDireccion('');
         setMaterialesSeleccionados([]);
         setServiciosSeleccionados([]);
+        setAplicaIVA(true);
         setNotas('');
         setSuccess(false);
       }, 2000);
@@ -408,6 +413,32 @@ export default function Cotizador() {
         <div className="bg-white shadow rounded-lg p-6">
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
+              IVA
+            </label>
+            <div className="flex items-center gap-4">
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="radio"
+                  name="aplicaIva"
+                  checked={aplicaIVA}
+                  onChange={() => setAplicaIVA(true)}
+                />
+                Con IVA (19%)
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="radio"
+                  name="aplicaIva"
+                  checked={!aplicaIVA}
+                  onChange={() => setAplicaIVA(false)}
+                />
+                Sin IVA (exento)
+              </label>
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Margen de Ganancia (%)
             </label>
             <input
@@ -450,7 +481,7 @@ export default function Cotizador() {
               <span>${((totales.subtotal * parseFloat(margenGanancia)) / 100).toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
-              <span>IVA (19%):</span>
+              <span>IVA ({aplicaIVA ? '19%' : 'exento'}):</span>
               <span>${totales.iva.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-lg font-bold border-t pt-2">

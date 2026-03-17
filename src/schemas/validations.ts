@@ -60,6 +60,7 @@ export const cotizacionSchema = z.object({
   materiales: z.array(cotizacionMaterialSchema).min(0),
   servicios: z.array(cotizacionServicioSchema).min(0),
   margen_ganancia: z.number().min(0).max(100, 'El margen de ganancia no puede ser mayor a 100%'),
+  aplica_iva: z.boolean().optional(),
   notas: z.string().optional()
 });
 

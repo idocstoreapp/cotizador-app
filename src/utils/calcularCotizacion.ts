@@ -93,7 +93,8 @@ export function calcularCotizacionCompleta(
   materiales: CotizacionMaterial[],
   servicios: CotizacionServicio[],
   margenGanancia: number = MARGEN_GANANCIA_DEFAULT,
-  ivaPorcentaje: number = IVA_PORCENTAJE
+  ivaPorcentaje: number = IVA_PORCENTAJE,
+  aplicaIVA: boolean = true
 ) {
   // Calcular subtotales
   const subtotalMateriales = calcularSubtotalMateriales(materiales);
@@ -101,7 +102,7 @@ export function calcularCotizacionCompleta(
   const subtotal = calcularSubtotal(subtotalMateriales, subtotalServicios);
 
   // Calcular IVA
-  const iva = calcularIVA(subtotal, ivaPorcentaje);
+  const iva = aplicaIVA ? calcularIVA(subtotal, ivaPorcentaje) : 0;
 
   // Calcular total con margen
   const total = calcularTotal(subtotal, iva, margenGanancia);
@@ -111,6 +112,7 @@ export function calcularCotizacionCompleta(
     subtotalServicios,
     subtotal,
     iva,
+    aplicaIVA,
     margenGanancia,
     total
   };
