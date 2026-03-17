@@ -23,11 +23,17 @@ export async function obtenerGastosFijos(filtros?: {
   let query = supabase.from('fixed_expenses').select('*');
 
   // Aplicar filtros
-  if (filtros?.mes && filtros?.anio) {
-    const fechaInicio = `${filtros.anio}-${String(filtros.mes).padStart(2, '0')}-01`;
-    const fechaFin = `${filtros.anio}-${String(filtros.mes).padStart(2, '0')}-31`;
-    query = query.gte('date', fechaInicio).lte('date', fechaFin);
-  } else if (filtros?.fechaDesde) {
+  // Dentro de obtenerGastosFijos, al aplicar filtro por mes/año
+if (filtros?.mes && filtros?.anio) {
+  const fechaInicio = `${filtros.anio}-${String(filtros.mes).padStart(2, '0')}-01`;
+
+  // Último día real del mes usando Date:
+  const ultimoDia = new Date(filtros.anio, filtros.mes, 0).getDate();
+  const fechaFin = `${filtros.anio}-${String(filtros.mes).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
+
+  query = query.gte('date', fechaInicio).lte('date', fechaFin);
+}
+  else if (filtros?.fechaDesde) {
     query = query.gte('date', filtros.fechaDesde);
   } else if (filtros?.fechaHasta) {
     query = query.lte('date', filtros.fechaHasta);
@@ -258,5 +264,5 @@ export async function obtenerEstadisticasGastosFijos(filtros?: {
     totalPorMes,
     top5Gastos
   };
-}
+};
 

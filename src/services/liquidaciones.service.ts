@@ -71,19 +71,22 @@ const LIQUIDACIONES_SELECT_EMBED = `
   )
 `;
 
-async function selectLiquidaciones(query: any): Promise<Liquidacion[]> {
-  // supabase-js v2: .order() está disponible después de .select()
-  const withEmbed = query
-    .select(LIQUIDACIONES_SELECT_EMBED)
-    .order('fecha_liquidacion', { ascending: false });
+type LiquidacionesFilterApplier = (q: any) => any;
+
+async function selectLiquidaciones(baseQuery: any, applyFilters?: LiquidacionesFilterApplier): Promise<Liquidacion[]> {
+  // supabase-js v2: filtros (or/gte/lte) y order deben ir DESPUÉS de select()
+  const withEmbedBase = baseQuery.select(LIQUIDACIONES_SELECT_EMBED);
+  const withEmbed = (applyFilters ? applyFilters(withEmbedBase) : withEmbedBase).order('fecha_liquidacion', { ascending: false });
   const { data, error } = await withEmbed;
   if (!error) return data as Liquidacion[];
+
   if (error.code === 'PGRST200' || error.message?.includes('relationship')) {
-    const { data: dataFallback, error: errFallback } = await query
-      .select('*')
-      .order('fecha_liquidacion', { ascending: false });
+    const fallbackBase = baseQuery.select('*');
+    const fallback = (applyFilters ? applyFilters(fallbackBase) : fallbackBase).order('fecha_liquidacion', { ascending: false });
+    const { data: dataFallback, error: errFallback } = await fallback;
     if (!errFallback) return dataFallback as Liquidacion[];
   }
+
   throw error;
 }
 
@@ -103,18 +106,10 @@ export async function obtenerLiquidacionesPorFecha(
   fechaInicio: string,
   fechaFin: string
 ): Promise<Liquidacion[]> {
-
-  const query = supabase
-    .from('liquidaciones')
-    .select('*')
-    .gte('fecha_liquidacion', fechaInicio + 'T00:00:00')
-    .lte('fecha_liquidacion', fechaFin + 'T23:59:59');
-
-  const { data, error } = await query;
-
-  if (error) throw error;
-
-  return data as Liquidacion[];
+  const base = supabase.from('liquidaciones');
+  return selectLiquidaciones(base, (q) =>
+    q.gte('fecha_liquidacion', fechaInicio + 'T00:00:00').lte('fecha_liquidacion', fechaFin + 'T23:59:59')
+  );
 }
 
 /**
@@ -122,10 +117,8 @@ export async function obtenerLiquidacionesPorFecha(
  * (persona_id o trabajador_id según lo que exista en el esquema)
  */
 export async function obtenerLiquidacionesPorPersona(personaId: string): Promise<Liquidacion[]> {
-  const query = (supabase
-    .from('liquidaciones') as any)
-    .or(`persona_id.eq.${personaId},trabajador_id.eq.${personaId}`);
-  return selectLiquidaciones(query);
+  const base = supabase.from('liquidaciones');
+  return selectLiquidaciones(base, (q) => q.or(`persona_id.eq.${personaId},trabajador_id.eq.${personaId}`));
 }
 
 /**

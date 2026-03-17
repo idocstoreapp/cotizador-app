@@ -549,6 +549,14 @@ export default function Dashboard({ usuario }: DashboardProps) {
                           <p className="text-[0.65rem] text-gray-400">Mat.+M.Obra+Hormiga+Transp.</p>
                         </div>
                         <div className="min-w-0">
+  <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-500 leading-tight truncate">
+    Gastos fijos del mes
+  </p>
+  <p className="text-[clamp(0.625rem,0.5rem+0.4vw,0.875rem)] font-semibold text-orange-600 leading-tight break-all">
+    ${(estadisticasDashboard?.gastosFijosMes ?? 0).toLocaleString('es-CO')}
+  </p>
+</div>
+                        <div className="min-w-0">
                           <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-500 leading-tight truncate">IVA (impuesto)</p>
                           <p className="text-[clamp(0.625rem,0.5rem+0.4vw,0.875rem)] font-semibold text-indigo-600 leading-tight break-all">
                             ${(estadisticasDashboard?.ivaRealMes ?? 0).toLocaleString('es-CO')}

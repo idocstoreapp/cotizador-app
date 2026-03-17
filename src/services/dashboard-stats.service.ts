@@ -4,7 +4,9 @@
  */
 import { supabase } from '../utils/supabase';
 import { obtenerCotizaciones } from './cotizaciones.service';
+import { obtenerEstadisticasGastosFijos } from './fixed-expenses.service';
 import type { Cotizacion } from '../types/database';
+
 
 export interface EstadisticasDashboard {
   // Cotizaciones
@@ -27,6 +29,7 @@ export interface EstadisticasDashboard {
   gastosManoObraMes: number;
   gastosHormigaMes: number;
   gastosTransporteMes: number;
+  gastosFijosMes: number;
   ivaRealMes: number; // IVA presupuestado del período (no es ganancia)
   costosTotalesMes: number; // Suma de todos los costos (incluye IVA)
   
@@ -92,6 +95,8 @@ export async function obtenerEstadisticasDashboard(
   const ahora = new Date();
   let inicioPeriodo: Date;
   let finPeriodo: Date;
+  const mesBase = mes !== undefined ? mes : ahora.getMonth();
+  const añoBase = año !== undefined ? año : ahora.getFullYear();
   
   if (fechaInicio && fechaFin) {
     // Usar rango de fechas proporcionado
@@ -101,11 +106,9 @@ export async function obtenerEstadisticasDashboard(
     finPeriodo.setHours(23, 59, 59, 999);
   } else {
     // Fallback a mes/año
-    const mesSeleccionado = mes !== undefined ? mes : ahora.getMonth();
-    const añoSeleccionado = año !== undefined ? año : ahora.getFullYear();
-    inicioPeriodo = new Date(añoSeleccionado, mesSeleccionado, 1);
+    inicioPeriodo = new Date(añoBase, mesBase, 1);
     inicioPeriodo.setHours(0, 0, 0, 0);
-    finPeriodo = new Date(añoSeleccionado, mesSeleccionado + 1, 0, 23, 59, 59);
+    finPeriodo = new Date(añoBase, mesBase + 1, 0, 23, 59, 59);
   }
   
   // Calcular período anterior para comparación (mismo número de días)
@@ -572,8 +575,20 @@ export async function obtenerEstadisticasDashboard(
     console.warn('⚠️ [Dashboard] Error al calcular IVA presupuestado:', error);
   }
 
-  // COSTOS TOTALES = Materiales + Mano de Obra + Gastos Hormiga + Transporte + IVA Presupuestado
-  const costosTotalesMes = gastosMaterialesMes + gastosManoObraMes + gastosHormigaMes + gastosTransporteMes + ivaRealMes;
+  // Incluir gastos fijos del mes
+  let gastosFijosMes = 0;
+  try {
+    const statsGastosFijos = await obtenerEstadisticasGastosFijos({
+      mes: mesBase + 1, // servicio usa 1-12
+      anio: añoBase
+    });
+    gastosFijosMes = statsGastosFijos?.totalMes ?? 0;
+  } catch (error) {
+    console.warn('⚠️ [Dashboard] Error al obtener estadísticas de gastos fijos:', error);
+  }
+
+  // COSTOS TOTALES = Materiales + Mano de Obra + Gastos Hormiga + Transporte + Gastos Fijos + IVA Presupuestado
+  const costosTotalesMes = gastosMaterialesMes + gastosManoObraMes + gastosHormigaMes + gastosTransporteMes + gastosFijosMes + ivaRealMes;
 
   // GANANCIA REAL = Ventas - Costos Totales (incluye IVA)
   const gananciaMes = ventasTotalesPeriodo - costosTotalesMes;
@@ -845,7 +860,7 @@ export async function obtenerEstadisticasDashboard(
             return sum + (costoPorUnidad * multiplicador);
           }, 0)
       };
-      costosK001.total = costosK001.materiales + costosK001.manoObra + costosK001.gastosHormiga + costosK001.transporte;
+      (costosK001 as any).total = costosK001.materiales + costosK001.manoObra + costosK001.gastosHormiga + costosK001.transporte;
       
       console.log('🔍 [Dashboard Stats] Costos de K001:', {
         cotizacion_id: cotizacionK001.id,
@@ -908,6 +923,7 @@ export async function obtenerEstadisticasDashboard(
     gastosManoObraMes,
     gastosHormigaMes,
     gastosTransporteMes,
+    gastosFijosMes,
     costosTotalesMes,
     ivaRealMes,
     gananciaMes: ventasTotalesPeriodo - costosTotalesMes,
