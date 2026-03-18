@@ -415,6 +415,7 @@ export default function CotizacionCart({ onGenerarPDF, cotizacionId }: Cotizacio
       {/* Modal de editar item */}
       {itemEditando && (() => {
         const item = items.find(i => i.id === itemEditando);
+        const { calcularTotales } = useCotizacionStore();
         if (!item) {
           setItemEditando(null);
           return null;

@@ -100,6 +100,12 @@ export interface ItemManualCotizacion {
   }>;
   porcentaje_mano_obra?: number; // Porcentaje adicional sobre mano de obra (no suma a utilidad)
   monto_pintura?: number; // Monto total de pintura
+  costos_indirectos?: { // Costos indirectos asociados al item
+    transporte?: number;
+    herramientas?: number;
+    alquiler_espacio?: number;
+    caja_chica?: number;
+  };
   descuento?: number; // Porcentaje de descuento
   dias_fabricacion?: number;
   margen_ganancia?: number;
