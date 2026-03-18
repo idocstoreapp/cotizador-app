@@ -73,7 +73,11 @@ setError(typeof e === 'string' ? e : (e?.message || JSON.stringify(e)));
     setGuardando(true);
     setError(null);
     try {
-      await depositarAhorros({ monto, nota: notaDeposito.trim() || undefined });
+      await depositarAhorros({ 
+        monto, 
+        nota: notaDeposito.trim() || undefined,
+        created_by: usuario?.id || undefined // Registrar quién hizo el depósito
+      });
       setMostrarModalDeposito(false);
       setMontoDeposito('');
       setNotaDeposito('');
@@ -163,33 +167,53 @@ setError(typeof e === 'string' ? e : (e?.message || JSON.stringify(e)));
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <h2 className="text-lg font-semibold text-gray-900 p-4 border-b border-gray-200">
-              Movimientos (depósitos a ahorros)
-            </h2>
+            <div className="p-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">📜 Historial de Movimientos</h2>
+              <p className="text-xs text-gray-500 mt-1">Todos los depósitos registrados con fecha y detalles</p>
+            </div>
             {movimientos.length === 0 ? (
-              <p className="p-6 text-gray-500 text-center">Aún no hay depósitos.</p>
+              <p className="p-6 text-gray-500 text-center">Aún no hay depósitos registrados.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Monto</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nota</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">📅 Fecha</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">💰 Monto</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">📝 Nota</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acumulado</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {movimientos.map((m) => (
-                      <tr key={m.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {new Date(m.fecha).toLocaleDateString('es-CO')}
-                        </td>
-                        <td className="px-4 py-3 text-sm font-medium text-indigo-600 text-right">
-                          +${Number(m.monto).toLocaleString('es-CO')}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-500">{m.nota || '—'}</td>
-                      </tr>
-                    ))}
+                    {movimientos.map((m, index) => {
+                      const acumulado = movimientos.slice(0, index + 1).reduce((sum, mov) => sum + Number(mov.monto), 0);
+                      return (
+                        <tr key={m.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                            {new Date(m.fecha).toLocaleDateString('es-CO', { 
+                              year: 'numeric', 
+                              month: '2-digit', 
+                              day: '2-digit' 
+                            })}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-bold text-indigo-600 text-right">
+                            +${Number(m.monto).toLocaleString('es-CO')}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {m.nota ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-200">
+                                {m.nota}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right">
+                            ${acumulado.toLocaleString('es-CO')}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

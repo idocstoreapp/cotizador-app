@@ -813,13 +813,13 @@ export async function obtenerEstadisticasDashboard(
     console.warn('⚠️ [Dashboard] Error al calcular pagos reales del mes:', e);
   }
 
-  // Total de salidas reales del período (no incluye IVA "reservado"; eso se descuenta aparte como obligación)
+  // Total de salidas reales del período
   const pagosTotalesMes =
     pagosMaterialesMes +
     pagosManoObraMes +
     pagosHormigaMes +
     pagosTransporteMes +
-    pagosGastosFijosMes +
+    pagosGastosFijosMes +      // ← YA INCLUYE IVA pagado en gastos fijos
     pagosPersonalMes;
 
   // COSTOS TOTALES = Materiales + Mano de Obra + Gastos Hormiga + Transporte + Gastos Fijos + IVA Presupuestado
@@ -846,8 +846,11 @@ export async function obtenerEstadisticasDashboard(
     return sum + (ivaCotizacion * proporcion);
   }, 0);
 
-  // GANANCIA NETA REAL (cashflow): cobros reales - salidas reales - IVA reservado
-  const gananciaNetaMes = cobrosTotalesPeriodo - pagosTotalesMes - ivaReservadoPeriodo;
+  // IVA NETO pendiente por pagar al estado = IVA cobrado a clientes - IVA ya pagado a proveedores
+  const ivaNetoPendiente = Math.max(0, ivaReservadoPeriodo - pagosIVAMes);
+
+  // GANANCIA NETA REAL (cashflow): cobros reales - salidas reales - IVA neto pendiente
+  const gananciaNetaMes = cobrosTotalesPeriodo - pagosTotalesMes - ivaNetoPendiente;
   const margenGananciaNetaMes = cobrosTotalesPeriodo > 0 ? (gananciaNetaMes / cobrosTotalesPeriodo) * 100 : 0;
 
   // ====== COMPARACIÓN MES ANTERIOR ======

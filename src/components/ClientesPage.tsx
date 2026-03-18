@@ -7,7 +7,7 @@ import { useUser } from '../contexts/UserContext';
 import { obtenerUsuarioActual } from '../services/auth.service';
 import { obtenerClientes, obtenerClienteConTrabajos } from '../services/clientes.service';
 import { obtenerCotizacionesPorCliente } from '../services/cotizaciones.service';
-import { obtenerPagosPorCotizacion, agregarPagoCotizacion, asegurarHistorialPagos, actualizarFechaPagoCotizacion } from '../services/cotizacion-pagos.service';
+import { obtenerPagosPorCotizacion, agregarPagoCotizacion, asegurarHistorialPagos, actualizarFechaPagoCotizacion, actualizarMontoPagoCotizacion, eliminarPagoCotizacion } from '../services/cotizacion-pagos.service';
 import { downloadQuotePDF } from '../utils/pdf';
 import { convertirCotizacionAPDF } from '../utils/convertirCotizacionAPDF';
 import EditarCotizacionModal from './EditarCotizacionModal';
@@ -711,7 +711,7 @@ export default function ClientesPage() {
                     </thead>
                     <tbody>
               {pagosCotizacionModal.map((p) => (
-                <tr key={p.id} className="border-b border-gray-100">
+                <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-2">
                     {esAdmin ? (
                       <input
@@ -737,8 +737,50 @@ export default function ClientesPage() {
                   <td className="py-2 text-right font-medium text-green-600">+${Number(p.monto).toLocaleString('es-CO')}</td>
                   <td className="py-2 text-gray-500">{p.nota || '—'}</td>
                   {esAdmin && (
-                    <td className="py-2 text-center text-xs text-gray-400">
-                      (Solo fecha editable)
+                    <td className="py-2 text-center flex gap-2 justify-center">
+                      <button
+                        onClick={async () => {
+                          const nuevoMonto = prompt(`Nuevo monto para este pago (actual: $${Number(p.monto).toLocaleString('es-CO')}):`, String(p.monto));
+                          if (!nuevoMonto || isNaN(Number(nuevoMonto))) return;
+                          try {
+                            const { montoPagadoTotal, estadoPago } = await actualizarMontoPagoCotizacion(p.id, Number(nuevoMonto), p.cotizacion_id, cotizacionEditandoPago.total);
+                            setCotizacionEditandoPago(prev => prev && prev.id === p.cotizacion_id ? { ...prev, monto_pagado: montoPagadoTotal, estado_pago: estadoPago } : prev);
+                            const pagosActualizados = await obtenerPagosPorCotizacion(p.cotizacion_id);
+                            setPagosCotizacionModal(pagosActualizados);
+                            // Recargar la cotización en la lista general
+                            if (clienteSeleccionado) {
+                              await cargarCotizacionesCliente(clienteSeleccionado);
+                            }
+                          } catch (err: any) {
+                            alert('Error al actualizar monto: ' + (err.message || 'Error desconocido'));
+                          }
+                        }}
+                        className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs rounded transition"
+                        title="Editar monto"
+                      >
+                        ✏️ Editar
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`¿Seguro que quieres eliminar este pago de $${Number(p.monto).toLocaleString('es-CO')}? Esta acción es irreversible.`)) return;
+                          try {
+                            const { montoPagadoTotal, estadoPago } = await eliminarPagoCotizacion(p.id, p.cotizacion_id, cotizacionEditandoPago.total);
+                            setCotizacionEditandoPago(prev => prev && prev.id === p.cotizacion_id ? { ...prev, monto_pagado: montoPagadoTotal, estado_pago: estadoPago } : prev);
+                            const pagosActualizados = await obtenerPagosPorCotizacion(p.cotizacion_id);
+                            setPagosCotizacionModal(pagosActualizados);
+                            // Recargar la cotización en la lista general
+                            if (clienteSeleccionado) {
+                              await cargarCotizacionesCliente(clienteSeleccionado);
+                            }
+                          } catch (err: any) {
+                            alert('Error al eliminar pago: ' + (err.message || 'Error desconocido'));
+                          }
+                        }}
+                        className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded transition"
+                        title="Eliminar pago"
+                      >
+                        🗑️ Eliminar
+                      </button>
                     </td>
                   )}
                 </tr>

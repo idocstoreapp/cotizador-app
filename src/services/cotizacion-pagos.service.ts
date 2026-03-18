@@ -91,3 +91,71 @@ export async function asegurarHistorialPagos(cotizacionId: string, montoPagadoAc
   });
   return await obtenerPagosPorCotizacion(cotizacionId);
 }
+
+/**
+ * Actualiza el monto de un pago existente.
+ * Recalcula automáticamente monto_pagado y estado_pago de la cotización.
+ */
+export async function actualizarMontoPagoCotizacion(
+  pagoId: string,
+  nuevoMonto: number,
+  cotizacionId: string,
+  totalCotizacion?: number
+): Promise<{ pago: CotizacionPago; montoPagadoTotal: number; estadoPago: 'no_pagado' | 'pago_parcial' | 'pagado' }> {
+  if (nuevoMonto <= 0) throw new Error('El monto debe ser mayor a 0.');
+
+  const { data, error } = await supabase
+    .from('cotizacion_pagos')
+    .update({ monto: nuevoMonto })
+    .eq('id', pagoId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  const pago = data as CotizacionPago;
+
+  // Recalcular totales
+  const todos = await obtenerPagosPorCotizacion(cotizacionId);
+  const montoPagadoTotal = todos.reduce((sum, p) => sum + Number(p.monto), 0);
+  const total = totalCotizacion ?? 0;
+  let estadoPago: 'no_pagado' | 'pago_parcial' | 'pagado' = 'no_pagado';
+  if (total > 0) {
+    if (montoPagadoTotal >= total) estadoPago = 'pagado';
+    else if (montoPagadoTotal > 0) estadoPago = 'pago_parcial';
+  }
+
+  await actualizarEstadoPagoCotizacion(cotizacionId, estadoPago, montoPagadoTotal);
+
+  return { pago, montoPagadoTotal, estadoPago };
+}
+
+/**
+ * Elimina un pago completamente.
+ * Recalcula automáticamente monto_pagado y estado_pago de la cotización.
+ */
+export async function eliminarPagoCotizacion(
+  pagoId: string,
+  cotizacionId: string,
+  totalCotizacion?: number
+): Promise<{ montoPagadoTotal: number; estadoPago: 'no_pagado' | 'pago_parcial' | 'pagado' }> {
+  const { error: errDelete } = await supabase
+    .from('cotizacion_pagos')
+    .delete()
+    .eq('id', pagoId);
+
+  if (errDelete) throw errDelete;
+
+  // Recalcular totales después de eliminar
+  const todos = await obtenerPagosPorCotizacion(cotizacionId);
+  const montoPagadoTotal = todos.reduce((sum, p) => sum + Number(p.monto), 0);
+  const total = totalCotizacion ?? 0;
+  let estadoPago: 'no_pagado' | 'pago_parcial' | 'pagado' = 'no_pagado';
+  if (total > 0) {
+    if (montoPagadoTotal >= total) estadoPago = 'pagado';
+    else if (montoPagadoTotal > 0) estadoPago = 'pago_parcial';
+  }
+
+  await actualizarEstadoPagoCotizacion(cotizacionId, estadoPago, montoPagadoTotal);
+
+  return { montoPagadoTotal, estadoPago };
+}
