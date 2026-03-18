@@ -6,7 +6,7 @@ const supabase = createClient(
   )
 
 const tablas = [
-  'fixed_expenses_categories'
+  'gastos_reales_materiales'
 ]
 
 async function run() {
