@@ -6,7 +6,7 @@ const supabase = createClient(
   )
 
 const tablas = [
-  'fixed_expense_categories'
+  'fixed_expenses_categories'
 ]
 
 async function run() {

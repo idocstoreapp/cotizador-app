@@ -18,6 +18,7 @@ export interface EstadisticasDashboard {
   
   // Financiero del mes - VENTAS (SOLO PAGADAS)
   ventasTotalesMes: number; // Total de cotizaciones PAGADAS del mes
+  cobrosTotalesPeriodo: number; // Total cobrado real en el período (por fecha de pago)
   
   // Cotizaciones aceptadas en proceso
   cotizacionesAceptadasEnProceso: number; // Cantidad de cotizaciones aceptadas no pagadas o pagadas parcialmente
@@ -49,7 +50,8 @@ export interface EstadisticasDashboard {
   margenGananciaMes: number; // (Ganancia / Ventas) * 100
 
   // Financiero del mes - GANANCIA NETA REAL (cashflow)
-  gananciaNetaMes: number; // Ventas cobradas - Pagos totales del mes
+  ivaReservadoPeriodo: number; // IVA reservado proporcional a lo cobrado en el período
+  gananciaNetaMes: number; // Cobros reales del período - salidas del período - IVA reservado
   margenGananciaNetaMes: number; // (GananciaNeta / Ventas) * 100
   
   // Comparación mes anterior
@@ -63,6 +65,9 @@ export interface EstadisticasDashboard {
   gananciaHistorica: number;
 
   // Caja / saldo real global (mismo cálculo que Caja de Ahorros)
+  totalCobradoHistorico: number;
+  totalPagadoHistorico: number;
+  ivaReservadoHistorico: number;
   saldoRealDisponible: number;
   totalAhorros: number;
   disponibleParaGastar: number;
@@ -631,6 +636,8 @@ export async function obtenerEstadisticasDashboard(
   let pagosGastosFijosMes = 0;
   let pagosPersonalMes = 0;
   let pagosIVAMes = 0;
+  let cobrosTotalesPeriodo = 0;
+  let cobradoPorCotizacionPeriodo = new Map<string, number>();
 
   try {
     const queryByYMDOrTimestampRange = async (table: string, select: string, field: string, extra?: (q: any) => any) => {
@@ -652,6 +659,7 @@ export async function obtenerEstadisticasDashboard(
     };
 
     const [
+      cobrosRes,
       pagosMaterialesRes,
       pagosManoObraRes,
       pagosHormigaRes,
@@ -659,6 +667,9 @@ export async function obtenerEstadisticasDashboard(
       pagosGastosFijosRes,
       pagosPersonalRes
     ] = await Promise.all([
+      // Cobros reales (ingresos) por fecha de pago
+      queryByYMDOrTimestampRange('cotizacion_pagos', 'cotizacion_id, monto, fecha_pago', 'fecha_pago'),
+
       // fecha_compra suele ser timestamp
       supabase
         .from('gastos_reales_materiales')
@@ -675,19 +686,38 @@ export async function obtenerEstadisticasDashboard(
       // fixed_expenses.date es DATE; si falla, intentar filtrar por created_at (timestamp)
       (async () => {
         // En proyectos migrados, description/provider pueden llamarse distinto (descripcion/proveedor).
-        // Usamos select('*') para evitar 42703 y normalizamos en memoria.
+        // Intentar traer categoría embebida para detectar IVA por categoría.
         const r1 = await supabase
           .from('fixed_expenses')
-          .select('*')
+          .select(`
+            *,
+            category:fixed_expense_categories(name)
+          `)
           .gte('date', fechaInicioYMD)
           .lte('date', fechaFinYMD);
         if (!r1.error) return r1;
         const r2 = await supabase
           .from('fixed_expenses')
+          .select(`
+            *,
+            category:fixed_expense_categories(name)
+          `)
+          .gte('created_at', fechaInicioISO)
+          .lte('created_at', fechaFinISO);
+        // Si el embed falla por schema cache/relationship, caer a select('*')
+        if (!r2.error) return r2;
+        const isRelationshipError =
+          r2.error.code === 'PGRST200' ||
+          String(r2.error.message || '').toLowerCase().includes('relationship') ||
+          String(r2.error.message || '').toLowerCase().includes('schema cache');
+        if (!isRelationshipError) return r2;
+
+        const r3 = await supabase
+          .from('fixed_expenses')
           .select('*')
           .gte('created_at', fechaInicioISO)
           .lte('created_at', fechaFinISO);
-        return r2;
+        return r3;
       })(),
 
       // liquidaciones.fecha_liquidacion suele ser timestamp
@@ -698,12 +728,25 @@ export async function obtenerEstadisticasDashboard(
         .lte('fecha_liquidacion', fechaFinISO)
     ]);
 
+    if (cobrosRes.error) console.warn('⚠️ [Dashboard] Error cobros (cotizacion_pagos):', cobrosRes.error);
     if (pagosMaterialesRes.error) console.warn('⚠️ [Dashboard] Error pagos materiales:', pagosMaterialesRes.error);
     if (pagosManoObraRes.error) console.warn('⚠️ [Dashboard] Error pagos mano de obra:', pagosManoObraRes.error);
     if (pagosHormigaRes.error) console.warn('⚠️ [Dashboard] Error pagos hormiga:', pagosHormigaRes.error);
     if (pagosTransporteRes.error) console.warn('⚠️ [Dashboard] Error pagos transporte:', pagosTransporteRes.error);
     if (pagosGastosFijosRes.error) console.warn('⚠️ [Dashboard] Error pagos gastos fijos:', pagosGastosFijosRes.error);
     if (pagosPersonalRes.error) console.warn('⚠️ [Dashboard] Error pagos personal (liquidaciones):', pagosPersonalRes.error);
+
+    const cobrosLista = (cobrosRes.data || []) as any[];
+    // Total cobrado real en el período
+    cobrosTotalesPeriodo = cobrosLista.reduce((sum: number, p: any) => sum + (Number(p.monto) || 0), 0);
+    // IVA reservado del período: proporcional a lo cobrado de cada cotización en el período
+    cobradoPorCotizacionPeriodo = new Map<string, number>();
+    cobrosLista.forEach((p: any) => {
+      const id = String(p.cotizacion_id || '');
+      if (!id) return;
+      const m = Number(p.monto) || 0;
+      cobradoPorCotizacionPeriodo.set(id, (cobradoPorCotizacionPeriodo.get(id) || 0) + m);
+    });
 
     pagosMaterialesMes = (pagosMaterialesRes.data || []).reduce((sum: number, g: any) => {
       return sum + ((g.precio_unitario_real || 0) * (g.cantidad_real || 0));
@@ -718,12 +761,50 @@ export async function obtenerEstadisticasDashboard(
       (f.amount ?? f.monto ?? f.valor ?? 0) as number;
     pagosGastosFijosMes = gastosFijosLista.reduce((sum: number, f: any) => sum + (getFixedExpenseAmount(f) || 0), 0);
 
-    // IVA pagado/registrado: heurística por texto (categorías pueden no estar embebidas en proyectos migrados)
+    // Si no vino la categoría embebida, hidratarla por category_id para poder detectar IVA por categoría.
+    try {
+      const sinCategoria = gastosFijosLista.filter((f: any) => !f.category && !!f.category_id);
+      if (sinCategoria.length > 0) {
+        const categoryIds = Array.from(new Set(sinCategoria.map((f: any) => f.category_id).filter(Boolean)));
+        if (categoryIds.length > 0) {
+          const { data: cats, error: catsErr } = await supabase
+            .from('fixed_expense_categories')
+            .select('id, name')
+            .in('id', categoryIds);
+          if (!catsErr && cats) {
+            const map = new Map<string, string>(cats.map((c: any) => [String(c.id), String(c.name)]));
+            gastosFijosLista.forEach((f: any) => {
+              if (!f.category && f.category_id && map.has(String(f.category_id))) {
+                f.category = { name: map.get(String(f.category_id)) };
+              }
+            });
+          }
+        }
+      }
+    } catch {
+      // no-op: si falla, solo no se hidrata categoría
+    }
+
+    // IVA pagado/registrado: heurística por texto + por categoría (robusta para distintos nombres)
+    const ivaKeywords = [
+      'iva',
+      'dian',
+      'impuesto',
+      'impuestos',
+      'tribut',
+      'reteiva',
+      'retencion iva',
+      'retención iva',
+      'declaracion',
+      'declaración'
+    ];
     pagosIVAMes = gastosFijosLista.reduce((sum: number, f: any) => {
       const desc = f.description ?? f.descripcion ?? f.detalle ?? f.concepto ?? '';
       const prov = f.provider ?? f.proveedor ?? f.vendor ?? '';
-      const texto = `${desc} ${prov}`.toLowerCase();
-      if (texto.includes('iva')) return sum + (getFixedExpenseAmount(f) || 0);
+      const cat = f.category?.name ?? f.categoria?.name ?? f.categoria ?? f.category_name ?? '';
+      const texto = `${desc} ${prov} ${cat}`.toLowerCase();
+      const esIVA = ivaKeywords.some((k) => texto.includes(k));
+      if (esIVA) return sum + (getFixedExpenseAmount(f) || 0);
       return sum;
     }, 0);
 
@@ -732,18 +813,14 @@ export async function obtenerEstadisticasDashboard(
     console.warn('⚠️ [Dashboard] Error al calcular pagos reales del mes:', e);
   }
 
-  // IVA a considerar en “dinero real”: si no está registrado como pago, igual se descuenta como obligación del mes.
-  // Para evitar doble conteo: toma el mayor entre iva presupuestado y iva registrado/pagado.
-  const ivaAConsiderarMes = Math.max(ivaRealMes || 0, pagosIVAMes || 0);
-
+  // Total de salidas reales del período (no incluye IVA "reservado"; eso se descuenta aparte como obligación)
   const pagosTotalesMes =
     pagosMaterialesMes +
     pagosManoObraMes +
     pagosHormigaMes +
     pagosTransporteMes +
     pagosGastosFijosMes +
-    pagosPersonalMes +
-    ivaAConsiderarMes;
+    pagosPersonalMes;
 
   // COSTOS TOTALES = Materiales + Mano de Obra + Gastos Hormiga + Transporte + Gastos Fijos + IVA Presupuestado
   const costosTotalesMes = gastosMaterialesMes + gastosManoObraMes + gastosHormigaMes + gastosTransporteMes + gastosFijosMes + ivaRealMes;
@@ -754,9 +831,24 @@ export async function obtenerEstadisticasDashboard(
   // Margen de ganancia %
   const margenGananciaMes = ventasTotalesPeriodo > 0 ? (gananciaMes / ventasTotalesPeriodo) * 100 : 0;
 
-  // GANANCIA NETA REAL (cashflow): Ventas cobradas - pagos totales del mes
-  const gananciaNetaMes = ventasTotalesPeriodo - pagosTotalesMes;
-  const margenGananciaNetaMes = ventasTotalesPeriodo > 0 ? (gananciaNetaMes / ventasTotalesPeriodo) * 100 : 0;
+  // ====== COBROS E IVA RESERVADO DEL PERÍODO (cashflow real, consistente con Caja de Ahorros) ======
+  const cotizacionesAceptadasTodas = todasLasCotizaciones.filter(c => c.estado === 'aceptada');
+
+  const ivaReservadoPeriodo = cotizacionesAceptadasTodas.reduce((sum: number, c: any) => {
+    const aplicaIVA = c.aplica_iva !== undefined ? Boolean(c.aplica_iva) : true;
+    if (!aplicaIVA) return sum;
+    const totalCotizacion = Number(c.total) || 0;
+    if (totalCotizacion <= 0) return sum;
+    const ivaCotizacion = Number(c.iva) || 0;
+    if (ivaCotizacion <= 0) return sum;
+    const cobradoPeriodo = Math.min(Number(cobradoPorCotizacionPeriodo.get(c.id) || 0), totalCotizacion);
+    const proporcion = cobradoPeriodo / totalCotizacion;
+    return sum + (ivaCotizacion * proporcion);
+  }, 0);
+
+  // GANANCIA NETA REAL (cashflow): cobros reales - salidas reales - IVA reservado
+  const gananciaNetaMes = cobrosTotalesPeriodo - pagosTotalesMes - ivaReservadoPeriodo;
+  const margenGananciaNetaMes = cobrosTotalesPeriodo > 0 ? (gananciaNetaMes / cobrosTotalesPeriodo) * 100 : 0;
 
   // ====== COMPARACIÓN MES ANTERIOR ======
   const totalCotizacionesAnterior = cotizacionesPeriodoAnterior.length;
@@ -1066,11 +1158,17 @@ export async function obtenerEstadisticasDashboard(
   let saldoRealDisponible = 0;
   let totalAhorros = 0;
   let disponibleParaGastar = 0;
+  let totalCobradoHistorico = 0;
+  let totalPagadoHistorico = 0;
+  let ivaReservadoHistorico = 0;
   try {
     const saldoGlobal = await obtenerSaldoDisponible();
     saldoRealDisponible = saldoGlobal.saldoRealDisponible;
     totalAhorros = saldoGlobal.totalAhorros;
     disponibleParaGastar = saldoGlobal.disponibleParaGastar;
+    totalCobradoHistorico = saldoGlobal.totalCobradoHistorico;
+    totalPagadoHistorico = saldoGlobal.totalPagadoHistorico;
+    ivaReservadoHistorico = saldoGlobal.ivaReservadoHistorico;
   } catch (e) {
     console.warn('⚠️ [Dashboard] Error al obtener saldo real global:', e);
   }
@@ -1091,6 +1189,7 @@ export async function obtenerEstadisticasDashboard(
     cotizacionesPendientes: cotizacionesPendientesPeriodo.length,
     cotizacionesRechazadas: cotizacionesRechazadasPeriodo.length,
     ventasTotalesMes: ventasTotalesPeriodo,
+    cobrosTotalesPeriodo,
     cotizacionesAceptadasEnProceso: cotizacionesEnProceso.length,
     cotizacionesPagadasCompletamente: cotizacionesPagadas.length,
     totalAbonado: totalAbonado,
@@ -1114,6 +1213,7 @@ export async function obtenerEstadisticasDashboard(
     pagosIVAMes,
     pagosTotalesMes,
 
+    ivaReservadoPeriodo,
     gananciaNetaMes,
     margenGananciaNetaMes,
     variacionCotizaciones,
@@ -1122,6 +1222,9 @@ export async function obtenerEstadisticasDashboard(
     costosTotalesHistorico,
     ivaRealHistorico,
     gananciaHistorica,
+    totalCobradoHistorico,
+    totalPagadoHistorico,
+    ivaReservadoHistorico,
     saldoRealDisponible,
     totalAhorros,
     disponibleParaGastar,

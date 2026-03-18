@@ -35,7 +35,7 @@ const newClient = createClient(NEW_URL, NEW_SERVICE_ROLE, {
 const TABLES_IN_ORDER = [
   // Catálogos / maestros
   
-  'fixed_expenses'
+  'balance_personal'
   
 ];
 
@@ -138,7 +138,7 @@ async function migrateTable(tableName) {
 }
 
 async function main() {
-  console.log('🚀 Iniciando migración Supabase OLD → NEW');
+  console.log(' Iniciando migración Supabase OLD → NEW');
   console.log(`   Origen: ${OLD_URL}`);
   console.log(`   Destino: ${NEW_URL}`);
 

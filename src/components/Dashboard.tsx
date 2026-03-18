@@ -440,11 +440,11 @@ export default function Dashboard({ usuario }: DashboardProps) {
                     </div>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <dt className="text-[clamp(0.625rem,0.5rem+0.5vw,0.875rem)] font-medium text-gray-500 leading-tight">Cotizaciones Creadas</dt>
+                    <dt className="text-[clamp(0.625rem,0.5rem+0.5vw,0.875rem)] font-medium text-gray-500 leading-tight">Cotizaciones creadas</dt>
                     <dd className="text-[clamp(1.25rem,1rem+1vw,1.5rem)] font-bold text-gray-900 mt-0.5 sm:mt-1 leading-tight">
-                    ${(saldo?.saldoRealDisponible ?? 0).toLocaleString('es-CO')}
+                      {estadisticasDashboard?.totalCotizaciones ?? totalCotizacionesPeriodo}
                     </dd>
-                    <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-0.5 leading-tight">Período seleccionado</p>
+                    <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-0.5 leading-tight">Cantidad en el período seleccionado</p>
                   </div>
                 </div>
                 <div className="mt-auto pt-2 sm:pt-3 border-t border-gray-200 space-y-1">
@@ -464,7 +464,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
               </div>
             </div>
 
-            {/* Ventas del Mes (SOLO PAGADAS) */}
+            {/* Cobros del período (DINERO ENTRADO) */}
             <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-blue-500 min-h-0 flex flex-col">
               <div className="p-3 sm:p-4 flex-1 flex flex-col min-w-0">
                 <div className="flex items-start gap-2 sm:gap-3 min-w-0">
@@ -475,11 +475,16 @@ export default function Dashboard({ usuario }: DashboardProps) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <dl>
-                      <dt className="text-[clamp(0.625rem,0.5rem+0.5vw,0.875rem)] font-medium text-gray-500 truncate leading-tight">Ventas cobradas</dt>
+                      <dt className="text-[clamp(0.625rem,0.5rem+0.5vw,0.875rem)] font-medium text-gray-500 truncate leading-tight">Cobros del período</dt>
                       <dd className="text-[clamp(0.875rem,0.75rem+0.6vw,1.5rem)] font-bold text-blue-600 leading-tight mt-0.5 sm:mt-1 break-all">
-                        ${(estadisticasDashboard?.ventasTotalesMes ?? 0).toLocaleString('es-CO')}
+                        ${(estadisticasDashboard?.cobrosTotalesPeriodo ?? 0).toLocaleString('es-CO')}
                       </dd>
-                      <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-1 leading-tight">Solo lo ya pagado (dinero real). Lo no cobrado no es venta.</p>
+                      <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-1 leading-tight">
+                        Dinero realmente entrado en el rango (según fecha de pago). No incluye lo “por cobrar”.
+                      </p>
+                      <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-500 mt-1 leading-tight">
+                        Ventas “pagadas completas” (total de cotización): ${(estadisticasDashboard?.ventasTotalesMes ?? 0).toLocaleString('es-CO')}
+                      </p>
                       {estadisticasDashboard?.variacionVentas !== undefined && estadisticasDashboard.variacionVentas !== 0 && (
                         <dd className={`text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] mt-1 font-medium leading-tight ${estadisticasDashboard.variacionVentas >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {estadisticasDashboard.variacionVentas >= 0 ? '↑' : '↓'} {Math.abs(estadisticasDashboard.variacionVentas).toFixed(1)}% vs mes anterior
@@ -521,9 +526,12 @@ export default function Dashboard({ usuario }: DashboardProps) {
                       </p>
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-500 leading-tight truncate">💰 Abonado:</p>
+                      <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-500 leading-tight truncate">💰 Abonado (en el período):</p>
                       <p className="text-[clamp(0.625rem,0.5rem+0.4vw,0.875rem)] font-semibold text-blue-600 leading-tight break-all">
-                        ${(estadisticasDashboard?.totalAbonado ?? 0).toLocaleString('es-CO')}
+                        ${(estadisticasDashboard?.cobrosTotalesPeriodo ?? 0).toLocaleString('es-CO')}
+                      </p>
+                      <p className="text-[0.65rem] text-gray-400 mt-0.5 leading-tight">
+                        Mismo dato que “Cobros del período” (dinero físico entrado en el rango)
                       </p>
                     </div>
                   </div>
@@ -742,7 +750,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
 
             <div>
               <h3 className="text-sm font-semibold text-gray-700 mb-3">🏦 Pagos reales del mes (salidas)</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                   <p className="text-sm text-purple-800 font-medium">👥 Personal</p>
                   <p className="text-xl font-bold text-purple-600">
@@ -758,11 +766,18 @@ export default function Dashboard({ usuario }: DashboardProps) {
                   <p className="text-xs text-slate-600 mt-1">Pagos registrados por fecha</p>
                 </div>
                 <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-                  <p className="text-sm text-indigo-800 font-medium">🧾 IVA pagado</p>
+                  <p className="text-sm text-indigo-800 font-medium">📌 IVA del período (obligación)</p>
+                  <p className="text-xl font-bold text-indigo-700">
+                    ${(estadisticasDashboard?.ivaRealMes ?? 0).toLocaleString('es-CO')}
+                  </p>
+                  <p className="text-xs text-indigo-600 mt-1">Es el mismo IVA que aparece en “Costos Reales”</p>
+                </div>
+                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                  <p className="text-sm text-indigo-800 font-medium">🧾 IVA / impuestos pagados</p>
                   <p className="text-xl font-bold text-indigo-600">
                     ${(estadisticasDashboard?.pagosIVAMes ?? 0).toLocaleString('es-CO')}
                   </p>
-                  <p className="text-xs text-indigo-600 mt-1">Detectado en gastos fijos (texto “iva”)</p>
+                  <p className="text-xs text-indigo-600 mt-1">Detectado en gastos fijos (texto o categoría)</p>
                 </div>
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <p className="text-sm text-green-800 font-medium">📤 Total salidas</p>
@@ -789,31 +804,49 @@ export default function Dashboard({ usuario }: DashboardProps) {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
               <div className="bg-white rounded-lg p-4 border border-blue-200 shadow-sm">
-                <p className="text-sm text-gray-600 font-medium mb-1">💰 Ventas Totales</p>
+                <p className="text-sm text-gray-600 font-medium mb-1">💰 Ventas cotizadas (aceptadas)</p>
                 <p className="text-2xl font-bold text-blue-600">
                   ${(estadisticasDashboard?.ventasTotalesHistorico ?? ventasTotales).toLocaleString('es-CO')}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">Todas las cotizaciones aceptadas</p>
+                <p className="text-xs text-gray-500 mt-1">Valor total cotizado de cotizaciones aceptadas (no necesariamente cobrado)</p>
                 <p className="text-xs text-blue-600 mt-2 font-medium">
                   {cotizaciones.filter(c => c.estado === 'aceptada').length} aceptadas
                 </p>
+                <p className="text-xs text-emerald-700 mt-2 font-semibold">
+                  Cobrado real (histórico): ${(
+                    estadisticasDashboard?.totalCobradoHistorico ??
+                    saldo?.totalCobradoHistorico ??
+                    0
+                  ).toLocaleString('es-CO')}
+                </p>
               </div>
               <div className="bg-white rounded-lg p-4 border border-red-200 shadow-sm">
-                <p className="text-sm text-gray-600 font-medium mb-1">📊 Costos Totales</p>
+                <p className="text-sm text-gray-600 font-medium mb-1">📊 Costos de proyectos (histórico)</p>
                 <p className="text-2xl font-bold text-red-600">
                   ${(estadisticasDashboard?.costosTotalesHistorico ?? 0).toLocaleString('es-CO')}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">Incluye materiales, M.Obra, otros e IVA</p>
-                <p className="text-xs text-indigo-600 mt-2 font-medium">
-                  IVA histórico: ${(estadisticasDashboard?.ivaRealHistorico ?? 0).toLocaleString('es-CO')}
+                <p className="text-xs text-gray-500 mt-1">Costos registrados de proyectos (materiales, M.Obra, otros) + IVA presupuestado</p>
+                <p className="text-xs text-slate-700 mt-2 font-semibold">
+                  Pagado real (histórico): ${(
+                    estadisticasDashboard?.totalPagadoHistorico ??
+                    saldo?.totalPagadoHistorico ??
+                    0
+                  ).toLocaleString('es-CO')}
                 </p>
               </div>
               <div className="bg-white rounded-lg p-4 border border-indigo-200 shadow-sm">
-                <p className="text-sm text-gray-600 font-medium mb-1">📋 IVA pagado (histórico)</p>
+                <p className="text-sm text-gray-600 font-medium mb-1">📋 IVA (histórico)</p>
                 <p className="text-2xl font-bold text-indigo-600">
                   ${(estadisticasDashboard?.ivaRealHistorico ?? 0).toLocaleString('es-CO')}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">No es ganancia · ya descontado en costos</p>
+                <p className="text-xs text-gray-500 mt-1">IVA presupuestado en proyectos (no es ganancia)</p>
+                <p className="text-xs text-indigo-700 mt-2 font-semibold">
+                  IVA reservado (según cobrado): ${(
+                    estadisticasDashboard?.ivaReservadoHistorico ??
+                    saldo?.ivaReservadoHistorico ??
+                    0
+                  ).toLocaleString('es-CO')}
+                </p>
               </div>
               <div className="bg-white rounded-lg p-4 border border-green-200 shadow-sm">
                 <p className="text-sm text-gray-600 font-medium mb-1">📈 Saldo real disponible</p>
@@ -1169,6 +1202,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cotizado</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Real (con IVA)</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">IVA</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Utilidad (IVA descontado)</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">%</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acción</th>
@@ -1188,6 +1222,9 @@ export default function Dashboard({ usuario }: DashboardProps) {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             ${proyecto.total_real.toLocaleString('es-CO')}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-indigo-600 font-medium">
+                            ${(Number(proyecto.iva) || 0).toLocaleString('es-CO')}
                           </td>
                           <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
                             proyecto.utilidad >= 0 ? 'text-green-600' : 'text-red-600'

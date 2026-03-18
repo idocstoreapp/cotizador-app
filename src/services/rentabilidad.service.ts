@@ -523,6 +523,7 @@ export async function obtenerEstadisticasRentabilidad(): Promise<{
     cliente_nombre: string;
     total_cotizado: number;
     total_real: number;
+    iva: number;
     utilidad: number;
     porcentaje_utilidad: number;
   }>;
@@ -551,6 +552,7 @@ export async function obtenerEstadisticasRentabilidad(): Promise<{
           cliente_nombre: cotizacion.cliente_nombre,
           total_cotizado: totalCotizado,
           total_real: totalReal,
+          iva: ivaPresupuestado,
           utilidad,
           porcentaje_utilidad: porcentajeUtilidad
         };
@@ -562,6 +564,7 @@ export async function obtenerEstadisticasRentabilidad(): Promise<{
           cliente_nombre: cotizacion.cliente_nombre,
           total_cotizado: cotizacion.total || 0,
           total_real: 0,
+          iva: 0,
           utilidad: cotizacion.total || 0,
           porcentaje_utilidad: 100
         };
