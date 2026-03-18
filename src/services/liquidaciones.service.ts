@@ -118,7 +118,7 @@ export async function obtenerLiquidacionesPorFecha(
  */
 export async function obtenerLiquidacionesPorPersona(personaId: string): Promise<Liquidacion[]> {
   const base = supabase.from('liquidaciones');
-  return selectLiquidaciones(base, (q) => q.or(`persona_id.eq.${personaId},trabajador_id.eq.${personaId}`));
+  return selectLiquidaciones(base, (q) => q.or(`persona_id.eq.${personaId}`));
 }
 
 /**

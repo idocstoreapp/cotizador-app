@@ -35,7 +35,7 @@ const newClient = createClient(NEW_URL, NEW_SERVICE_ROLE, {
 const TABLES_IN_ORDER = [
   // Catálogos / maestros
   
-  'balance_personal'
+  'cotizaciones'
   
 ];
 
