@@ -365,7 +365,7 @@ export default function QuotePDF({
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
           border: ${(isKubica || isCasablanca) ? `2px solid ${empresaColors.primary}` : 'none'};
           min-width: 200px;
-          text-align: right;
+          text-align: center;
         }
 
         .vendedor-label {
