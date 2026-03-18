@@ -73,7 +73,7 @@ function calcularPrecioItemManual(
   return Math.round(precioFinal * 100) / 100; // Redondear a 2 decimales
 }
 
-const calcularTotalesInterno = (
+const calcularTotales = (
   items: ItemCotizacion[],
   descuento: number,
   aplicaIVA: boolean = true,
@@ -131,7 +131,7 @@ export const useCotizacionStore = create<CotizacionStore>()(
 
     set((state) => {
       const nuevosItems = [...state.items, nuevoItem];
-      const totales = calcularTotalesInterno(nuevosItems, state.descuento, state.aplica_iva);
+      const totales = calcularTotales(nuevosItems, state.descuento, state.aplica_iva);
       return {
         items: nuevosItems,
         ...totales
@@ -152,15 +152,15 @@ export const useCotizacionStore = create<CotizacionStore>()(
 
     const nuevoItem: ItemManualCotizacion = {
       id: `manual-${Date.now()}`,
-      ...itemData,
       tipo: 'manual',
+      ...itemData,
       precio_unitario: precioUnitario,
       precio_total: precioTotal
     };
 
     set((state) => {
       const nuevosItems = [...state.items, nuevoItem];
-      const totales = calcularTotalesInterno(nuevosItems, state.descuento, state.aplica_iva);
+      const totales = calcularTotales(nuevosItems, state.descuento, state.aplica_iva);
       return {
         items: nuevosItems,
         ...totales
@@ -172,7 +172,7 @@ export const useCotizacionStore = create<CotizacionStore>()(
   eliminarItem: (id) => {
     set((state) => {
       const nuevosItems = state.items.filter(item => item.id !== id);
-      const totales = calcularTotalesInterno(nuevosItems, state.descuento, state.aplica_iva);
+      const totales = calcularTotales(nuevosItems, state.descuento, state.aplica_iva);
       return {
         items: nuevosItems,
         ...totales
@@ -195,7 +195,7 @@ export const useCotizacionStore = create<CotizacionStore>()(
         }
         return item;
       });
-      const totales = calcularTotalesInterno(nuevosItems, state.descuento, state.aplica_iva);
+      const totales = calcularTotales(nuevosItems, state.descuento, state.aplica_iva);
       return {
         items: nuevosItems,
         ...totales
@@ -219,7 +219,7 @@ export const useCotizacionStore = create<CotizacionStore>()(
         }
         return item;
       });
-      const totales = calcularTotalesInterno(nuevosItems, state.descuento, state.aplica_iva);
+      const totales = calcularTotales(nuevosItems, state.descuento, state.aplica_iva);
       return {
         items: nuevosItems,
         ...totales
@@ -246,11 +246,11 @@ export const useCotizacionStore = create<CotizacionStore>()(
               return sum + ((serv.horas || 0) * (serv.precio_por_hora || 0));
             }, 0);
             
-            const costosIndirectos = (itemActualizado as any).costos_indirectos 
-              ? ((itemActualizado as any).costos_indirectos.transporte || 0) +
-                ((itemActualizado as any).costos_indirectos.herramientas || 0) +
-                ((itemActualizado as any).costos_indirectos.alquiler_espacio || 0) +
-                ((itemActualizado as any).costos_indirectos.caja_chica || 0)
+            const costosIndirectos = itemActualizado.costos_indirectos 
+              ? (itemActualizado.costos_indirectos.transporte || 0) +
+                (itemActualizado.costos_indirectos.herramientas || 0) +
+                (itemActualizado.costos_indirectos.alquiler_espacio || 0) +
+                (itemActualizado.costos_indirectos.caja_chica || 0)
               : 0;
             
             // Subtotal antes de gastos extras
@@ -282,7 +282,7 @@ export const useCotizacionStore = create<CotizacionStore>()(
         }
         return item;
       });
-      const totales = calcularTotalesInterno(nuevosItems, state.descuento, state.aplica_iva);
+      const totales = calcularTotales(nuevosItems, state.descuento, state.aplica_iva);
       return {
         items: nuevosItems,
         ...totales
@@ -293,7 +293,7 @@ export const useCotizacionStore = create<CotizacionStore>()(
   // Establecer descuento
   setDescuento: (descuento) => {
     set((state) => {
-      const totales = calcularTotalesInterno(state.items, descuento, state.aplica_iva);
+      const totales = calcularTotales(state.items, descuento, state.aplica_iva);
       return {
         descuento,
         ...totales
@@ -303,7 +303,7 @@ export const useCotizacionStore = create<CotizacionStore>()(
 
   setAplicaIVA: (aplica) => {
     set((state) => {
-      const totales = calcularTotalesInterno(state.items, state.descuento, aplica);
+      const totales = calcularTotales(state.items, state.descuento, aplica);
       return {
         aplica_iva: aplica,
         ...totales
@@ -336,7 +336,7 @@ export const useCotizacionStore = create<CotizacionStore>()(
   // Recalcular totales
   calcularTotales: () => {
     set((state) => {
-      const totales = calcularTotalesInterno(state.items, state.descuento, state.aplica_iva);
+      const totales = calcularTotales(state.items, state.descuento, state.aplica_iva);
       return { ...totales };
     });
   }
@@ -370,7 +370,7 @@ export const useCotizacionStore = create<CotizacionStore>()(
       // Recalcular totales al cargar desde localStorage
       onRehydrateStorage: () => (state) => {
         if (state) {
-          const totales = calcularTotalesInterno(state.items, state.descuento, state.aplica_iva);
+          const totales = calcularTotales(state.items, state.descuento, state.aplica_iva);
           state.subtotal = totales.subtotal || 0;
           state.iva = totales.iva || 0;
           state.total = totales.total || 0;

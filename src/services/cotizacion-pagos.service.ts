@@ -65,15 +65,20 @@ export async function actualizarFechaPagoCotizacion(
   pagoId: string,
   nuevaFecha: string
 ): Promise<CotizacionPago> {
+  if (!pagoId || typeof pagoId !== 'string' || pagoId.length < 10) {
+    throw new Error('ID de pago inválido.');
+  }
   const { data, error } = await supabase
     .from('cotizacion_pagos')
     .update({ fecha_pago: nuevaFecha })
     .eq('id', pagoId)
-    .select()
-    .single();
+    .select();
 
   if (error) throw error;
-  return data as CotizacionPago;
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    throw new Error('No se encontró el pago para actualizar la fecha.');
+  }
+  return data[0] as CotizacionPago;
 }
 
 /**
@@ -104,15 +109,20 @@ export async function actualizarMontoPagoCotizacion(
 ): Promise<{ pago: CotizacionPago; montoPagadoTotal: number; estadoPago: 'no_pagado' | 'pago_parcial' | 'pagado' }> {
   if (nuevoMonto <= 0) throw new Error('El monto debe ser mayor a 0.');
 
+  if (!pagoId || typeof pagoId !== 'string' || pagoId.length < 10) {
+    throw new Error('ID de pago inválido.');
+  }
   const { data, error } = await supabase
     .from('cotizacion_pagos')
     .update({ monto: nuevoMonto })
     .eq('id', pagoId)
-    .select()
-    .single();
+    .select();
 
   if (error) throw error;
-  const pago = data as CotizacionPago;
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    throw new Error('No se encontró el pago para actualizar el monto.');
+  }
+  const pago = data[0] as CotizacionPago;
 
   // Recalcular totales
   const todos = await obtenerPagosPorCotizacion(cotizacionId);
@@ -138,12 +148,19 @@ export async function eliminarPagoCotizacion(
   cotizacionId: string,
   totalCotizacion?: number
 ): Promise<{ montoPagadoTotal: number; estadoPago: 'no_pagado' | 'pago_parcial' | 'pagado' }> {
-  const { error: errDelete } = await supabase
+  if (!pagoId || typeof pagoId !== 'string' || pagoId.length < 10) {
+    throw new Error('ID de pago inválido.');
+  }
+  const { error: errDelete, count } = await supabase
     .from('cotizacion_pagos')
-    .delete()
+    .delete({ count: 'exact' })
     .eq('id', pagoId);
 
   if (errDelete) throw errDelete;
+  // Si count es 0, el pago no existía
+  if (typeof count === 'number' && count === 0) {
+    throw new Error('No se encontró el pago para eliminar.');
+  }
 
   // Recalcular totales después de eliminar
   const todos = await obtenerPagosPorCotizacion(cotizacionId);

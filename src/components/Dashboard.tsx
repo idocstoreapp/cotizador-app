@@ -614,7 +614,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
                         ${(estadisticasDashboard?.gananciaNetaMes ?? 0).toLocaleString('es-CO')}
                       </dd>
                       <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-1 leading-tight" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        Dinero real del mes después de pagar todo · Margen: {(estadisticasDashboard?.margenGananciaNetaMes ?? 0).toFixed(1)}%
+                        Dinero real del período después de pagar todo. Solo incluye cobros y pagos del mes/rango seleccionado.
                       </p>
                     </dl>
                   </div>
@@ -716,6 +716,21 @@ export default function Dashboard({ usuario }: DashboardProps) {
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 space-y-4">
             <div>
               <h3 className="text-sm font-semibold text-gray-700 mb-3">💸 Desglose de Costos Reales del Mes</h3>
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                              <p className="text-sm text-red-800 font-medium">🔢 Total costos, pagos y gastos del mes</p>
+                              <p className="text-2xl font-bold text-red-600">
+                                ${(
+                                  (estadisticasDashboard?.gastosMaterialesMes ?? 0) +
+                                  (estadisticasDashboard?.gastosManoObraMes ?? 0) +
+                                  (estadisticasDashboard?.gastosHormigaMes ?? 0) +
+                                  (estadisticasDashboard?.gastosTransporteMes ?? 0) +
+                                  (estadisticasDashboard?.pagosPersonalMes ?? 0) +
+                                  (estadisticasDashboard?.pagosGastosFijosMes ?? 0) +
+                                  (estadisticasDashboard?.ivaRealMes ?? 0)
+                                ).toLocaleString('es-CO')}
+                              </p>
+                              <p className="text-xs text-red-600 mt-1">Suma de todos los costos, pagos y gastos del período seleccionado.</p>
+                            </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                   <p className="text-sm text-orange-800 font-medium">🛒 Materiales</p>
@@ -772,13 +787,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
                   </p>
                   <p className="text-xs text-indigo-600 mt-1">Es el mismo IVA que aparece en “Costos Reales”</p>
                 </div>
-                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-                  <p className="text-sm text-indigo-800 font-medium">🧾 IVA / impuestos pagados</p>
-                  <p className="text-xl font-bold text-indigo-600">
-                    ${(estadisticasDashboard?.pagosIVAMes ?? 0).toLocaleString('es-CO')}
-                  </p>
-                  <p className="text-xs text-indigo-600 mt-1">Detectado en gastos fijos (texto o categoría)</p>
-                </div>
+
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <p className="text-sm text-green-800 font-medium">📤 Total salidas</p>
                   <p className="text-xl font-bold text-green-700">
