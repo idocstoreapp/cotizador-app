@@ -834,6 +834,9 @@ export async function obtenerEstadisticasDashboard(
   // ====== COBROS E IVA RESERVADO DEL PERÍODO (cashflow real, consistente con Caja de Ahorros) ======
   const cotizacionesAceptadasTodas = todasLasCotizaciones.filter(c => c.estado === 'aceptada');
 
+  // IVA RESERVADO DEL PERÍODO (proporcional a lo cobrado)
+  // Nota: Este es dinero que COBRÉ en nombre del estado, no es ganancia nuestra
+  // Se restará cuando se PAGUE efectivamente a DIAN, no en este período
   const ivaReservadoPeriodo = cotizacionesAceptadasTodas.reduce((sum: number, c: any) => {
     const aplicaIVA = c.aplica_iva !== undefined ? Boolean(c.aplica_iva) : true;
     if (!aplicaIVA) return sum;
@@ -846,11 +849,13 @@ export async function obtenerEstadisticasDashboard(
     return sum + (ivaCotizacion * proporcion);
   }, 0);
 
-  // IVA NETO pendiente por pagar al estado = IVA cobrado a clientes - IVA ya pagado a proveedores
-  const ivaNetoPendiente = Math.max(0, ivaReservadoPeriodo - pagosIVAMes);
-
-  // GANANCIA NETA REAL (cashflow): cobros reales - salidas reales - IVA neto pendiente
-  const gananciaNetaMes = cobrosTotalesPeriodo - pagosTotalesMes - ivaNetoPendiente;
+  // GANANCIA NETA REAL (rentabilidad operativa del período): dinero cobrado - costos incurridos
+  // Fórmula: Cobros - Costos Presupuestados - Pagos a Personal
+  // Nota: 
+  //   - costosTotalesMes = gastos de cotizaciones (materiales, labor, etc.)
+  //   - pagosPersonalMes = pagos realizados a empleados (liquidaciones)
+  //   - Ambos se deducen porque son dinero que salió del negocio en el período
+  const gananciaNetaMes = cobrosTotalesPeriodo - costosTotalesMes - pagosPersonalMes;
   const margenGananciaNetaMes = cobrosTotalesPeriodo > 0 ? (gananciaNetaMes / cobrosTotalesPeriodo) * 100 : 0;
 
   // ====== COMPARACIÓN MES ANTERIOR ======
