@@ -54,9 +54,12 @@ export async function obtenerSaldoDisponible(): Promise<SaldoDisponibleResult> {
   try {
     const { data: pagos, error } = await supabase
       .from('cotizacion_pagos')
-      .select('cotizacion_id, monto');
+      .select('cotizacion_id, monto, fecha_pago');
     if (error) throw error;
     (pagos || []).forEach((p: any) => {
+      if (!p.fecha_pago) return;
+      const fecha = new Date(p.fecha_pago);
+      if (isNaN(fecha.getTime())) return;
       const id = p.cotizacion_id;
       const m = Number(p.monto) || 0;
       pagadoPorCotizacion.set(id, (pagadoPorCotizacion.get(id) || 0) + m);
@@ -94,18 +97,39 @@ export async function obtenerSaldoDisponible(): Promise<SaldoDisponibleResult> {
     hormigaRes,
     transporteRes
   ] = await Promise.all([
-    supabase.from('gastos_reales_materiales').select('precio_unitario_real, cantidad_real'),
-    supabase.from('mano_obra_real').select('total_pagado'),
-    supabase.from('gastos_hormiga').select('monto'),
-    supabase.from('transporte_real').select('costo')
+    supabase.from('gastos_reales_materiales').select('precio_unitario_real, cantidad_real, fecha_compra'),
+    supabase.from('mano_obra_real').select('total_pagado, fecha'),
+    supabase.from('gastos_hormiga').select('monto, fecha'),
+    supabase.from('transporte_real').select('costo, fecha')
   ]);
 
-  const totalPagosMaterialesHistorico = (materialesRes.data || []).reduce((sum: number, g: any) => {
+  const materialesValidos = (materialesRes.data || []).filter(g => {
+    if (!g.fecha_compra) return false;
+    const fecha = new Date(g.fecha_compra);
+    return !isNaN(fecha.getTime());
+  });
+  const manoObraValidos = (manoObraRes.data || []).filter(m => {
+    if (!m.fecha) return false;
+    const fecha = new Date(m.fecha);
+    return !isNaN(fecha.getTime());
+  });
+  const hormigaValidos = (hormigaRes.data || []).filter(g => {
+    if (!g.fecha) return false;
+    const fecha = new Date(g.fecha);
+    return !isNaN(fecha.getTime());
+  });
+  const transporteValidos = (transporteRes.data || []).filter(t => {
+    if (!t.fecha) return false;
+    const fecha = new Date(t.fecha);
+    return !isNaN(fecha.getTime());
+  });
+
+  const totalPagosMaterialesHistorico = materialesValidos.reduce((sum: number, g: any) => {
     return sum + ((Number(g.precio_unitario_real) || 0) * (Number(g.cantidad_real) || 0));
   }, 0);
-  const totalPagosManoObraHistorico = (manoObraRes.data || []).reduce((sum: number, m: any) => sum + (Number(m.total_pagado) || 0), 0);
-  const totalPagosHormigaHistorico = (hormigaRes.data || []).reduce((sum: number, g: any) => sum + (Number(g.monto) || 0), 0);
-  const totalPagosTransporteHistorico = (transporteRes.data || []).reduce((sum: number, t: any) => sum + (Number(t.costo) || 0), 0);
+  const totalPagosManoObraHistorico = manoObraValidos.reduce((sum: number, m: any) => sum + (Number(m.total_pagado) || 0), 0);
+  const totalPagosHormigaHistorico = hormigaValidos.reduce((sum: number, g: any) => sum + (Number(g.monto) || 0), 0);
+  const totalPagosTransporteHistorico = transporteValidos.reduce((sum: number, t: any) => sum + (Number(t.costo) || 0), 0);
 
   const totalPagadoHistorico =
     totalLiquidacionesHistorico +

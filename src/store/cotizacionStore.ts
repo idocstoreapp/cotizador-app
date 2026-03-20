@@ -152,8 +152,8 @@ export const useCotizacionStore = create<CotizacionStore>()(
 
     const nuevoItem: ItemManualCotizacion = {
       id: `manual-${Date.now()}`,
-      tipo: 'manual',
       ...itemData,
+      tipo: 'manual',
       precio_unitario: precioUnitario,
       precio_total: precioTotal
     };

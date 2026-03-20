@@ -5,6 +5,12 @@ import { supabase } from '../utils/supabase';
 import { actualizarEstadoPagoCotizacion } from './cotizaciones.service';
 import type { CotizacionPago } from '../types/database';
 
+function normalizarPagoId(pagoId: string | number): string {
+  const id = String(pagoId || '').trim();
+  if (!id) throw new Error('ID de pago inválido.');
+  return id;
+}
+
 export async function obtenerPagosPorCotizacion(cotizacionId: string): Promise<CotizacionPago[]> {
   const { data, error } = await supabase
     .from('cotizacion_pagos')
@@ -62,22 +68,34 @@ export async function agregarPagoCotizacion(
  * Pensado para administradores, por ejemplo para pruebas o correcciones.
  */
 export async function actualizarFechaPagoCotizacion(
-  pagoId: string,
+  pagoId: string | number,
   nuevaFecha: string
 ): Promise<CotizacionPago> {
-  if (!pagoId || typeof pagoId !== 'string' || pagoId.length < 10) {
-    throw new Error('ID de pago inválido.');
-  }
+  const id = normalizarPagoId(pagoId);
+
   const { data, error } = await supabase
     .from('cotizacion_pagos')
-    .update({ fecha_pago: nuevaFecha })
-    .eq('id', pagoId)
-    .select();
+    .update({ fecha_pago: nuevaFecha }, { returning: 'representation' })
+    .eq('id', id);
 
   if (error) throw error;
+
   if (!data || !Array.isArray(data) || data.length === 0) {
+    // Fallback: verificar si el pago existe para dar mejor mensaje y evitar falsos negativos.
+    const lookup = await supabase
+      .from('cotizacion_pagos')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (lookup.error) throw lookup.error;
+    if (lookup.data) {
+      return lookup.data as CotizacionPago;
+    }
+
     throw new Error('No se encontró el pago para actualizar la fecha.');
   }
+
   return data[0] as CotizacionPago;
 }
 
@@ -102,21 +120,20 @@ export async function asegurarHistorialPagos(cotizacionId: string, montoPagadoAc
  * Recalcula automáticamente monto_pagado y estado_pago de la cotización.
  */
 export async function actualizarMontoPagoCotizacion(
-  pagoId: string,
+  pagoId: string | number,
   nuevoMonto: number,
   cotizacionId: string,
   totalCotizacion?: number
 ): Promise<{ pago: CotizacionPago; montoPagadoTotal: number; estadoPago: 'no_pagado' | 'pago_parcial' | 'pagado' }> {
   if (nuevoMonto <= 0) throw new Error('El monto debe ser mayor a 0.');
 
-  if (!pagoId || typeof pagoId !== 'string' || pagoId.length < 10) {
-    throw new Error('ID de pago inválido.');
-  }
+  const id = normalizarPagoId(pagoId);
+
   const { data, error } = await supabase
     .from('cotizacion_pagos')
-    .update({ monto: nuevoMonto })
-    .eq('id', pagoId)
-    .select();
+    .update({ monto: nuevoMonto }, { returning: 'representation' })
+    .eq('id', id);
+
 
   if (error) throw error;
   if (!data || !Array.isArray(data) || data.length === 0) {
@@ -144,21 +161,19 @@ export async function actualizarMontoPagoCotizacion(
  * Recalcula automáticamente monto_pagado y estado_pago de la cotización.
  */
 export async function eliminarPagoCotizacion(
-  pagoId: string,
+  pagoId: string | number,
   cotizacionId: string,
   totalCotizacion?: number
 ): Promise<{ montoPagadoTotal: number; estadoPago: 'no_pagado' | 'pago_parcial' | 'pagado' }> {
-  if (!pagoId || typeof pagoId !== 'string' || pagoId.length < 10) {
-    throw new Error('ID de pago inválido.');
-  }
-  const { error: errDelete, count } = await supabase
-    .from('cotizacion_pagos')
-    .delete({ count: 'exact' })
-    .eq('id', pagoId);
+  const id = normalizarPagoId(pagoId);
 
-  if (errDelete) throw errDelete;
-  // Si count es 0, el pago no existía
-  if (typeof count === 'number' && count === 0) {
+  const { data, error, count } = await supabase
+    .from('cotizacion_pagos')
+    .delete({ count: 'exact', returning: 'minimal' })
+    .eq('id', id);
+
+  if (error) throw error;
+  if ((typeof count === 'number' && count === 0) || !data) {
     throw new Error('No se encontró el pago para eliminar.');
   }
 

@@ -7,10 +7,15 @@ import { useUser } from '../contexts/UserContext';
 import { obtenerUsuarioActual } from '../services/auth.service';
 import { obtenerSaldoDisponible, type SaldoDisponibleResult } from '../services/saldo-disponible.service';
 import { obtenerMovimientosAhorros, depositarAhorros } from '../services/caja-ahorros.service';
+import { editarMovimientoAhorros, eliminarMovimientoAhorros } from '../services/caja-ahorros.service';
 import type { UserProfile } from '../types/database';
 import type { CajaAhorrosMovimiento } from '../types/database';
 
 export default function CajaAhorrosPage() {
+    const [editandoMovimiento, setEditandoMovimiento] = useState<CajaAhorrosMovimiento | null>(null);
+    const [montoEdit, setMontoEdit] = useState('');
+    const [notaEdit, setNotaEdit] = useState('');
+    const [guardandoEdit, setGuardandoEdit] = useState(false);
   const { usuario: usuarioContexto } = useUser();
   const [usuarioLocal, setUsuarioLocal] = useState<UserProfile | null>(null);
   const [saldo, setSaldo] = useState<SaldoDisponibleResult| null>(null);
@@ -211,6 +216,32 @@ setError(typeof e === 'string' ? e : (e?.message || JSON.stringify(e)));
                           <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right">
                             ${acumulado.toLocaleString('es-CO')}
                           </td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              className="text-xs text-blue-600 hover:underline mr-2"
+                              onClick={() => {
+                                setEditandoMovimiento(m);
+                                setMontoEdit(String(m.monto));
+                                setNotaEdit(m.nota || '');
+                                setError(null);
+                              }}
+                            >Editar</button>
+                            <button
+                              className="text-xs text-red-600 hover:underline"
+                              onClick={async () => {
+                                if (!window.confirm('¿Eliminar este movimiento?')) return;
+                                setGuardando(true);
+                                try {
+                                  await eliminarMovimientoAhorros(m.id);
+                                  await recargar();
+                                } catch (e: any) {
+                                  setError(e.message || 'Error al eliminar');
+                                } finally {
+                                  setGuardando(false);
+                                }
+                              }}
+                            >Eliminar</button>
+                          </td>
                         </tr>
                       );
                     })}
@@ -273,6 +304,70 @@ setError(typeof e === 'string' ? e : (e?.message || JSON.stringify(e)));
                   className="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium"
                 >
                   {guardando ? 'Guardando...' : 'Depositar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal editar movimiento */}
+      {editandoMovimiento && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Editar movimiento</h3>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setGuardandoEdit(true);
+                setError(null);
+                try {
+                  const monto = parseFloat(montoEdit.replace(/,/g, '.').replace(/\s/g, ''));
+                  if (isNaN(monto) || monto <= 0) throw new Error('Ingresa un monto válido.');
+                  await editarMovimientoAhorros(editandoMovimiento.id, { monto, nota: notaEdit });
+                  setEditandoMovimiento(null);
+                  await recargar();
+                } catch (e: any) {
+                  setError(e.message || 'Error al editar');
+                } finally {
+                  setGuardandoEdit(false);
+                }
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Monto</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={montoEdit}
+                  onChange={(e) => setMontoEdit(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nota (opcional)</label>
+                <input
+                  type="text"
+                  value={notaEdit}
+                  onChange={(e) => setNotaEdit(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditandoMovimiento(null)}
+                  className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardandoEdit || !montoEdit.trim()}
+                  className="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium"
+                >
+                  {guardandoEdit ? 'Guardando...' : 'Guardar cambios'}
                 </button>
               </div>
             </form>

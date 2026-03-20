@@ -1,4 +1,29 @@
 /**
+ * Edita un movimiento de caja de ahorros (monto y/o nota)
+ */
+export async function editarMovimientoAhorros(id: string, updates: { monto?: number; nota?: string; fecha?: string }): Promise<CajaAhorrosMovimiento> {
+  if (updates.monto !== undefined && updates.monto <= 0) throw new Error('El monto debe ser mayor a 0.');
+  const { data, error } = await supabase
+    .from('caja_ahorros_movimientos')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as CajaAhorrosMovimiento;
+}
+
+/**
+ * Elimina un movimiento de caja de ahorros
+ */
+export async function eliminarMovimientoAhorros(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('caja_ahorros_movimientos')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+}
+/**
  * Servicio para la caja de ahorros.
  * El dinero depositado aquí no se usa para pagos (gastos fijos, liquidaciones, etc.).
  */

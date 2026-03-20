@@ -23,6 +23,12 @@ interface DashboardProps {
 export default function Dashboard({ usuario }: DashboardProps) {
   const esAdmin = usuario.role === 'admin';
   const esVendedor = usuario.role === 'vendedor';
+  const formatearFechaLocalYMD = (fecha: Date): string => {
+    const y = fecha.getFullYear();
+    const m = String(fecha.getMonth() + 1).padStart(2, '0');
+    const d = String(fecha.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
   
   // Si es vendedor, mostrar dashboard específico
   if (esVendedor) {
@@ -153,8 +159,8 @@ export default function Dashboard({ usuario }: DashboardProps) {
         try {
           setCargandoLiquidaciones(true);
           const { inicio, fin } = calcularFechasFiltro();
-          const fechaInicioStr = inicio.toISOString().split('T')[0];
-          const fechaFinStr = fin.toISOString().split('T')[0];
+          const fechaInicioStr = formatearFechaLocalYMD(inicio);
+          const fechaFinStr = formatearFechaLocalYMD(fin);
           const datos = await obtenerLiquidacionesPorFecha(fechaInicioStr, fechaFinStr);
           setLiquidacionesMes(datos);
         } catch (error) {
@@ -193,16 +199,13 @@ export default function Dashboard({ usuario }: DashboardProps) {
         try {
           setCargandoDashboard(true);
           const { inicio, fin } = calcularFechasFiltro();
-          const fechaInicioStr = inicio.toISOString().split('T')[0];
-          const fechaFinStr = fin.toISOString().split('T')[0];
+          const fechaInicioStr = formatearFechaLocalYMD(inicio);
+          const fechaFinStr = formatearFechaLocalYMD(fin);
           console.log('📊 Cargando estadísticas del dashboard...', { tipoFiltro, fechaInicioStr, fechaFinStr, mes: mesSeleccionado, año: añoSeleccionado });
           const stats = await obtenerEstadisticasDashboard(fechaInicioStr, fechaFinStr, mesSeleccionado, añoSeleccionado);
-          console.log('✅ Estadísticas del dashboard cargadas:', stats);
           setEstadisticasDashboard(stats);
         } catch (error: any) {
           console.error('❌ Error al cargar estadísticas del dashboard:', error);
-          console.error('Error completo:', error.message, error.stack);
-          // No mostrar alert, solo loguear el error
         } finally {
           setCargandoDashboard(false);
         }
@@ -563,7 +566,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
                       <dd className="text-[clamp(0.875rem,0.75rem+0.6vw,1.5rem)] font-bold text-red-600 leading-tight mt-0.5 sm:mt-1 break-all">
                         ${(estadisticasDashboard?.costosTotalesMes ?? 0).toLocaleString('es-CO')}
                       </dd>
-                      <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-0.5 leading-tight">Total = costos operativos + IVA (el IVA no es ganancia)</p>
+                      <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-0.5 leading-tight">Total = costos operativos + gastos fijos (el IVA se muestra aparte como obligación).</p>
                       <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mt-2 pt-2 border-t border-gray-200">
                         <div className="min-w-0">
                           <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-500 leading-tight truncate">Costos operativos</p>
@@ -611,10 +614,13 @@ export default function Dashboard({ usuario }: DashboardProps) {
                       <dd className={`text-[clamp(0.875rem,0.75rem+0.6vw,1.5rem)] font-bold leading-tight mt-0.5 sm:mt-1 break-all ${
                         (estadisticasDashboard?.gananciaNetaMes ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'
                       }`}>
-                        ${(estadisticasDashboard?.gananciaNetaMes ?? 0).toLocaleString('es-CO')}
+                        {cargandoDashboard ? 'Cargando...' : `$${(estadisticasDashboard?.gananciaNetaMes ?? 0).toLocaleString('es-CO')}`}
                       </dd>
                       <p className="text-[clamp(0.625rem,0.5rem+0.3vw,0.75rem)] text-gray-400 mt-1 leading-tight" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        Dinero real del período después de pagar todo. Solo incluye cobros y pagos del mes/rango seleccionado.
+                        Basado en dinero realmente cobrado (cobros) menos costos asociados y el IVA que debe reservarse.
+                      </p>
+                      <p className="text-[0.65rem] text-gray-400 mt-1">
+                        Cashflow neto (cobros - pagos - IVA reservado): ${(estadisticasDashboard?.gananciaNetaMesCashflow ?? 0).toLocaleString('es-CO')}
                       </p>
                     </dl>
                   </div>
@@ -858,13 +864,9 @@ export default function Dashboard({ usuario }: DashboardProps) {
                 </p>
               </div>
               <div className="bg-white rounded-lg p-4 border border-green-200 shadow-sm">
-                <p className="text-sm text-gray-600 font-medium mb-1">📈 Saldo real disponible</p>
-                <p className={`text-2xl font-bold ${(estadisticasDashboard?.saldoRealDisponible ?? saldo?.saldoRealDisponible ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  ${(
-                    estadisticasDashboard?.saldoRealDisponible ??
-                    saldo?.saldoRealDisponible ??
-                    0
-                  ).toLocaleString('es-CO')}
+                <p className="text-sm text-gray-600 font-medium mb-1">📈 Saldo real disponible (histórico)</p>
+                <p className={`text-2xl font-bold ${(estadisticasDashboard?.saldoRealDisponible ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {cargandoDashboard ? 'Cargando...' : `$${(estadisticasDashboard?.saldoRealDisponible ?? 0).toLocaleString('es-CO')}`}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
                   Cobrado histórico − todos los pagos (incl. IVA y gastos fijos). Es el mismo saldo real que ves en Caja de Ahorros.
@@ -879,6 +881,15 @@ export default function Dashboard({ usuario }: DashboardProps) {
                     </p>
                   );
                 })()}
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-blue-200 shadow-sm">
+                <p className="text-sm text-gray-600 font-medium mb-1">🕒 Saldo real disponible (período)</p>
+                <p className={`text-2xl font-bold ${(estadisticasDashboard?.saldoRealDisponiblePeriodo ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {cargandoDashboard ? 'Cargando...' : `$${(estadisticasDashboard?.saldoRealDisponiblePeriodo ?? 0).toLocaleString('es-CO')}`}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Cobros del período − pagos del período − IVA reservado del período.
+                </p>
               </div>
             </div>
           </div>
