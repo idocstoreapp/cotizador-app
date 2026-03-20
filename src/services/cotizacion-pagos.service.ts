@@ -134,12 +134,28 @@ export async function actualizarMontoPagoCotizacion(
     .update({ monto: nuevoMonto }, { returning: 'representation' })
     .eq('id', id);
 
-
   if (error) throw error;
-  if (!data || !Array.isArray(data) || data.length === 0) {
-    throw new Error('No se encontró el pago para actualizar el monto.');
+
+  let pago: CotizacionPago | null = null;
+  if (data && Array.isArray(data) && data.length > 0) {
+    pago = data[0] as CotizacionPago;
   }
-  const pago = data[0] as CotizacionPago;
+
+  // Supabase a veces devuelve [] o null cuando no hay returning explícito,
+  // pero la actualización puede haber sido exitosa. Verificar si el registro existe.
+  if (!pago) {
+    const lookup = await supabase
+      .from('cotizacion_pagos')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (lookup.error) throw lookup.error;
+    if (!lookup.data) {
+      throw new Error('No se encontró el pago para actualizar el monto.');
+    }
+    pago = lookup.data as CotizacionPago;
+  }
 
   // Recalcular totales
   const todos = await obtenerPagosPorCotizacion(cotizacionId);
@@ -173,7 +189,16 @@ export async function eliminarPagoCotizacion(
     .eq('id', id);
 
   if (error) throw error;
-  if ((typeof count === 'number' && count === 0) || !data) {
+
+  // Supabase con returning:'minimal' puede devolver data=null, aún con count > 0.
+  // No disparar false-positive 'no encontrado' en ese caso.
+  const registrosEliminados = typeof count === 'number'
+    ? count
+    : Array.isArray(data)
+      ? data.length
+      : 0;
+
+  if (registrosEliminados === 0) {
     throw new Error('No se encontró el pago para eliminar.');
   }
 
