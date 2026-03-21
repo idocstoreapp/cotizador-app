@@ -12,6 +12,13 @@ import type { UserProfile } from '../types/database';
 import type { CajaAhorrosMovimiento } from '../types/database';
 
 export default function CajaAhorrosPage() {
+  const formatearFechaHoyLocal = (): string => {
+    const hoy = new Date();
+    const y = hoy.getFullYear();
+    const m = String(hoy.getMonth() + 1).padStart(2, '0');
+    const d = String(hoy.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
     const [editandoMovimiento, setEditandoMovimiento] = useState<CajaAhorrosMovimiento | null>(null);
     const [montoEdit, setMontoEdit] = useState('');
     const [notaEdit, setNotaEdit] = useState('');
@@ -25,6 +32,7 @@ export default function CajaAhorrosPage() {
   const [mostrarModalDeposito, setMostrarModalDeposito] = useState(false);
   const [montoDeposito, setMontoDeposito] = useState<string>('');
   const [notaDeposito, setNotaDeposito] = useState('');
+  const [fechaDeposito, setFechaDeposito] = useState<string>(formatearFechaHoyLocal());
   const [guardando, setGuardando] = useState(false);
 
   const usuario = usuarioContexto || usuarioLocal;
@@ -80,12 +88,14 @@ setError(typeof e === 'string' ? e : (e?.message || JSON.stringify(e)));
     try {
       await depositarAhorros({ 
         monto, 
+        fecha: fechaDeposito,
         nota: notaDeposito.trim() || undefined,
         created_by: usuario?.id || undefined // Registrar quién hizo el depósito
       });
       setMostrarModalDeposito(false);
       setMontoDeposito('');
       setNotaDeposito('');
+      setFechaDeposito(formatearFechaHoyLocal());
       await recargar();
     } catch (e: any) {
       setError(e.message || 'Error al registrar depósito');
@@ -127,7 +137,13 @@ setError(typeof e === 'string' ? e : (e?.message || JSON.stringify(e)));
         </div>
         <button
           type="button"
-          onClick={() => { setMostrarModalDeposito(true); setError(null); setMontoDeposito(''); setNotaDeposito(''); }}
+          onClick={() => {
+            setMostrarModalDeposito(true);
+            setError(null);
+            setMontoDeposito('');
+            setNotaDeposito('');
+            setFechaDeposito(formatearFechaHoyLocal());
+          }}
           disabled={cargando || (saldo !== null && saldo.disponibleParaGastar <= 0)}
           className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
         >
@@ -281,6 +297,17 @@ setError(typeof e === 'string' ? e : (e?.message || JSON.stringify(e)));
                     Todo
                   </button>
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha del movimiento</label>
+                <input
+                  type="date"
+                  value={fechaDeposito}
+                  onChange={(e) => setFechaDeposito(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  max={formatearFechaHoyLocal()}
+                  required
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nota (opcional)</label>
