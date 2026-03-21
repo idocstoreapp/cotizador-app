@@ -130,8 +130,6 @@ export async function calcularKPIsFinancieros(
 
   const fechaInicioYMD = formatLocalYMD(inicioPeriodo);
   const fechaFinYMD = formatLocalYMD(finPeriodo);
-  const fechaInicioISO = inicioPeriodo.toISOString();
-  const fechaFinISO = finPeriodo.toISOString();
 
   const queryRange = async (table: string, select: string, field: string) => {
     if (ignorarFechas) return supabase.from(table).select(select);
@@ -147,18 +145,14 @@ export async function calcularKPIsFinancieros(
 
   const [cobrosRes, materialesRes, manoObraRes, hormigaRes, transporteRes, gastosFijosRes, personalRes] = await Promise.all([
     queryRange('cotizacion_pagos', 'cotizacion_id, monto, fecha_pago', 'fecha_pago'),
-    ignorarFechas
-      ? supabase.from('gastos_reales_materiales').select('precio_unitario_real, cantidad_real, fecha_compra')
-      : supabase.from('gastos_reales_materiales').select('precio_unitario_real, cantidad_real, fecha_compra').gte('fecha_compra', fechaInicioISO).lte('fecha_compra', fechaFinISO),
+    queryRange('gastos_reales_materiales', 'precio_unitario_real, cantidad_real, fecha_compra', 'fecha_compra'),
     queryRange('mano_obra_real', 'total_pagado, fecha', 'fecha'),
     queryRange('gastos_hormiga', 'monto, fecha', 'fecha'),
     queryRange('transporte_real', 'costo, fecha', 'fecha'),
     ignorarFechas
       ? supabase.from('fixed_expenses').select('amount, date, created_at')
       : supabase.from('fixed_expenses').select('amount, date, created_at').gte('date', fechaInicioYMD).lte('date', fechaFinYMD),
-    ignorarFechas
-      ? supabase.from('liquidaciones').select('monto, fecha_liquidacion')
-      : supabase.from('liquidaciones').select('monto, fecha_liquidacion').gte('fecha_liquidacion', fechaInicioISO).lte('fecha_liquidacion', fechaFinISO)
+    queryRange('liquidaciones', 'monto, fecha_liquidacion', 'fecha_liquidacion')
   ]);
 
   const cobrosLista = (cobrosRes.data || []) as any[];
@@ -1595,4 +1589,3 @@ export async function obtenerEstadisticasDashboard(
     cotizacionesRecientes
   };
 }
-

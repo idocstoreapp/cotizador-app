@@ -191,7 +191,9 @@ setError(typeof e === 'string' ? e : (e?.message || JSON.stringify(e)));
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {movimientos.map((m, index) => {
-                      const acumulado = movimientos.slice(0, index + 1).reduce((sum, mov) => sum + Number(mov.monto), 0);
+                      // La tabla está ordenada por fecha DESC; para mostrar acumulado correcto
+                      // a la fecha del movimiento, sumar desde ese movimiento hacia los más antiguos.
+                      const acumulado = movimientos.slice(index).reduce((sum, mov) => sum + Number(mov.monto), 0);
                       return (
                         <tr key={m.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-4 py-3 text-sm font-medium text-gray-900">
