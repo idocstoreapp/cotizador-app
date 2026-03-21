@@ -473,21 +473,37 @@ export async function obtenerCotizacionesPorCliente(
   clienteNombre: string,
   clienteEmail?: string
 ): Promise<Cotizacion[]> {
-  let query = supabase
+  const nombreNormalizado = clienteNombre.trim();
+  const emailNormalizado = clienteEmail?.trim();
+
+  // Buscar por nombre sin sensibilidad a mayúsculas/minúsculas
+  const nombreQuery = supabase
     .from('cotizaciones')
     .select('*')
-    .eq('cliente_nombre', clienteNombre)
+    .ilike('cliente_nombre', nombreNormalizado)
     .order('created_at', { ascending: false });
 
-  // Si hay email, también buscar por email
-  if (clienteEmail) {
-    query = query.or(`cliente_nombre.eq.${clienteNombre},cliente_email.eq.${clienteEmail}`);
-  }
+  // Si existe email, también buscar por email para evitar perder cotizaciones con nombre variante
+  const emailQuery = emailNormalizado
+    ? supabase
+        .from('cotizaciones')
+        .select('*')
+        .eq('cliente_email', emailNormalizado)
+        .order('created_at', { ascending: false })
+    : Promise.resolve({ data: [] as any[], error: null as any });
 
-  const { data: cotizaciones, error } = await query;
+  const [nombreRes, emailRes] = await Promise.all([nombreQuery, emailQuery]);
+  if (nombreRes.error) throw nombreRes.error;
+  if (emailRes.error) throw emailRes.error;
 
-  if (error) throw error;
-  if (!cotizaciones || cotizaciones.length === 0) return [];
+  const mapa = new Map<string, Cotizacion>();
+  (nombreRes.data || []).forEach((c: any) => mapa.set(String(c.id), c as Cotizacion));
+  (emailRes.data || []).forEach((c: any) => mapa.set(String(c.id), c as Cotizacion));
+
+  const cotizaciones = Array.from(mapa.values())
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  if (cotizaciones.length === 0) return [];
 
   // Cargar usuarios y vendedores
   const usuarioIds = [...new Set(cotizaciones.map(c => c.usuario_id).filter(Boolean))];
@@ -649,5 +665,4 @@ export async function cambiarEstadoCotizacion(
   
   return cotizacionConUsuario;
 }
-
 
