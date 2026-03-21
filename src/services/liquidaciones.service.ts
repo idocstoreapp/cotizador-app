@@ -119,7 +119,10 @@ export async function obtenerLiquidacionesPorFecha(
 export async function obtenerLiquidacionesPorPersona(personaId: string): Promise<Liquidacion[]> {
   const base = supabase.from('liquidaciones');
   try {
-    return await selectLiquidaciones(base, (q) => q.or(`persona_id.eq.${personaId},trabajador_id.eq.${personaId}`));
+    // Intento amplio (esquemas nuevos/mixtos)
+    return await selectLiquidaciones(base, (q) =>
+      q.or(`persona_id.eq.${personaId},trabajador_id.eq.${personaId}`)
+    );
   } catch (error: any) {
     const msg = String(error?.message || '').toLowerCase();
     const missingTrabajadorId = error?.code === '42703' || msg.includes('trabajador_id');
