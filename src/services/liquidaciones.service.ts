@@ -214,10 +214,29 @@ export async function calcularBalancePersona(personaId: string): Promise<{
   }
 
   // Obtener total liquidado (persona_id o trabajador_id según esquema)
-  const { data: liquidaciones } = await supabase
-    .from('liquidaciones')
-    .select('monto')
-    .or(`persona_id.eq.${personaId},trabajador_id.eq.${personaId}`);
+  let liquidaciones: Array<{ monto: number }> | null = null;
+  {
+    const queryAmbos = await supabase
+      .from('liquidaciones')
+      .select('monto')
+      .or(`persona_id.eq.${personaId},trabajador_id.eq.${personaId}`);
+
+    const msg = String(queryAmbos.error?.message || '').toLowerCase();
+    const missingTrabajadorId = queryAmbos.error?.code === '42703' || msg.includes('trabajador_id');
+
+    if (!queryAmbos.error) {
+      liquidaciones = queryAmbos.data as Array<{ monto: number }>;
+    } else if (missingTrabajadorId) {
+      const fallback = await supabase
+        .from('liquidaciones')
+        .select('monto')
+        .eq('persona_id', personaId);
+      if (fallback.error) throw fallback.error;
+      liquidaciones = fallback.data as Array<{ monto: number }>;
+    } else {
+      throw queryAmbos.error;
+    }
+  }
 
   const totalLiquidado = liquidaciones?.reduce((sum, l) => sum + (l.monto || 0), 0) || 0;
 
