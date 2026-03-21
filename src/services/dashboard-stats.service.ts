@@ -130,8 +130,6 @@ export async function calcularKPIsFinancieros(
 
   const fechaInicioYMD = formatLocalYMD(inicioPeriodo);
   const fechaFinYMD = formatLocalYMD(finPeriodo);
-  const fechaInicioISO = inicioPeriodo.toISOString();
-  const fechaFinISO = finPeriodo.toISOString();
 
   const queryRange = async (table: string, select: string, field: string) => {
     if (ignorarFechas) return supabase.from(table).select(select);
@@ -147,18 +145,14 @@ export async function calcularKPIsFinancieros(
 
   const [cobrosRes, materialesRes, manoObraRes, hormigaRes, transporteRes, gastosFijosRes, personalRes] = await Promise.all([
     queryRange('cotizacion_pagos', 'cotizacion_id, monto, fecha_pago', 'fecha_pago'),
-    ignorarFechas
-      ? supabase.from('gastos_reales_materiales').select('precio_unitario_real, cantidad_real, fecha_compra')
-      : supabase.from('gastos_reales_materiales').select('precio_unitario_real, cantidad_real, fecha_compra').gte('fecha_compra', fechaInicioISO).lte('fecha_compra', fechaFinISO),
+    queryRange('gastos_reales_materiales', 'precio_unitario_real, cantidad_real, fecha_compra', 'fecha_compra'),
     queryRange('mano_obra_real', 'total_pagado, fecha', 'fecha'),
     queryRange('gastos_hormiga', 'monto, fecha', 'fecha'),
     queryRange('transporte_real', 'costo, fecha', 'fecha'),
     ignorarFechas
       ? supabase.from('fixed_expenses').select('amount, date, created_at')
       : supabase.from('fixed_expenses').select('amount, date, created_at').gte('date', fechaInicioYMD).lte('date', fechaFinYMD),
-    ignorarFechas
-      ? supabase.from('liquidaciones').select('monto, fecha_liquidacion')
-      : supabase.from('liquidaciones').select('monto, fecha_liquidacion').gte('fecha_liquidacion', fechaInicioISO).lte('fecha_liquidacion', fechaFinISO)
+    queryRange('liquidaciones', 'monto, fecha_liquidacion', 'fecha_liquidacion')
   ]);
 
   const cobrosLista = (cobrosRes.data || []) as any[];
@@ -1056,23 +1050,8 @@ export async function obtenerEstadisticasDashboard(
     pagosPersonalMes = kpisFinancierosPeriodo.pagosPersonalPeriodo;
     cobradoPorCotizacionPeriodo = kpisFinancierosPeriodo.cobradoPorCotizacionPeriodo;
 
-    // Priorizar la fuente de cobros según contexto de fecha (solo periodo)
-    const cobrosPorCotizacionesPeriodo = cotizacionesPeriodo.reduce((sum, c) => sum + (Number(c.monto_pagado) || 0), 0);
-    const cobrosPorCotizacionesAceptadasPeriodo = cotizacionesAceptadasPeriodo.reduce((sum, c) => sum + (Number(c.monto_pagado) || 0), 0);
-
-    if (cobrosPorCotizacionesPeriodo > 0) {
-      cobrosTotalesPeriodo = cobrosPorCotizacionesPeriodo;
-    } else if (cobrosPorCotizacionesAceptadasPeriodo > 0) {
-      cobrosTotalesPeriodo = cobrosPorCotizacionesAceptadasPeriodo;
-    } else {
-      // No forzar histórico a partir del total de todas las cotizaciones
-      // Mantener valor de cotizacion_pagos (rango seleccionado) tal como devolvió calcularKPIsFinancieros.
-    }
-
     if (process.env.NODE_ENV !== 'production') {
       console.log('🛠 [Dashboard Stats] cobrosTotalesPeriodo (final, periodo only):', {
-        cotizacionesPeriodo: cobrosPorCotizacionesPeriodo,
-        cotizacionesAceptadasPeriodo: cobrosPorCotizacionesAceptadasPeriodo,
         kpisBase: kpisFinancierosPeriodo?.cobrosTotalesPeriodo,
         cobrosTotalesPeriodo
       });
@@ -1080,9 +1059,6 @@ export async function obtenerEstadisticasDashboard(
 
     if (process.env.NODE_ENV !== 'production') {
       console.log('🛠 [Dashboard Stats] cobrosTotalesPeriodo (final):', {
-        cotizacionesPeriodo: cobrosPorCotizacionesPeriodo,
-        cotizacionesAceptadasPeriodo: cobrosPorCotizacionesAceptadasPeriodo,
-        cotizacionesHistorico: cobrosPorTodasLasCotizaciones,
         kpisBase: kpisFinancierosPeriodo?.cobrosTotalesPeriodo,
         cobrosTotalesPeriodo
       });
@@ -1131,46 +1107,8 @@ export async function obtenerEstadisticasDashboard(
   gastosFijosMes = pagosGastosFijosMes;
   ivaRealMes = ivaReservadoPeriodo;
 
-  // Si la tabla de gastos reales no tiene suficiente información, fallback a lo presupuestado
-  // por las cotizaciones con cobros del período.
-  const calcularPresupuestoPorCotizacion = (cotizacion: any) => {
-    const subtotalMateriales = Number(cotizacion.subtotal_materiales ?? 0) || 0;
-    const subtotalServicios = Number(cotizacion.subtotal_servicios ?? 0) || 0;
-
-    const calculoMaterialesAlternativo = Array.isArray(cotizacion.materiales)
-      ? cotizacion.materiales.reduce((sum: number, item: any) => sum + ((Number(item.precio_unitario) || 0) * (Number(item.cantidad) || 0)), 0)
-      : 0;
-
-    const calculoServiciosAlternativo = Array.isArray(cotizacion.servicios)
-      ? cotizacion.servicios.reduce((sum: number, item: any) => sum + ((Number(item.precio_por_hora) || 0) * (Number(item.horas) || 0)), 0)
-      : 0;
-
-    return {
-      materiales: subtotalMateriales > 0 ? subtotalMateriales : calculoMaterialesAlternativo,
-      servicios: subtotalServicios > 0 ? subtotalServicios : calculoServiciosAlternativo
-    };
-  };
-
-  let presupuestoMateriales = 0;
-  let presupuestoServicios = 0;
-  cotizacionesConCobros.forEach((c: any) => {
-    const { materiales, servicios } = calcularPresupuestoPorCotizacion(c);
-    presupuestoMateriales += materiales;
-    presupuestoServicios += servicios;
-  });
-
-  gastosMaterialesMes = Math.max(gastosMaterialesMes, presupuestoMateriales);
-  gastosManoObraMes = Math.max(gastosManoObraMes, presupuestoServicios);
-
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('💡 [Dashboard Stats] Ajuste costos reales con presupuesto:', {
-      presupuestoMateriales,
-      presupuestoServicios,
-      gastosMaterialesMes,
-      gastosManoObraMes,
-      cotizacionesConCobros: cotizacionesConCobros.length
-    });
-  }
+  // Mantener KPIs de costos alineados a pagos reales del período.
+  // No mezclar con costos presupuestados para evitar desfases entre tarjetas.
 
   // Si no hay registro de gastos hormiga/transporte, pero hay cotizaciones con cobros, mantener 0.
   // Se puede mejorar con más datos si su modelo de cotizaciones tiene campos específicos de estos costos.
@@ -1191,7 +1129,7 @@ export async function obtenerEstadisticasDashboard(
   // - pagos reales
   // - costos reales (materia prima + obra + hormiga + transporte + fijos)
   // - IVA reservado (como obligación pendiente)
-  const gananciaNetaMes = cobrosTotalesPeriodo - pagosTotalesMes - costosTotalesMes - ivaReservadoPeriodo;
+  const gananciaNetaMes = cobrosTotalesPeriodo - pagosTotalesMes - ivaReservadoPeriodo;
 
   // CASHFLOW NETO: cuánto queda en caja después de pagos reales del período y del IVA reservado.
   const gananciaNetaMesCashflow = cobrosTotalesPeriodo - pagosTotalesMes - ivaReservadoPeriodo;
@@ -1595,4 +1533,3 @@ export async function obtenerEstadisticasDashboard(
     cotizacionesRecientes
   };
 }
-
