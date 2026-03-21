@@ -73,6 +73,17 @@ const LIQUIDACIONES_SELECT_EMBED = `
 
 type LiquidacionesFilterApplier = (q: any) => any;
 
+function esErrorColumnaTrabajadorIdAusente(error: any): boolean {
+  const code = String(error?.code || '').toUpperCase();
+  const texto = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
+  return (
+    code === '42703' ||
+    code === 'PGRST204' ||
+    texto.includes('trabajador_id') ||
+    texto.includes('column') && texto.includes('does not exist')
+  );
+}
+
 async function selectLiquidaciones(baseQuery: any, applyFilters?: LiquidacionesFilterApplier): Promise<Liquidacion[]> {
   // supabase-js v2: filtros (or/gte/lte) y order deben ir DESPUÉS de select()
   const withEmbedBase = baseQuery.select(LIQUIDACIONES_SELECT_EMBED);
@@ -118,7 +129,18 @@ export async function obtenerLiquidacionesPorFecha(
  */
 export async function obtenerLiquidacionesPorPersona(personaId: string): Promise<Liquidacion[]> {
   const base = supabase.from('liquidaciones');
-  return selectLiquidaciones(base, (q) => q.or(`persona_id.eq.${personaId},trabajador_id.eq.${personaId}`));
+  try {
+    // Intento amplio (esquemas nuevos/mixtos)
+    return await selectLiquidaciones(base, (q) =>
+      q.or(`persona_id.eq.${personaId},trabajador_id.eq.${personaId}`)
+    );
+  } catch (error: any) {
+    if (esErrorColumnaTrabajadorIdAusente(error)) {
+      // Compatibilidad con esquemas donde no existe liquidaciones.trabajador_id
+      return selectLiquidaciones(base, (q) => q.eq('persona_id', personaId));
+    }
+    throw error;
+  }
 }
 
 /**
@@ -221,8 +243,7 @@ export async function calcularBalancePersona(personaId: string): Promise<{
       .select('monto')
       .or(`persona_id.eq.${personaId},trabajador_id.eq.${personaId}`);
 
-    const msg = String(queryAmbos.error?.message || '').toLowerCase();
-    const missingTrabajadorId = queryAmbos.error?.code === '42703' || msg.includes('trabajador_id');
+    const missingTrabajadorId = esErrorColumnaTrabajadorIdAusente(queryAmbos.error);
 
     if (!queryAmbos.error) {
       liquidaciones = queryAmbos.data as Array<{ monto: number }>;
