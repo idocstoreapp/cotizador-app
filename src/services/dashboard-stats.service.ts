@@ -312,8 +312,10 @@ export async function obtenerEstadisticasDashboard(
   const PAGO_EPSILON = 0.05;
 
   // Separar cotizaciones aceptadas por estado de pago
-  // Nota: abusamos de la definición "pagadas" para incluir solo las cotizaciones que están completamente pagadas.
+  // Para "Por cobrar" se usa alcance GLOBAL (todas las aceptadas históricas),
+  // no solo el período filtrado. Así no se pierden deudas de meses anteriores.
   const cotizacionesAceptadasPeriodoParaCobro = cotizacionesPeriodo.filter(c => c.estado === 'aceptada');
+  const cotizacionesAceptadasHistoricasParaCobro = todasLasCotizaciones.filter(c => c.estado === 'aceptada');
 
   const cotizacionesPagadas = cotizacionesAceptadasPeriodoParaCobro.filter(c => {
     const totalCotizacion = calcularTotalDesdeItems(c);
@@ -323,6 +325,22 @@ export async function obtenerEstadisticasDashboard(
   });
 
   const cotizacionesEnProceso = cotizacionesAceptadasPeriodoParaCobro.filter(c => {
+    const totalCotizacion = calcularTotalDesdeItems(c);
+    const montoPagado = Number(c.monto_pagado) || 0;
+    const estaPagadaPorMonto = montoPagado >= (totalCotizacion - PAGO_EPSILON);
+    return !estaPagadaPorMonto && (
+      !c.estado_pago || c.estado_pago === 'no_pagado' || c.estado_pago === 'pago_parcial' || montoPagado > 0
+    );
+  });
+
+  const cotizacionesPagadasGlobal = cotizacionesAceptadasHistoricasParaCobro.filter(c => {
+    const totalCotizacion = calcularTotalDesdeItems(c);
+    const montoPagado = Number(c.monto_pagado) || 0;
+    const estaPagadaPorMonto = montoPagado >= (totalCotizacion - PAGO_EPSILON);
+    return estaPagadaPorMonto || c.estado_pago === 'pagado';
+  });
+
+  const cotizacionesEnProcesoGlobal = cotizacionesAceptadasHistoricasParaCobro.filter(c => {
     const totalCotizacion = calcularTotalDesdeItems(c);
     const montoPagado = Number(c.monto_pagado) || 0;
     const estaPagadaPorMonto = montoPagado >= (totalCotizacion - PAGO_EPSILON);
@@ -390,6 +408,12 @@ export async function obtenerEstadisticasDashboard(
     return sum + (total - pagado);
   }, 0);
   const totalPendiente = Math.abs(totalPendienteRaw) < PAGO_EPSILON ? 0 : Math.round(totalPendienteRaw * 100) / 100;
+  const totalPendienteGlobalRaw = cotizacionesEnProcesoGlobal.reduce((sum, c) => {
+    const total = calcularTotalDesdeItems(c);
+    const pagado = c.monto_pagado || 0;
+    return sum + (total - pagado);
+  }, 0);
+  const totalPendienteGlobal = Math.abs(totalPendienteGlobalRaw) < PAGO_EPSILON ? 0 : Math.round(totalPendienteGlobalRaw * 100) / 100;
 
   // ====== COSTOS REALES DEL PERÍODO (TODOS) ======
   // IMPORTANTE: Contar todos los costos reales de las cotizaciones aceptadas en el período
@@ -1492,10 +1516,10 @@ export async function obtenerEstadisticasDashboard(
     cotizacionesRechazadas: cotizacionesRechazadasPeriodo.length,
     ventasTotalesMes: ventasTotalesPeriodo,
     cobrosTotalesPeriodo,
-    cotizacionesAceptadasEnProceso: cotizacionesEnProceso.length,
-    cotizacionesPagadasCompletamente: cotizacionesPagadas.length,
+    cotizacionesAceptadasEnProceso: cotizacionesEnProcesoGlobal.length,
+    cotizacionesPagadasCompletamente: cotizacionesPagadasGlobal.length,
     totalAbonado: totalAbonado,
-    totalPendiente: totalPendiente,
+    totalPendiente: totalPendienteGlobal,
     gastosMaterialesMes,
     gastosManoObraMes,
     gastosHormigaMes,
