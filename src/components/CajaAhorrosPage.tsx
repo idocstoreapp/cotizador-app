@@ -22,6 +22,7 @@ export default function CajaAhorrosPage() {
     const [editandoMovimiento, setEditandoMovimiento] = useState<CajaAhorrosMovimiento | null>(null);
     const [montoEdit, setMontoEdit] = useState('');
     const [notaEdit, setNotaEdit] = useState('');
+    const [fechaEdit, setFechaEdit] = useState('');
     const [guardandoEdit, setGuardandoEdit] = useState(false);
   const { usuario: usuarioContexto } = useUser();
   const [usuarioLocal, setUsuarioLocal] = useState<UserProfile | null>(null);
@@ -165,11 +166,11 @@ setError(typeof e === 'string' ? e : (e?.message || JSON.stringify(e)));
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-              <p className="text-sm font-medium text-gray-500">Saldo real disponible</p>
+              <p className="text-sm font-medium text-gray-500">Dinero real en caja (antes de ahorro)</p>
               <p className={`text-2xl font-bold mt-1 ${saldo.saldoRealDisponible >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 ${saldo.saldoRealDisponible.toLocaleString('es-CO')}
               </p>
-              <p className="text-xs text-gray-400 mt-1">Cobrado − costos (incl. IVA) − liquidaciones − gastos fijos</p>
+              <p className="text-xs text-gray-400 mt-1">Cobrado − costos (incl. IVA) − liquidaciones − gastos fijos (todavía sin restar ahorros)</p>
             </div>
             <div className="bg-indigo-50 rounded-xl border border-indigo-200 p-5 shadow-sm">
               <p className="text-sm font-medium text-indigo-800">En caja de ahorros</p>
@@ -179,11 +180,11 @@ setError(typeof e === 'string' ? e : (e?.message || JSON.stringify(e)));
               <p className="text-xs text-indigo-600 mt-1">No se usa para pagos</p>
             </div>
             <div className="bg-white rounded-xl border-2 border-amber-300 p-5 shadow-sm bg-amber-50/30">
-              <p className="text-sm font-medium text-amber-800">Disponible para gastar</p>
+              <p className="text-sm font-medium text-amber-800">Dinero real disponible (después de ahorro)</p>
               <p className={`text-2xl font-bold mt-1 ${saldo.disponibleParaGastar >= 0 ? 'text-amber-700' : 'text-red-600'}`}>
                 ${saldo.disponibleParaGastar.toLocaleString('es-CO')}
               </p>
-              <p className="text-xs text-amber-700 mt-1">De aquí se descuentan gastos fijos y liquidaciones</p>
+              <p className="text-xs text-amber-700 mt-1">Aquí ya se descontó la caja de ahorros. De este monto salen pagos y gastos.</p>
             </div>
           </div>
 
@@ -203,6 +204,7 @@ setError(typeof e === 'string' ? e : (e?.message || JSON.stringify(e)));
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">💰 Monto</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">📝 Nota</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acumulado</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -241,8 +243,10 @@ setError(typeof e === 'string' ? e : (e?.message || JSON.stringify(e)));
                                 setEditandoMovimiento(m);
                                 setMontoEdit(String(m.monto));
                                 setNotaEdit(m.nota || '');
+                                setFechaEdit(m.fecha);
                                 setError(null);
                               }}
+                              disabled={guardando || guardandoEdit}
                             >Editar</button>
                             <button
                               className="text-xs text-red-600 hover:underline"
@@ -258,6 +262,7 @@ setError(typeof e === 'string' ? e : (e?.message || JSON.stringify(e)));
                                   setGuardando(false);
                                 }
                               }}
+                              disabled={guardando || guardandoEdit}
                             >Eliminar</button>
                           </td>
                         </tr>
@@ -353,7 +358,8 @@ setError(typeof e === 'string' ? e : (e?.message || JSON.stringify(e)));
                 try {
                   const monto = parseFloat(montoEdit.replace(/,/g, '.').replace(/\s/g, ''));
                   if (isNaN(monto) || monto <= 0) throw new Error('Ingresa un monto válido.');
-                  await editarMovimientoAhorros(editandoMovimiento.id, { monto, nota: notaEdit });
+                  if (!fechaEdit) throw new Error('Ingresa una fecha válida.');
+                  await editarMovimientoAhorros(editandoMovimiento.id, { monto, nota: notaEdit, fecha: fechaEdit });
                   setEditandoMovimiento(null);
                   await recargar();
                 } catch (e: any) {
@@ -372,6 +378,17 @@ setError(typeof e === 'string' ? e : (e?.message || JSON.stringify(e)));
                   value={montoEdit}
                   onChange={(e) => setMontoEdit(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                <input
+                  type="date"
+                  value={fechaEdit}
+                  onChange={(e) => setFechaEdit(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500"
+                  max={formatearFechaHoyLocal()}
+                  required
                 />
               </div>
               <div>
