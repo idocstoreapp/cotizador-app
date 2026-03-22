@@ -202,7 +202,34 @@ export async function crearGastoFijo(gasto: {
     .select('*')
     .single();
 
-  if (error) throw error;
+  let createdRow: any = data;
+  if (error) {
+    const msg = String(error.message || '').toLowerCase();
+    const esNombreNotNull = error.code === '23502' && msg.includes('nombre');
+    if (!esNombreNotNull) throw error;
+
+    const { data: dataCompat, error: errorCompat } = await supabase
+      .from('fixed_expenses')
+      .insert({
+        ...payload,
+        nombre: payload.description
+      } as any)
+      .select('*')
+      .single();
+
+    if (errorCompat) throw errorCompat;
+    createdRow = dataCompat;
+  }
+
+  let category: any = null;
+  if (createdRow?.category_id) {
+    const { data: cat } = await supabase
+      .from('fixed_expense_categories')
+      .select('id, name, description')
+      .eq('id', createdRow.category_id)
+      .maybeSingle();
+    if (cat) category = cat;
+  }
 
   let category: any = null;
   if (data?.category_id) {
@@ -215,7 +242,7 @@ export async function crearGastoFijo(gasto: {
   }
 
   return {
-    ...data,
+    ...createdRow,
     category
   } as FixedExpense;
 }
@@ -248,7 +275,35 @@ export async function actualizarGastoFijo(
     .select('*')
     .single();
 
-  if (error) throw error;
+  let updatedRow: any = data;
+  if (error) {
+    const msg = String(error.message || '').toLowerCase();
+    const esNombreNotNull = error.code === '23502' && msg.includes('nombre');
+    if (!esNombreNotNull) throw error;
+
+    const { data: dataCompat, error: errorCompat } = await supabase
+      .from('fixed_expenses')
+      .update({
+        ...payload,
+        ...(payload.description ? { nombre: payload.description } : {})
+      } as any)
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (errorCompat) throw errorCompat;
+    updatedRow = dataCompat;
+  }
+
+  let category: any = null;
+  if (updatedRow?.category_id) {
+    const { data: cat } = await supabase
+      .from('fixed_expense_categories')
+      .select('id, name, description')
+      .eq('id', updatedRow.category_id)
+      .maybeSingle();
+    if (cat) category = cat;
+  }
 
   let category: any = null;
   if (data?.category_id) {
@@ -261,7 +316,7 @@ export async function actualizarGastoFijo(
   }
 
   return {
-    ...data,
+    ...updatedRow,
     category
   } as FixedExpense;
 }
