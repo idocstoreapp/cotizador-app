@@ -1139,11 +1139,11 @@ export async function obtenerEstadisticasDashboard(
   // Si no hay registro de gastos hormiga/transporte, pero hay cotizaciones con cobros, mantener 0.
   // Se puede mejorar con más datos si su modelo de cotizaciones tiene campos específicos de estos costos.
 
-  // COSTOS TOTALES = costos operativos pagados + gastos fijos pagados
-  // (no incluir IVA en costos reales para que quede separado como impuesto)
-  const costosTotalesMes = gastosMaterialesMes + gastosManoObraMes + gastosHormigaMes + gastosTransporteMes + gastosFijosMes;
+  // COSTOS TOTALES = costos operativos pagados + gastos fijos pagados + IVA reservado
+  // (el IVA se muestra desglosado en la UI, pero sí se incluye en el total de costos)
+  const costosTotalesMes = gastosMaterialesMes + gastosManoObraMes + gastosHormigaMes + gastosTransporteMes + gastosFijosMes + ivaRealMes;
 
-  // GANANCIA REAL = Cobros reales - Costos Totales reales (sin IVA)
+  // GANANCIA REAL = Cobros reales - Costos Totales reales (incluye IVA reservado)
   const gananciaMes = cobrosTotalesPeriodo - costosTotalesMes;
 
   // Margen de ganancia %
