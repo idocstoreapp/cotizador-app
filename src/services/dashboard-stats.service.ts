@@ -313,14 +313,16 @@ export async function obtenerEstadisticasDashboard(
 
   // Separar cotizaciones aceptadas por estado de pago
   // Nota: abusamos de la definición "pagadas" para incluir solo las cotizaciones que están completamente pagadas.
-  const cotizacionesPagadas = cotizacionesPeriodo.filter(c => {
+  const cotizacionesAceptadasPeriodoParaCobro = cotizacionesPeriodo.filter(c => c.estado === 'aceptada');
+
+  const cotizacionesPagadas = cotizacionesAceptadasPeriodoParaCobro.filter(c => {
     const totalCotizacion = calcularTotalDesdeItems(c);
     const montoPagado = Number(c.monto_pagado) || 0;
     const estaPagadaPorMonto = montoPagado >= (totalCotizacion - PAGO_EPSILON);
     return estaPagadaPorMonto || c.estado_pago === 'pagado';
   });
 
-  const cotizacionesEnProceso = cotizacionesPeriodo.filter(c => {
+  const cotizacionesEnProceso = cotizacionesAceptadasPeriodoParaCobro.filter(c => {
     const totalCotizacion = calcularTotalDesdeItems(c);
     const montoPagado = Number(c.monto_pagado) || 0;
     const estaPagadaPorMonto = montoPagado >= (totalCotizacion - PAGO_EPSILON);
@@ -349,7 +351,7 @@ export async function obtenerEstadisticasDashboard(
   let cobradoPorCotizacionPeriodo = new Map<string, number>();
 
   // Cotizaciones con cobros iniciales (monto_pagado declarado o pagos en cotizacion_pagos) restringidas a período
-  let cotizacionesConCobros = cotizacionesPeriodo.filter((c) => {
+  let cotizacionesConCobros = cotizacionesAceptadasPeriodoParaCobro.filter((c) => {
     return (Number(c.monto_pagado) || 0) > 0;
   });
 
