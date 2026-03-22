@@ -32,7 +32,7 @@ export default function DashboardPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="bg-gray-500 rounded-xl shadow-md border-l-4 border-green-300 p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
               <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -40,13 +40,13 @@ export default function DashboardPage() {
               </svg>
             </div>
           </div>
-          <p className="text-sm text-gray-600 mb-1">Total Ganado</p>
-          <p className="text-2xl font-bold text-gray-900">
+          <p className="text-sm text-gray-100 mb-1">Total Ganado</p>
+          <p className="text-2xl font-bold text-green-200">
             ${kpis.totalGanado.toLocaleString('es-CO')}
           </p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="bg-gray-500 rounded-xl shadow-md border-l-4 border-blue-300 p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
               <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -55,11 +55,11 @@ export default function DashboardPage() {
               </svg>
             </div>
           </div>
-          <p className="text-sm text-gray-600 mb-1">Cotizaciones Creadas</p>
-          <p className="text-2xl font-bold text-gray-900">{kpis.cotizacionesCreadas}</p>
+          <p className="text-sm text-gray-100 mb-1">Cotizaciones Creadas</p>
+          <p className="text-2xl font-bold text-blue-200">{kpis.cotizacionesCreadas}</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="bg-gray-500 rounded-xl shadow-md border-l-4 border-indigo-300 p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
               <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -67,11 +67,11 @@ export default function DashboardPage() {
               </svg>
             </div>
           </div>
-          <p className="text-sm text-gray-600 mb-1">Órdenes Cerradas</p>
-          <p className="text-2xl font-bold text-gray-900">{kpis.ordenesCerradas}</p>
+          <p className="text-sm text-gray-100 mb-1">Órdenes Cerradas</p>
+          <p className="text-2xl font-bold text-indigo-200">{kpis.ordenesCerradas}</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="bg-gray-500 rounded-xl shadow-md border-l-4 border-amber-300 p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
               <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -79,13 +79,13 @@ export default function DashboardPage() {
               </svg>
             </div>
           </div>
-          <p className="text-sm text-gray-600 mb-1">Ticket Promedio</p>
-          <p className="text-2xl font-bold text-gray-900">
+          <p className="text-sm text-gray-100 mb-1">Ticket Promedio</p>
+          <p className="text-2xl font-bold text-amber-200">
             ${kpis.ticketPromedio.toLocaleString('es-CO')}
           </p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="bg-gray-500 rounded-xl shadow-md border-l-4 border-purple-300 p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
               <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -93,8 +93,8 @@ export default function DashboardPage() {
               </svg>
             </div>
           </div>
-          <p className="text-sm text-gray-600 mb-1">Crecimiento vs. Mes Anterior</p>
-          <p className="text-2xl font-bold text-green-600">+{kpis.crecimiento}%</p>
+          <p className="text-sm text-gray-100 mb-1">Crecimiento vs. Mes Anterior</p>
+          <p className="text-2xl font-bold text-green-200">+{kpis.crecimiento}%</p>
         </div>
       </div>
 
@@ -106,5 +106,4 @@ export default function DashboardPage() {
     </div>
   );
 }
-
 

@@ -438,9 +438,9 @@ export default function Dashboard({ usuario }: DashboardProps) {
 
 
           {/* Primera fila: Cotizaciones, Ventas, Cotizaciones en Proceso */}
-          <div className="grid grid-cols-3 gap-1 sm:gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-3">
             {/* Total Cotizaciones */}
-            <div className="bg-gray-500 overflow-hidden shadow-md rounded-lg border-l-4 border-gray-500 min-h-0 flex flex-col max-w-44 mx-auto w-full">
+            <div className="bg-gray-500 overflow-hidden shadow-md rounded-lg border-l-4 border-gray-500 min-h-0 flex flex-col w-full min-w-0">
               <div className="p-1 sm:p-2 flex-1 flex flex-col min-w-0">
                 <div className="flex items-start gap-2 sm:gap-3 mb-2 sm:mb-3 min-w-0">
                   <div className="flex-shrink-0">
@@ -471,7 +471,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
             </div>
 
             {/* Cobros del período (DINERO ENTRADO) */}
-            <div className="bg-gray-500 overflow-hidden shadow-md rounded-lg border-l-4 border-blue-200 min-h-0 flex flex-col max-w-44 mx-auto w-full">
+            <div className="bg-gray-500 overflow-hidden shadow-md rounded-lg border-l-4 border-blue-200 min-h-0 flex flex-col w-full min-w-0">
               <div className="p-1 sm:p-2 flex-1 flex flex-col min-w-0">
                 <div className="flex items-start gap-2 sm:gap-3 min-w-0">
                   <div className="flex-shrink-0">
@@ -502,7 +502,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
             </div>
 
             {/* Cotizaciones Aceptadas en Proceso */}
-            <div className="bg-gray-500 overflow-hidden shadow-md rounded-lg border-l-4 border-orange-200 min-h-0 flex flex-col max-w-44 mx-auto w-full">
+            <div className="bg-gray-500 overflow-hidden shadow-md rounded-lg border-l-4 border-orange-200 min-h-0 flex flex-col w-full min-w-0">
               <div className="p-1 sm:p-2 flex-1 flex flex-col min-w-0">
                 <div className="flex items-start gap-2 sm:gap-3 mb-2 min-w-0">
                   <div className="flex-shrink-0">
@@ -549,9 +549,9 @@ export default function Dashboard({ usuario }: DashboardProps) {
           </div>
 
           {/* Segunda fila: Costos Totales, Ganancia, Pagos a Personal */}
-          <div className="grid grid-cols-3 gap-1 sm:gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-3">
             {/* Costos Totales del Mes - Dividido en 2 partes */}
-            <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-red-500 min-h-0 flex flex-col max-w-44 mx-auto w-full">
+            <div className="bg-gray-500 overflow-hidden shadow-md rounded-lg border-l-4 border-red-300 min-h-0 flex flex-col w-full min-w-0">
               <div className="p-1 sm:p-2 flex-1 flex flex-col min-w-0">
                 <div className="flex items-start gap-2 sm:gap-3 mb-2 min-w-0">
                   <div className="flex-shrink-0">
@@ -561,34 +561,33 @@ export default function Dashboard({ usuario }: DashboardProps) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <dl>
-                      <dt className="text-[10px] sm:text-xs font-medium text-gray-500 truncate leading-tight">Costos Reales</dt>
-                      <dd className="text-sm sm:text-base font-bold text-red-600 leading-tight mt-0.5 break-words">
+                      <dt className="text-[10px] sm:text-xs font-medium text-gray-100 truncate leading-tight">Costos Reales</dt>
+                      <dd className="text-sm sm:text-base font-bold text-red-200 leading-tight mt-0.5 break-words">
                         ${(estadisticasDashboard?.costosTotalesMes ?? 0).toLocaleString('es-CO')}
                       </dd>
-                      <p className="text-[9px] sm:text-[10px] text-gray-400 mt-0.5 leading-tight">Total = costos operativos + gastos fijos (el IVA se muestra aparte como obligación).</p>
+                      <p className="text-[9px] sm:text-[10px] text-gray-100 mt-0.5 leading-tight">Total = costos operativos + gastos fijos + IVA reservado.</p>
                       <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mt-2 pt-2 border-t border-gray-200">
                         <div className="min-w-0">
-                          <p className="text-xs text-gray-500 leading-tight truncate">Costos operativos</p>
-                          <p className="text-sm font-semibold text-orange-600 leading-tight break-words">
+                          <p className="text-xs text-gray-200 leading-tight truncate">Costos operativos</p>
+                          <p className="text-sm font-semibold text-orange-200 leading-tight break-words">
                             ${((estadisticasDashboard?.gastosMaterialesMes ?? 0) + (estadisticasDashboard?.gastosManoObraMes ?? 0) + (estadisticasDashboard?.gastosHormigaMes ?? 0) + (estadisticasDashboard?.gastosTransporteMes ?? 0)).toLocaleString('es-CO')}
                           </p>
-                          <p className="text-[0.65rem] text-gray-400">Mat.+M.Obra+Hormiga+Transp.</p>
+                          <p className="text-[0.65rem] text-gray-100">Mat.+M.Obra+Hormiga+Transp.</p>
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs text-gray-500 leading-tight truncate">
+                          <p className="text-xs text-gray-200 leading-tight truncate">
                             Gastos fijos del mes
                           </p>
-                          <p className="text-sm font-semibold text-orange-600 leading-tight break-words">
+                          <p className="text-sm font-semibold text-orange-200 leading-tight break-words">
                             ${(estadisticasDashboard?.gastosFijosMes ?? 0).toLocaleString('es-CO')}
                           </p>
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs text-gray-500 leading-tight truncate">IVA (impuesto)</p>
-                          <p className="text-xs text-gray-500 leading-tight truncate">IVA (impuesto)</p>
-                          <p className="text-sm font-semibold text-indigo-600 leading-tight break-words">
+                          <p className="text-xs text-gray-200 leading-tight truncate">IVA reservado</p>
+                          <p className="text-sm font-semibold text-indigo-200 leading-tight break-words">
                             ${(estadisticasDashboard?.ivaRealMes ?? 0).toLocaleString('es-CO')}
                           </p>
-                          <p className="text-xs text-gray-400">No es ganancia</p>
+                          <p className="text-xs text-gray-100">No es ganancia</p>
                         </div>
                       </div>
                     </dl>
@@ -598,7 +597,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
             </div>
 
             {/* Ganancia Neta Real del Mes (después de pagos) */}
-            <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-green-500 min-h-0 flex flex-col max-w-44 mx-auto w-full">
+            <div className="bg-gray-500 overflow-hidden shadow-md rounded-lg border-l-4 border-green-300 min-h-0 flex flex-col w-full min-w-0">
               <div className="p-2 sm:p-3 md:p-4 flex-1 flex flex-col min-w-0">
                 <div className="flex items-start gap-2 sm:gap-3 min-w-0">
                   <div className="flex-shrink-0">
@@ -610,16 +609,16 @@ export default function Dashboard({ usuario }: DashboardProps) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <dl>
-                      <dt className="text-[10px] sm:text-xs font-medium text-gray-500 truncate leading-tight">Ganancia Neta</dt>
+                      <dt className="text-[10px] sm:text-xs font-medium text-gray-100 truncate leading-tight">Ganancia Neta</dt>
                       <dd className={`text-sm sm:text-base font-bold leading-tight mt-0.5 break-words ${
-                        (estadisticasDashboard?.gananciaNetaMes ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                        (estadisticasDashboard?.gananciaNetaMes ?? 0) >= 0 ? 'text-green-200' : 'text-red-200'
                       }`}>
                         {cargandoDashboard ? 'Cargando...' : `$${(estadisticasDashboard?.gananciaNetaMes ?? 0).toLocaleString('es-CO')}`}
                       </dd>
-                      <p className="text-[9px] sm:text-[10px] text-gray-400 mt-1 leading-tight" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      <p className="text-[9px] sm:text-[10px] text-gray-100 mt-1 leading-tight" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                         Basado en dinero realmente cobrado (cobros) menos costos asociados y el IVA que debe reservarse.
                       </p>
-                      <p className="text-[9px] sm:text-[10px] text-gray-400 mt-1">
+                      <p className="text-[9px] sm:text-[10px] text-gray-100 mt-1">
                         Cashflow neto (cobros - pagos - IVA reservado): ${(estadisticasDashboard?.gananciaNetaMesCashflow ?? 0).toLocaleString('es-CO')}
                       </p>
                     </dl>
@@ -629,7 +628,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
             </div>
 
             {/* Pagos a Personal del Mes */}
-            <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-purple-500 min-h-0 flex flex-col max-w-44 mx-auto w-full">
+            <div className="bg-gray-500 overflow-hidden shadow-md rounded-lg border-l-4 border-purple-300 min-h-0 flex flex-col w-full min-w-0">
               <div className="p-2 sm:p-3 md:p-4 flex-1 flex flex-col min-w-0">
                 <div className="flex items-start gap-2 sm:gap-3 min-w-0">
                   <div className="flex-shrink-0">
@@ -639,15 +638,15 @@ export default function Dashboard({ usuario }: DashboardProps) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <dl>
-                      <dt className="text-[10px] sm:text-xs font-medium text-gray-500 truncate leading-tight">Pagos a Personal</dt>
-                      <dd className="text-sm sm:text-base font-bold text-purple-600 leading-tight mt-0.5 break-words">
+                      <dt className="text-[10px] sm:text-xs font-medium text-gray-100 truncate leading-tight">Pagos a Personal</dt>
+                      <dd className="text-sm sm:text-base font-bold text-purple-200 leading-tight mt-0.5 break-words">
                         {cargandoLiquidaciones ? (
-                          <span className="text-[10px] sm:text-xs text-gray-400">Cargando...</span>
+                          <span className="text-[10px] sm:text-xs text-gray-100">Cargando...</span>
                         ) : (
                           `$${liquidacionesMes.reduce((sum, l) => sum + l.monto, 0).toLocaleString('es-CO')}`
                         )}
                       </dd>
-                      <p className="text-[9px] sm:text-[10px] text-gray-400 mt-1 leading-tight">
+                      <p className="text-[9px] sm:text-[10px] text-gray-100 mt-1 leading-tight">
                         {liquidacionesMes.length} pago{liquidacionesMes.length !== 1 ? 's' : ''} registrado{liquidacionesMes.length !== 1 ? 's' : ''}
                       </p>
                     </dl>
@@ -1277,4 +1276,3 @@ export default function Dashboard({ usuario }: DashboardProps) {
     </div>
   );
 }
-

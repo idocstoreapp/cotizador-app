@@ -24,7 +24,7 @@ export default function ReportesPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="bg-gray-500 rounded-xl shadow-md border-l-4 border-green-300 p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
               <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -32,12 +32,12 @@ export default function ReportesPage() {
               </svg>
             </div>
           </div>
-          <p className="text-sm text-gray-600 mb-1">Total Ganado</p>
-          <p className="text-2xl font-bold text-gray-900">$10.450.000</p>
-          <p className="text-xs text-gray-500 mt-1">Ganancia neta (IVA no es ganancia; descontado)</p>
+          <p className="text-sm text-gray-100 mb-1">Total Ganado</p>
+          <p className="text-2xl font-bold text-green-200">$10.450.000</p>
+          <p className="text-xs text-gray-100 mt-1">Ganancia neta (IVA no es ganancia; descontado)</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="bg-gray-500 rounded-xl shadow-md border-l-4 border-blue-300 p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
               <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -46,11 +46,11 @@ export default function ReportesPage() {
               </svg>
             </div>
           </div>
-          <p className="text-sm text-gray-600 mb-1">Cotizaciones Creadas</p>
-          <p className="text-2xl font-bold text-gray-900">85</p>
+          <p className="text-sm text-gray-100 mb-1">Cotizaciones Creadas</p>
+          <p className="text-2xl font-bold text-blue-200">85</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="bg-gray-500 rounded-xl shadow-md border-l-4 border-indigo-300 p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
               <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,11 +58,11 @@ export default function ReportesPage() {
               </svg>
             </div>
           </div>
-          <p className="text-sm text-gray-600 mb-1">Órdenes Cerradas</p>
-          <p className="text-2xl font-bold text-gray-900">62</p>
+          <p className="text-sm text-gray-100 mb-1">Órdenes Cerradas</p>
+          <p className="text-2xl font-bold text-indigo-200">62</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="bg-gray-500 rounded-xl shadow-md border-l-4 border-amber-300 p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
               <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -70,11 +70,11 @@ export default function ReportesPage() {
               </svg>
             </div>
           </div>
-          <p className="text-sm text-gray-600 mb-1">Ticket Promedio</p>
-          <p className="text-2xl font-bold text-gray-900">$168.000</p>
+          <p className="text-sm text-gray-100 mb-1">Ticket Promedio</p>
+          <p className="text-2xl font-bold text-amber-200">$168.000</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="bg-gray-500 rounded-xl shadow-md border-l-4 border-purple-300 p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
               <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -82,8 +82,8 @@ export default function ReportesPage() {
               </svg>
             </div>
           </div>
-          <p className="text-sm text-gray-600 mb-1">Crecimiento vs. Mes Anterior</p>
-          <p className="text-2xl font-bold text-green-600">+15%</p>
+          <p className="text-sm text-gray-100 mb-1">Crecimiento vs. Mes Anterior</p>
+          <p className="text-2xl font-bold text-green-200">+15%</p>
         </div>
       </div>
 
@@ -95,5 +95,4 @@ export default function ReportesPage() {
     </div>
   );
 }
-
 
