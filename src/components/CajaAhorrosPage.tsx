@@ -165,26 +165,26 @@ setError(typeof e === 'string' ? e : (e?.message || JSON.stringify(e)));
       ) : saldo ? (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-              <p className="text-sm font-medium text-gray-500">Dinero real en caja (antes de ahorro)</p>
-              <p className={`text-2xl font-bold mt-1 ${saldo.saldoRealDisponible >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className="bg-gray-500 rounded-xl border-l-4 border-green-300 p-5 shadow-md">
+              <p className="text-sm font-medium text-gray-100">Dinero real en caja (antes de ahorro)</p>
+              <p className={`text-2xl font-bold mt-1 ${saldo.saldoRealDisponible >= 0 ? 'text-green-200' : 'text-red-200'}`}>
                 ${saldo.saldoRealDisponible.toLocaleString('es-CO')}
               </p>
-              <p className="text-xs text-gray-400 mt-1">Cobrado − costos (incl. IVA) − liquidaciones − gastos fijos (todavía sin restar ahorros)</p>
+              <p className="text-xs text-gray-100 mt-1">Cobrado − costos (incl. IVA) − liquidaciones − gastos fijos (todavía sin restar ahorros)</p>
             </div>
-            <div className="bg-indigo-50 rounded-xl border border-indigo-200 p-5 shadow-sm">
-              <p className="text-sm font-medium text-indigo-800">En caja de ahorros</p>
-              <p className="text-2xl font-bold text-indigo-600 mt-1">
+            <div className="bg-gray-500 rounded-xl border-l-4 border-indigo-300 p-5 shadow-md">
+              <p className="text-sm font-medium text-gray-100">En caja de ahorros</p>
+              <p className="text-2xl font-bold text-indigo-200 mt-1">
                 ${saldo.totalAhorros.toLocaleString('es-CO')}
               </p>
-              <p className="text-xs text-indigo-600 mt-1">No se usa para pagos</p>
+              <p className="text-xs text-gray-100 mt-1">No se usa para pagos</p>
             </div>
-            <div className="bg-white rounded-xl border-2 border-amber-300 p-5 shadow-sm bg-amber-50/30">
-              <p className="text-sm font-medium text-amber-800">Dinero real disponible (después de ahorro)</p>
-              <p className={`text-2xl font-bold mt-1 ${saldo.disponibleParaGastar >= 0 ? 'text-amber-700' : 'text-red-600'}`}>
+            <div className="bg-gray-500 rounded-xl border-l-4 border-amber-300 p-5 shadow-md">
+              <p className="text-sm font-medium text-gray-100">Dinero real disponible (después de ahorro)</p>
+              <p className={`text-2xl font-bold mt-1 ${saldo.disponibleParaGastar >= 0 ? 'text-amber-200' : 'text-red-200'}`}>
                 ${saldo.disponibleParaGastar.toLocaleString('es-CO')}
               </p>
-              <p className="text-xs text-amber-700 mt-1">Aquí ya se descontó la caja de ahorros. De este monto salen pagos y gastos.</p>
+              <p className="text-xs text-gray-100 mt-1">Aquí ya se descontó la caja de ahorros. De este monto salen pagos y gastos.</p>
             </div>
           </div>
 

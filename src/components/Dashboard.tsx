@@ -551,7 +551,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
           {/* Segunda fila: Costos Totales, Ganancia, Pagos a Personal */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-3">
             {/* Costos Totales del Mes - Dividido en 2 partes */}
-            <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-red-500 min-h-0 flex flex-col w-full min-w-0">
+            <div className="bg-gray-500 overflow-hidden shadow-md rounded-lg border-l-4 border-red-300 min-h-0 flex flex-col w-full min-w-0">
               <div className="p-1 sm:p-2 flex-1 flex flex-col min-w-0">
                 <div className="flex items-start gap-2 sm:gap-3 mb-2 min-w-0">
                   <div className="flex-shrink-0">
@@ -597,7 +597,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
             </div>
 
             {/* Ganancia Neta Real del Mes (después de pagos) */}
-            <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-green-500 min-h-0 flex flex-col w-full min-w-0">
+            <div className="bg-gray-500 overflow-hidden shadow-md rounded-lg border-l-4 border-green-300 min-h-0 flex flex-col w-full min-w-0">
               <div className="p-2 sm:p-3 md:p-4 flex-1 flex flex-col min-w-0">
                 <div className="flex items-start gap-2 sm:gap-3 min-w-0">
                   <div className="flex-shrink-0">
@@ -628,7 +628,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
             </div>
 
             {/* Pagos a Personal del Mes */}
-            <div className="bg-white overflow-hidden shadow rounded-lg border-l-4 border-purple-500 min-h-0 flex flex-col w-full min-w-0">
+            <div className="bg-gray-500 overflow-hidden shadow-md rounded-lg border-l-4 border-purple-300 min-h-0 flex flex-col w-full min-w-0">
               <div className="p-2 sm:p-3 md:p-4 flex-1 flex flex-col min-w-0">
                 <div className="flex items-start gap-2 sm:gap-3 min-w-0">
                   <div className="flex-shrink-0">

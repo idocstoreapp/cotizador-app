@@ -154,27 +154,27 @@ export default function ControlCostosPage({ cotizacionId }: ControlCostosPagePro
   return (
     <div className="space-y-4 sm:space-y-6 max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+      <div className="bg-gray-500 rounded-xl shadow-md border-l-4 border-indigo-300 p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex-1">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-100">
               Control de Costos - {cotizacion.numero}
             </h1>
-            <p className="text-sm sm:text-base text-gray-600 mt-1">
+            <p className="text-sm sm:text-base text-gray-100 mt-1">
               Cliente: {cotizacion.cliente_nombre}
             </p>
-            <p className="text-xs sm:text-sm text-gray-500 mt-1">
+            <p className="text-xs sm:text-sm text-gray-200 mt-1">
               Total Cotizado: ${comparacion?.totalPresupuestado.toLocaleString('es-CO') || cotizacion.total?.toLocaleString('es-CO') || '0'}
             </p>
           </div>
           {resumenCostos && (
             <div className="text-left sm:text-right w-full sm:w-auto">
-              <p className="text-xs sm:text-sm text-gray-600">Total Real Gastado</p>
-              <p className="text-xl sm:text-2xl font-bold text-indigo-600">
+              <p className="text-xs sm:text-sm text-gray-100">Total Real Gastado</p>
+              <p className="text-xl sm:text-2xl font-bold text-indigo-200">
                 ${resumenCostos.totalReal.toLocaleString('es-CO')}
               </p>
               {comparacion && (
-                <p className={`text-xs sm:text-sm mt-1 ${comparacion.utilidadReal >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <p className={`text-xs sm:text-sm mt-1 ${comparacion.utilidadReal >= 0 ? 'text-green-200' : 'text-red-200'}`}>
                   Utilidad: ${comparacion.utilidadReal.toLocaleString('es-CO')}
                 </p>
               )}
@@ -288,4 +288,3 @@ export default function ControlCostosPage({ cotizacionId }: ControlCostosPagePro
     </div>
   );
 }
-
