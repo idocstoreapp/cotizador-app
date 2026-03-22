@@ -4,6 +4,17 @@
 import { supabase } from '../utils/supabase';
 import type { FixedExpense } from '../types/database';
 
+function esErrorRelacionPostgrest(error: any): boolean {
+  const msg = String(error?.message || '').toLowerCase();
+  return (
+    error?.code === 'PGRST200' ||
+    error?.code === 'PGRST201' ||
+    msg.includes('relationship') ||
+    msg.includes('schema cache') ||
+    msg.includes('more than one relationship')
+  );
+}
+
 /**
  * Obtiene todos los gastos fijos con filtros opcionales
  */
@@ -71,12 +82,7 @@ export async function obtenerGastosFijos(filtros?: {
       } : null
     })) as FixedExpense[];
   } else {
-    const isRelationshipError =
-      error.code === 'PGRST200' ||
-      String(error.message || '').toLowerCase().includes('relationship') ||
-      String(error.message || '').toLowerCase().includes('schema cache');
-
-    if (!isRelationshipError) throw error;
+    if (!esErrorRelacionPostgrest(error)) throw error;
 
     // Fallback sin embed
     const queryFallback = buildQuery('*');
@@ -138,12 +144,7 @@ export async function obtenerGastoFijoPorId(id: string): Promise<FixedExpense | 
   if (error) {
     if (error.code === 'PGRST116') return null; // No encontrado
 
-    const isRelationshipError =
-      error.code === 'PGRST200' ||
-      String(error.message || '').toLowerCase().includes('relationship') ||
-      String(error.message || '').toLowerCase().includes('schema cache');
-
-    if (!isRelationshipError) throw error;
+    if (!esErrorRelacionPostgrest(error)) throw error;
 
     // Fallback sin embed
     const { data: dataFallback, error: errFallback } = await supabase
@@ -184,33 +185,38 @@ export async function crearGastoFijo(gasto: {
   payment_method?: 'efectivo' | 'transferencia' | 'tarjeta' | 'cheque' | 'otro';
   date: string;
 }): Promise<FixedExpense> {
+  const payload = {
+    category_id: gasto.category_id || null,
+    description: gasto.description.trim(),
+    amount: gasto.amount,
+    provider: gasto.provider?.trim() || null,
+    payment_method: gasto.payment_method || null,
+    date: gasto.date,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
   const { data, error } = await supabase
     .from('fixed_expenses')
-    .insert({
-      category_id: gasto.category_id || null,
-      description: gasto.description.trim(),
-      amount: gasto.amount,
-      provider: gasto.provider?.trim() || null,
-      payment_method: gasto.payment_method || null,
-      date: gasto.date,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    })
-    .select(`
-      *,
-      category:fixed_expense_categories(id, name, description)
-    `)
+    .insert(payload)
+    .select('*')
     .single();
 
   if (error) throw error;
 
+  let category: any = null;
+  if (data?.category_id) {
+    const { data: cat } = await supabase
+      .from('fixed_expense_categories')
+      .select('id, name, description')
+      .eq('id', data.category_id)
+      .maybeSingle();
+    if (cat) category = cat;
+  }
+
   return {
     ...data,
-    category: data.category ? {
-      id: data.category.id,
-      name: data.category.name,
-      description: data.category.description
-    } : null
+    category
   } as FixedExpense;
 }
 
@@ -228,30 +234,35 @@ export async function actualizarGastoFijo(
     date: string;
   }>
 ): Promise<FixedExpense> {
+  const payload = {
+    ...updates,
+    description: updates.description?.trim(),
+    provider: updates.provider?.trim() || null,
+    updated_at: new Date().toISOString()
+  };
+
   const { data, error } = await supabase
     .from('fixed_expenses')
-    .update({
-      ...updates,
-      description: updates.description?.trim(),
-      provider: updates.provider?.trim() || null,
-      updated_at: new Date().toISOString()
-    })
+    .update(payload)
     .eq('id', id)
-    .select(`
-      *,
-      category:fixed_expense_categories(id, name, description)
-    `)
+    .select('*')
     .single();
 
   if (error) throw error;
 
+  let category: any = null;
+  if (data?.category_id) {
+    const { data: cat } = await supabase
+      .from('fixed_expense_categories')
+      .select('id, name, description')
+      .eq('id', data.category_id)
+      .maybeSingle();
+    if (cat) category = cat;
+  }
+
   return {
     ...data,
-    category: data.category ? {
-      id: data.category.id,
-      name: data.category.name,
-      description: data.category.description
-    } : null
+    category
   } as FixedExpense;
 }
 
@@ -337,4 +348,3 @@ export async function obtenerEstadisticasGastosFijos(filtros?: {
     top5Gastos
   };
 };
-
