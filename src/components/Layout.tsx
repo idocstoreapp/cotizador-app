@@ -23,9 +23,10 @@ interface LayoutProps {
 export default function Layout({ children, currentPath }: LayoutProps) {
   const [usuario, setUsuario] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [verificandoSesion, setVerificandoSesion] = useState(true);
+  const [currentLogo, setCurrentLogo] = useState('logo-kubica.png');
   const itemsCotizacion = useCotizacionStore(state => state.items);
 
   /**
@@ -248,6 +249,17 @@ export default function Layout({ children, currentPath }: LayoutProps) {
     };
   }, [currentPath]);
 
+  // Efecto para alternar logos cada 5 segundos
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentLogo(prevLogo => 
+        prevLogo === 'logo-kubica.png' ? 'logo-muebleria.png' : 'logo-kubica.png'
+      );
+    }, 5000); // 5000ms = 5 segundos
+
+    return () => clearInterval(interval);
+  }, []);
+
 
   /**
    * Maneja el cierre de sesión
@@ -331,33 +343,33 @@ export default function Layout({ children, currentPath }: LayoutProps) {
       
       const menuItems = esAdmin
         ? [
-            { path: '/dashboard', label: 'Dashboard', icon: '📊' },
-            { path: '/catalogo', label: 'Catálogo', icon: '📚' },
-            { path: '/cotizacion', label: 'Cotización', icon: '📝' },
-            { path: '/cotizaciones', label: 'Historial', icon: '📋' },
-            { path: '/clientes', label: 'Clientes', icon: '👤' },
-            { path: '/admin/precios', label: 'Precios', icon: '💰' },
-            { path: '/admin/personal', label: 'Gestión de Personal', icon: '👥' },
-            { path: '/gastos-fijos', label: 'Gastos Fijos', icon: '💳' },
-            { path: '/caja-ahorros', label: 'Caja de Ahorros', icon: '🐷' }
+            { path: '/dashboard', label: 'Dashboard' },
+            { path: '/catalogo', label: 'Catálogo' },
+            { path: '/cotizacion', label: 'Cotización' },
+            { path: '/cotizaciones', label: 'Historial' },
+            { path: '/clientes', label: 'Clientes'},
+            { path: '/admin/precios', label: 'Precios' },
+            { path: '/admin/personal', label: 'Gestión de Personal' },
+            { path: '/gastos-fijos', label: 'Gastos Fijos' },
+            { path: '/caja-ahorros', label: 'Caja de Ahorros'}
           ]
         : esVendedor
         ? [
             // Vendedores: Dashboard, Catálogo, Cotización, Historial
-            { path: '/dashboard', label: 'Dashboard', icon: '📊' },
-            { path: '/catalogo', label: 'Catálogo', icon: '📚' },
-            { path: '/cotizacion', label: 'Cotización', icon: '📝' },
-            { path: '/cotizaciones', label: 'Mis Cotizaciones', icon: '📋' }
+            { path: '/dashboard', label: 'Dashboard'},
+            { path: '/catalogo', label: 'Catálogo'},
+            { path: '/cotizacion', label: 'Cotización' },
+            { path: '/cotizaciones', label: 'Mis Cotizaciones'}
           ]
     : [
-        { path: '/dashboard', label: 'Dashboard', icon: '📊' },
-        { path: '/catalogo', label: 'Catálogo', icon: '📚' },
-        { path: '/cotizacion', label: 'Cotización', icon: '📝' },
-        { path: '/cotizaciones', label: 'Historial', icon: '📋' }
+        { path: '/dashboard', label: 'Dashboard'},
+        { path: '/catalogo', label: 'Catálogo'},
+        { path: '/cotizacion', label: 'Cotización' },
+        { path: '/cotizaciones', label: 'Historial' }
       ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-300 flex overflow-x-hidden">
       {/* Overlay móvil */}
       {mobileMenuOpen && (
         <div
@@ -371,17 +383,19 @@ export default function Layout({ children, currentPath }: LayoutProps) {
         className={`${
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         } ${
-          sidebarOpen ? 'w-64' : 'w-20'
-        } fixed lg:static inset-y-0 left-0 bg-white shadow-lg transition-all duration-300 flex flex-col z-50`}
+          sidebarOpen ? 'w-40 sm:w-48 md:w-56' : 'w-10 sm:w-12'
+        } fixed lg:static inset-y-0 left-0 bg-gray-200 shadow-lg transition-all duration-300 flex flex-col z-50 overflow-x-hidden`}
       >
         {/* Logo */}
-        <div className="p-4 sm:p-6 border-b border-gray-200">
+        <div className="p-2 sm:p-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
+              <div className="w-16 h-16 sm:w-20 md:w-20 rounded-lg flex items-center justify-center">
+                <img 
+                  src={`images/${currentLogo}`} 
+                  alt="logo" 
+                  className="w-full h-full object-contain transition-all duration-1000 ease-in-out transform hover:scale-105"
+                />
               </div>
               {sidebarOpen && (
                 <h1 className="text-lg font-bold text-gray-900">Sistema de Cotizaciones</h1>
@@ -400,26 +414,25 @@ export default function Layout({ children, currentPath }: LayoutProps) {
         </div>
 
         {/* Menú */}
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
           {menuItems.map((item) => (
             <a
               key={item.path}
               href={item.path}
               onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-lg' ${
                 currentPath === item.path
-                  ? 'bg-indigo-50 text-indigo-600 font-medium'
+                  ? 'bg-indigo-50 text-indigo-600 font-medium text-lg'
                   : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
-              <span className="text-xl">{item.icon}</span>
               {sidebarOpen && <span>{item.label}</span>}
             </a>
           ))}
         </nav>
 
         {/* Toggle sidebar */}
-        <div className="p-4 border-t border-gray-200">
+        <div className="p-2 border-t border-gray-200">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="w-full flex items-center justify-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
@@ -505,10 +518,12 @@ export default function Layout({ children, currentPath }: LayoutProps) {
         </header>
 
         {/* Contenido */}
-            <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
-              <UserProvider usuario={usuario}>
-                {children}
-              </UserProvider>
+            <main className="flex-1 overflow-y-auto overflow-x-hidden">
+              <div className="max-w-full mx-auto px-0.5 sm:px-1 md:px-2 py-1 sm:py-2">
+                <UserProvider usuario={usuario}>
+                  {children}
+                </UserProvider>
+              </div>
             </main>
 
         {/* Footer discreto */}
