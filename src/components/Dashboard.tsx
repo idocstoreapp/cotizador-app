@@ -23,6 +23,12 @@ interface DashboardProps {
 export default function Dashboard({ usuario }: DashboardProps) {
   const esAdmin = usuario.role === 'admin';
   const esVendedor = usuario.role === 'vendedor';
+  const parseYMDAsLocalDate = (ymd: string): Date => {
+    const match = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return new Date(ymd);
+    const [, y, m, d] = match;
+    return new Date(Number(y), Number(m) - 1, Number(d));
+  };
   const formatearFechaLocalYMD = (fecha: Date): string => {
     const y = fecha.getFullYear();
     const m = String(fecha.getMonth() + 1).padStart(2, '0');
@@ -129,9 +135,9 @@ export default function Dashboard({ usuario }: DashboardProps) {
       case 'rango':
         // Rango personalizado
         if (fechaInicio && fechaFin) {
-          inicio = new Date(fechaInicio);
+          inicio = parseYMDAsLocalDate(fechaInicio);
           inicio.setHours(0, 0, 0, 0);
-          fin = new Date(fechaFin);
+          fin = parseYMDAsLocalDate(fechaFin);
           fin.setHours(23, 59, 59, 999);
         } else {
           // Si no hay fechas, usar mes actual como fallback
@@ -1271,5 +1277,4 @@ export default function Dashboard({ usuario }: DashboardProps) {
     </div>
   );
 }
-
 
