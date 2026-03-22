@@ -23,7 +23,7 @@ interface LayoutProps {
 export default function Layout({ children, currentPath }: LayoutProps) {
   const [usuario, setUsuario] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [verificandoSesion, setVerificandoSesion] = useState(true);
   const [currentLogo, setCurrentLogo] = useState('logo-kubica.png');
@@ -383,8 +383,8 @@ export default function Layout({ children, currentPath }: LayoutProps) {
         className={`${
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         } ${
-          sidebarOpen ? 'w-40 sm:w-48 md:w-56' : 'w-10 sm:w-12'
-        } fixed lg:static inset-y-0 left-0 bg-gray-200 shadow-lg transition-all duration-300 flex flex-col z-50 overflow-x-hidden`}
+          sidebarOpen ? 'w-56 sm:w-64' : 'w-14 sm:w-16'
+        } fixed lg:static inset-y-0 left-0 bg-gray-200 shadow-lg transition-all duration-300 flex flex-col z-50 overflow-x-hidden shrink-0`}
       >
         {/* Logo */}
         <div className="p-2 sm:p-4 border-b border-gray-200">
@@ -420,13 +420,16 @@ export default function Layout({ children, currentPath }: LayoutProps) {
               key={item.path}
               href={item.path}
               onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-lg' ${
+              className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
                 currentPath === item.path
-                  ? 'bg-indigo-50 text-indigo-600 font-medium text-lg'
+                  ? 'bg-indigo-50 text-indigo-600 font-medium'
                   : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
-              {sidebarOpen && <span>{item.label}</span>}
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-white text-xs font-semibold text-gray-600">
+                {item.label.charAt(0)}
+              </span>
+              {sidebarOpen && <span className="truncate">{item.label}</span>}
             </a>
           ))}
         </nav>
