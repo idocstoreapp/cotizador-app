@@ -555,9 +555,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
               <div className="p-1 sm:p-2 flex-1 flex flex-col min-w-0">
                 <div className="flex items-start gap-2 sm:gap-3 mb-2 min-w-0">
                   <div className="flex-shrink-0">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-500 rounded-md flex items-center justify-center">
-                      <span className="text-white text-sm sm:text-lg font-bold">📊</span>
-                    </div>
+
                   </div>
                   <div className="min-w-0 flex-1">
                     <dl>
@@ -604,7 +602,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
                     <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-md flex items-center justify-center ${
                       (estadisticasDashboard?.gananciaNetaMes ?? 0) >= 0 ? 'bg-green-500' : 'bg-red-500'
                     }`}>
-                      <span className="text-white text-sm sm:text-lg font-bold">📈</span>
+              
                     </div>
                   </div>
                   <div className="min-w-0 flex-1">
@@ -631,11 +629,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
             <div className="bg-gray-500 overflow-hidden shadow-md rounded-lg border-l-4 border-purple-300 min-h-0 flex flex-col w-full min-w-0">
               <div className="p-2 sm:p-3 md:p-4 flex-1 flex flex-col min-w-0">
                 <div className="flex items-start gap-2 sm:gap-3 min-w-0">
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-500 rounded-md flex items-center justify-center">
-                      <span className="text-white text-sm sm:text-lg font-bold">👥</span>
-                    </div>
-                  </div>
+                  
                   <div className="min-w-0 flex-1">
                     <dl>
                       <dt className="text-[10px] sm:text-xs font-medium text-gray-100 truncate leading-tight">Pagos a Personal</dt>
