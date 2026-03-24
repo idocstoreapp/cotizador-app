@@ -231,16 +231,6 @@ export async function crearGastoFijo(gasto: {
     if (cat) category = cat;
   }
 
-  let category: any = null;
-  if (data?.category_id) {
-    const { data: cat } = await supabase
-      .from('fixed_expense_categories')
-      .select('id, name, description')
-      .eq('id', data.category_id)
-      .maybeSingle();
-    if (cat) category = cat;
-  }
-
   return {
     ...createdRow,
     category
@@ -301,16 +291,6 @@ export async function actualizarGastoFijo(
       .from('fixed_expense_categories')
       .select('id, name, description')
       .eq('id', updatedRow.category_id)
-      .maybeSingle();
-    if (cat) category = cat;
-  }
-
-  let category: any = null;
-  if (data?.category_id) {
-    const { data: cat } = await supabase
-      .from('fixed_expense_categories')
-      .select('id, name, description')
-      .eq('id', data.category_id)
       .maybeSingle();
     if (cat) category = cat;
   }
