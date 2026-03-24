@@ -598,12 +598,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
             <div className="bg-gray-500 overflow-hidden shadow-md rounded-lg border-l-4 border-green-300 min-h-0 flex flex-col w-full min-w-0">
               <div className="p-2 sm:p-3 md:p-4 flex-1 flex flex-col min-w-0">
                 <div className="flex items-start gap-2 sm:gap-3 min-w-0">
-                  <div className="flex-shrink-0">
-                    <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-md flex items-center justify-center ${
-                      (estadisticasDashboard?.gananciaNetaMes ?? 0) >= 0 ? 'bg-green-500' : 'bg-red-500'
-                    }`}>
-              
-                    </div>
+            
                   </div>
                   <div className="min-w-0 flex-1">
                     <dl>
