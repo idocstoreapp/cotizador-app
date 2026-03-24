@@ -599,7 +599,7 @@ export default function Dashboard({ usuario }: DashboardProps) {
               <div className="p-2 sm:p-3 md:p-4 flex-1 flex flex-col min-w-0">
                 <div className="flex items-start gap-2 sm:gap-3 min-w-0">
             
-                  </div>
+                 
                   <div className="min-w-0 flex-1">
                     <dl>
                       <dt className="text-[10px] sm:text-xs font-medium text-gray-100 truncate leading-tight">Ganancia Neta</dt>
