@@ -17,6 +17,10 @@ interface EmpresaInfo {
 
 interface QuotePDFData {
   clientName: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  clientAddress?: string;
+  vendedorName?: string;
   date: string;
   quoteNumber: string;
   model: string;
@@ -50,7 +54,8 @@ export function convertirItemsAPDF(
   total: number,
   companyName?: string,
   companyLogo?: string,
-  empresaInfo?: EmpresaInfo
+  empresaInfo?: EmpresaInfo,
+  vendedorName?: string
 ): QuotePDFData {
   // Determinar modelo y dimensiones desde los items
   let model = 'Cocina Integral';
@@ -208,6 +213,10 @@ export function convertirItemsAPDF(
 
   return {
     clientName: cliente.nombre || 'Cliente',
+    clientEmail: cliente.email || undefined,
+    clientPhone: cliente.telefono || undefined,
+    clientAddress: cliente.direccion || undefined,
+    vendedorName: vendedorName || undefined,
     date: fecha,
     quoteNumber: numero,
     model,

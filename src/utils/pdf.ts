@@ -21,6 +21,10 @@ interface EmpresaInfo {
 
 interface QuotePDFData {
   clientName: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  clientAddress?: string;
+  vendedorName?: string;
   date: string;
   quoteNumber: string;
   model: string;

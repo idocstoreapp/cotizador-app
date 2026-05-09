@@ -119,6 +119,11 @@ export default function CotizacionPage() {
       // Obtener información de la empresa
       const empresaInfo = EMPRESAS[empresa];
 
+      const vendedor = vendedores.find(vendedor => vendedor.id === vendedorSeleccionado);
+      const vendedorName = vendedor
+        ? `${vendedor.nombre || ''} ${vendedor.apellido || ''}`.trim() || vendedor.email
+        : undefined;
+
       // Convertir items al formato del PDF profesional
       const datosPDF = convertirItemsAPDF(
         items,
@@ -141,7 +146,8 @@ export default function CotizacionPage() {
           telefonos: empresaInfo.telefonos,
           sitioWeb: empresaInfo.sitioWeb,
           descripcion: empresaInfo.descripcion
-        }
+        },
+        vendedorName
       );
 
       // Generar PDF profesional usando el nuevo sistema
