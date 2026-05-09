@@ -160,8 +160,15 @@ export const useCotizacionStore = create<CotizacionStore>()(
 
   // Agregar item manual a la cotización
   agregarItemManual: (itemData) => {
-    const precioUnitario = calcularPrecioItemManual(itemData);
-    const precioTotal = precioUnitario * itemData.cantidad;
+    // El formulario puede enviar un precio unitario final calculado manualmente.
+    // Si existe, debe respetarse como fuente de verdad para no recalcularlo a $0
+    // cuando el item todavía no tiene materiales/costos cargados.
+    const precioUnitario = typeof itemData.precio_unitario === 'number'
+      ? itemData.precio_unitario
+      : calcularPrecioItemManual(itemData);
+    const precioTotal = typeof itemData.precio_total === 'number'
+      ? itemData.precio_total
+      : precioUnitario * itemData.cantidad;
 
     const nuevoItem: ItemManualCotizacion = {
       id: `manual-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
@@ -248,7 +255,11 @@ export const useCotizacionStore = create<CotizacionStore>()(
           const itemActualizado = { ...item, ...updates } as ItemManualCotizacion;
           
           // Recalcular precio si se modificaron materiales, servicios, costos indirectos, gastos extras o margen de ganancia
-          if (updates.materiales || updates.servicios || updates.costos_indirectos || 
+          if (updates.precio_unitario !== undefined || updates.precio_total !== undefined) {
+            const nuevoPrecioUnitario = updates.precio_unitario ?? itemActualizado.precio_unitario;
+            itemActualizado.precio_unitario = nuevoPrecioUnitario;
+            itemActualizado.precio_total = updates.precio_total ?? (nuevoPrecioUnitario * itemActualizado.cantidad);
+          } else if (updates.materiales || updates.servicios || updates.costos_indirectos || 
               updates.gastos_extras !== undefined || updates.margen_ganancia !== undefined) {
             const nuevoPrecioUnitario = calcularPrecioItemManual(itemActualizado);
             itemActualizado.precio_unitario = nuevoPrecioUnitario;
