@@ -14,7 +14,8 @@ import {
 import { 
   crearLiquidacion,
   obtenerLiquidacionesPorPersona,
-  calcularBalancePersona
+  calcularBalancePersona,
+  eliminarLiquidacion
 } from '../services/liquidaciones.service';
 import { obtenerSaldoDisponible } from '../services/saldo-disponible.service';
 import { supabase } from '../utils/supabase';
@@ -983,7 +984,7 @@ interface ModalPagoPersonalProps {
   liquidaciones: Liquidacion[];
   balancePersona: { totalGanado: number; totalLiquidado: number; balancePendiente: number };
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: () => void | Promise<void>;
 }
 
 function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePersona, onClose, onSuccess }: ModalPagoPersonalProps) {
@@ -1006,13 +1007,21 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
   const [descripcion, setDescripcion] = useState('');
   const [esPagoSueldo, setEsPagoSueldo] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [eliminandoPagoId, setEliminandoPagoId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [disponibleParaGastar, setDisponibleParaGastar] = useState<number | null>(null);
 
+  const cargarSaldoDisponible = async () => {
+    try {
+      const saldo = await obtenerSaldoDisponible();
+      setDisponibleParaGastar(saldo.disponibleParaGastar);
+    } catch {
+      setDisponibleParaGastar(null);
+    }
+  };
+
   useEffect(() => {
-    obtenerSaldoDisponible()
-      .then((r) => setDisponibleParaGastar(r.disponibleParaGastar))
-      .catch(() => setDisponibleParaGastar(null));
+    cargarSaldoDisponible();
   }, []);
 
   // Efecto para actualizar número de referencia cuando cambia la fecha
@@ -1091,7 +1100,8 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
         }
       }
 
-      onSuccess();
+      await onSuccess();
+      await cargarSaldoDisponible();
       // No cerrar el modal automáticamente para permitir agregar más pagos
       setMonto('');
       setNumeroReferencia(generarNumeroReferencia());
@@ -1102,6 +1112,25 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
       setError(err.message || 'Error al registrar pago');
     } finally {
       setGuardando(false);
+    }
+  };
+
+  const handleEliminarPago = async (liquidacion: Liquidacion) => {
+    const referencia = liquidacion.numero_referencia ? ` (${liquidacion.numero_referencia})` : '';
+    if (!confirm(`¿Estás seguro de eliminar este pago de $${liquidacion.monto.toLocaleString('es-CO')}${referencia}? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    try {
+      setEliminandoPagoId(liquidacion.id);
+      setError(null);
+      await eliminarLiquidacion(liquidacion.id);
+      await onSuccess();
+      await cargarSaldoDisponible();
+    } catch (err: any) {
+      setError(err.message || 'Error al eliminar pago');
+    } finally {
+      setEliminandoPagoId(null);
     }
   };
 
@@ -1319,8 +1348,8 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {liquidaciones.map((liquidacion) => (
                     <div key={liquidacion.id} className="bg-gray-50 rounded-lg p-3 text-sm">
-                      <div className="flex justify-between items-start">
-                        <div>
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="min-w-0">
                           <p className="font-medium text-gray-900">
                             ${liquidacion.monto.toLocaleString('es-CO')}
                           </p>
@@ -1334,6 +1363,15 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
                             <p className="text-xs text-gray-500 mt-1">Ref: {liquidacion.numero_referencia}</p>
                           )}
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => handleEliminarPago(liquidacion)}
+                          disabled={guardando || eliminandoPagoId === liquidacion.id}
+                          className="shrink-0 px-2 py-1 text-xs font-medium text-red-700 bg-red-100 rounded hover:bg-red-200 transition-colors disabled:opacity-50"
+                          title="Eliminar pago"
+                        >
+                          {eliminandoPagoId === liquidacion.id ? 'Eliminando...' : '🗑️ Eliminar'}
+                        </button>
                       </div>
                     </div>
                   ))}

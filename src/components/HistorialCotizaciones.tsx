@@ -4,7 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useUser } from '../contexts/UserContext';
-import { obtenerCotizaciones, cambiarEstadoCotizacion } from '../services/cotizaciones.service';
+import { obtenerCotizaciones, cambiarEstadoCotizacion, eliminarCotizacion } from '../services/cotizaciones.service';
 import { obtenerHistorialModificaciones } from '../services/historial-modificaciones.service';
 import { obtenerUsuarioActual } from '../services/auth.service';
 import { downloadQuotePDF } from '../utils/pdf';
@@ -128,6 +128,22 @@ export default function HistorialCotizaciones() {
       setCotizaciones(resultado);
     } catch (error: any) {
       alert('Error al cambiar estado: ' + (error.message || 'Error desconocido'));
+    }
+  };
+
+  // Eliminar cotización
+  const handleEliminarCotizacion = async (cotizacion: Cotizacion) => {
+    if (!confirm(`¿Estás seguro de eliminar la cotización ${cotizacion.numero}? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    try {
+      await eliminarCotizacion(cotizacion.id);
+      setCotizaciones(prev => prev.filter(item => item.id !== cotizacion.id));
+      setActionsMenuOpen(null);
+      setDetailsMenuOpen(null);
+    } catch (error: any) {
+      alert('Error al eliminar cotización: ' + (error.message || 'Error desconocido'));
     }
   };
 
@@ -372,6 +388,14 @@ export default function HistorialCotizaciones() {
                           ✏️ Editar cotización
                         </button>
                       )}
+                      {esAdmin && (
+                        <button
+                          onClick={() => handleEliminarCotizacion(cotizacion)}
+                          className="w-full text-left px-3 py-2 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                        >
+                          🗑️ Eliminar cotización
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -526,6 +550,15 @@ export default function HistorialCotizaciones() {
                             title="Editar cotización"
                           >
                             ✏️
+                          </button>
+                        )}
+                        {esAdmin && (
+                          <button
+                            onClick={() => handleEliminarCotizacion(cotizacion)}
+                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded transition-colors"
+                            title="Eliminar cotización"
+                          >
+                            🗑️
                           </button>
                         )}
                       </div>
