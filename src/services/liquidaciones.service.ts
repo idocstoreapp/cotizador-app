@@ -146,14 +146,20 @@ export async function obtenerLiquidacionesPorPersona(personaId: string): Promise
 /**
  * Crea una nueva liquidación (pago a trabajador/vendedor)
  */
-export async function crearLiquidacion(liquidacion: {
+export type LiquidacionPayload = {
   persona_id: string;
   tipo_persona: 'vendedor' | 'trabajador_taller';
   monto: number;
   metodo_pago?: 'efectivo' | 'transferencia' | 'cheque' | 'otro';
   numero_referencia?: string;
   notas?: string;
-}): Promise<Liquidacion> {
+};
+
+export type ActualizarLiquidacionPayload = Partial<Omit<LiquidacionPayload, 'persona_id' | 'tipo_persona'>> & {
+  fecha_liquidacion?: string;
+};
+
+export async function crearLiquidacion(liquidacion: LiquidacionPayload): Promise<Liquidacion> {
   // Obtener el usuario actual para registrar quién hizo la liquidación
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -178,6 +184,44 @@ export async function crearLiquidacion(liquidacion: {
 
   if (error) throw error;
   return data as Liquidacion;
+}
+
+
+/**
+ * Actualiza una liquidación existente
+ */
+export async function actualizarLiquidacion(
+  id: string,
+  liquidacion: ActualizarLiquidacionPayload
+): Promise<Liquidacion> {
+  const { data, error } = await supabase
+    .from('liquidaciones')
+    .update({
+      ...liquidacion,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .select(LIQUIDACIONES_SELECT_EMBED)
+    .single();
+
+  if (!error) return data as Liquidacion;
+
+  if (error.code === 'PGRST200' || error.message?.includes('relationship')) {
+    const { data: dataFallback, error: errFallback } = await supabase
+      .from('liquidaciones')
+      .update({
+        ...liquidacion,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (!errFallback) return dataFallback as Liquidacion;
+    throw errFallback;
+  }
+
+  throw error;
 }
 
 /**
