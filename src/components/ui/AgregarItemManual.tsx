@@ -251,6 +251,8 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
     alquilerEspacio,
     cajaChica,
     gastosExtrasPorcentaje,
+    gastosExtrasMonto,
+    tipoGastoExtra,
     tipoUtilidad,
     porcentajeUtilidad,
     ajusteManual,
@@ -411,44 +413,35 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
       }
     }
 
-    // Convertir costos indirectos a gastos extras
-    const gastosExtras = [];
-    if (transporte > 0) {
-      gastosExtras.push({ concepto: 'Transporte', monto: transporte });
-    }
-    if (herramientas > 0) {
-      gastosExtras.push({ concepto: 'Herramientas (desgaste)', monto: herramientas });
-    }
-    if (alquilerEspacio > 0) {
-      gastosExtras.push({ concepto: 'Alquiler de espacio', monto: alquilerEspacio });
-    }
-    if (cajaChica > 0) {
-      const concepto = comentariosCajaChica 
-        ? `Caja chica: ${comentariosCajaChica}`
-        : 'Caja chica';
-      gastosExtras.push({ concepto, monto: cajaChica });
-    }
-    // Agregar gastos extras (porcentaje o monto fijo)
-    // NOTA: Los gastos extras de costos indirectos siempre van en el array
-    // Los gastos extras siempre se guardan como array
-    let gastosExtrasFinal: Array<{ concepto: string; monto: number }> | undefined;
-    
-    if (tipoGastoExtra === 'monto' && gastosExtrasMonto > 0) {
-      // Agregar al array de gastos extras existente
-      gastosExtras.push({ 
+    // Construir gastos extras independientes de los costos indirectos.
+    // Los costos indirectos se guardan en su propio campo para no perderlos al editar
+    // y para evitar que se dupliquen en el cálculo del precio.
+    let gastosExtrasFinal: number | Array<{ concepto: string; monto: number }> | undefined;
+    if (tipoGastoExtra === 'porcentaje' && gastosExtrasPorcentaje > 0) {
+      gastosExtrasFinal = gastosExtrasPorcentaje;
+    } else if (tipoGastoExtra === 'monto' && gastosExtrasMonto > 0) {
+      gastosExtrasFinal = [{
         concepto: 'Gastos Extras (Monto fijo)', 
         monto: gastosExtrasMonto 
-      });
-      gastosExtrasFinal = gastosExtras.length > 0 ? gastosExtras : undefined;
-    } else {
-      // Si hay gastos extras de costos indirectos, usar el array
-      // Nota: Los gastos extras por porcentaje se calculan en tiempo real y no se guardan
-      gastosExtrasFinal = gastosExtras.length > 0 ? gastosExtras : undefined;
+      }];
     }
 
-    // Calcular margen de ganancia basado en utilidad
-    const subtotal = calculos.subtotal;
-    const margenGanancia = subtotal > 0 ? (calculos.utilidad / subtotal) * 100 : 0;
+    const costosIndirectos = {
+      transporte,
+      herramientas,
+      alquiler_espacio: alquilerEspacio,
+      caja_chica: cajaChica,
+      comentarios: comentariosCajaChica
+    };
+
+    // Guardar el porcentaje que escribió el usuario. Si eligió ajuste manual,
+    // convertirlo a porcentaje sobre la misma base usada para calcular la utilidad
+    // para que editar el item muestre y recalcule el mismo valor.
+    const margenGanancia = tipoUtilidad === 'porcentaje'
+      ? porcentajeUtilidad
+      : calculos.subtotalAntesExtras > 0
+        ? (ajusteManual / calculos.subtotalAntesExtras) * 100
+        : 0;
 
     agregarItemManual({
       tipo: 'manual',
@@ -458,6 +451,7 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
       materiales: materialesSeleccionados,
       servicios: servicios.length > 0 ? servicios : undefined,
       gastos_extras: gastosExtrasFinal,
+      costos_indirectos: costosIndirectos,
       dias_fabricacion: diasArmado || undefined,
       porcentaje_mano_obra: porcentajeManoObra > 0 ? porcentajeManoObra : undefined,
       margen_ganancia: margenGanancia,

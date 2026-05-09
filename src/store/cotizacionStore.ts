@@ -35,42 +35,59 @@ interface CotizacionStore extends EstadoCotizacion {
 }
 
 /**
- * Calcula el precio de un item manual basado en materiales y servicios
+ * Calcula el precio de un item manual con la misma lógica del formulario.
+ * La utilidad/margen se aplica solo sobre materiales + costos indirectos.
  */
 function calcularPrecioItemManual(
-  materiales: MaterialMueble[],
-  servicios?: Array<{ horas: number; precio_por_hora: number }>,
-  margenGanancia: number = 30,
-  gastosExtras?: Array<{ concepto: string; monto: number }>,
-  descuento?: number
+  itemData: Pick<ItemManualCotizacion,
+    'materiales' |
+    'servicios' |
+    'margen_ganancia' |
+    'gastos_extras' |
+    'descuento' |
+    'costos_indirectos' |
+    'porcentaje_mano_obra'
+  >
 ): number {
-  // Costo de materiales
-  const costoMateriales = materiales.reduce((sum, mat) => {
-    return sum + (mat.cantidad * (mat.precio_unitario || 0));
+  const costoMateriales = (itemData.materiales || []).reduce((sum, mat) => {
+    return sum + ((mat.cantidad || 0) * (mat.precio_unitario || 0));
   }, 0);
 
-  // Costo de servicios (mano de obra)
-  const costoServicios = servicios?.reduce((sum, serv) => {
-    return sum + (serv.horas * serv.precio_por_hora);
-  }, 0) || 0;
+  const costoServicios = (itemData.servicios || []).reduce((sum, serv) => {
+    const montoManual = (serv as any).monto_manual;
+    if (typeof montoManual === 'number' && montoManual > 0) {
+      return sum + montoManual;
+    }
 
-  // Costo de gastos extras
-  const costoGastosExtras = gastosExtras?.reduce((sum, gasto) => {
-    return sum + (gasto.monto || 0);
-  }, 0) || 0;
+    return sum + ((serv.horas || 0) * (serv.precio_por_hora || 0));
+  }, 0);
 
-  // Costo total (materiales + servicios + gastos extras)
-  const costoTotal = costoMateriales + costoServicios + costoGastosExtras;
+  const costosIndirectos = itemData.costos_indirectos
+    ? (itemData.costos_indirectos.transporte || 0) +
+      (itemData.costos_indirectos.herramientas || 0) +
+      (itemData.costos_indirectos.alquiler_espacio || 0) +
+      (itemData.costos_indirectos.caja_chica || 0)
+    : 0;
 
-  // Aplicar margen de ganancia
-  const precioConMargen = costoTotal * (1 + margenGanancia / 100);
+  const subtotalBaseUtilidad = costoMateriales + costosIndirectos;
+  const porcentajeManoObraValor = costoServicios * ((itemData.porcentaje_mano_obra || 0) / 100);
 
-  // Aplicar descuento si existe
-  const precioFinal = descuento && descuento > 0
-    ? precioConMargen * (1 - descuento / 100)
+  let gastosExtrasValor = 0;
+  if (typeof itemData.gastos_extras === 'number') {
+    gastosExtrasValor = subtotalBaseUtilidad * (itemData.gastos_extras / 100);
+  } else if (Array.isArray(itemData.gastos_extras)) {
+    gastosExtrasValor = itemData.gastos_extras.reduce((sum, gasto) => sum + (gasto.monto || 0), 0);
+  }
+
+  const margenGanancia = itemData.margen_ganancia ?? 30;
+  const margenGananciaValor = subtotalBaseUtilidad * (margenGanancia / 100);
+
+  const precioConMargen = subtotalBaseUtilidad + margenGananciaValor + costoServicios + porcentajeManoObraValor + gastosExtrasValor;
+  const precioFinal = itemData.descuento && itemData.descuento > 0
+    ? precioConMargen * (1 - itemData.descuento / 100)
     : precioConMargen;
 
-  return Math.round(precioFinal * 100) / 100; // Redondear a 2 decimales
+  return Math.round(precioFinal * 100) / 100;
 }
 
 const calcularTotales = (
@@ -141,13 +158,7 @@ export const useCotizacionStore = create<CotizacionStore>()(
 
   // Agregar item manual a la cotización
   agregarItemManual: (itemData) => {
-    const precioUnitario = calcularPrecioItemManual(
-      itemData.materiales,
-      itemData.servicios,
-      itemData.margen_ganancia || 30,
-      itemData.gastos_extras,
-      itemData.descuento
-    );
+    const precioUnitario = calcularPrecioItemManual(itemData);
     const precioTotal = precioUnitario * itemData.cantidad;
 
     const nuevoItem: ItemManualCotizacion = {
@@ -237,40 +248,7 @@ export const useCotizacionStore = create<CotizacionStore>()(
           // Recalcular precio si se modificaron materiales, servicios, costos indirectos, gastos extras o margen de ganancia
           if (updates.materiales || updates.servicios || updates.costos_indirectos || 
               updates.gastos_extras !== undefined || updates.margen_ganancia !== undefined) {
-            // Calcular costos
-            const costoMateriales = (itemActualizado.materiales || []).reduce((sum, mat) => {
-              return sum + (mat.cantidad * (mat.precio_unitario || 0));
-            }, 0);
-            
-            const costoServicios = (itemActualizado.servicios || []).reduce((sum, serv) => {
-              return sum + ((serv.horas || 0) * (serv.precio_por_hora || 0));
-            }, 0);
-            
-            const costosIndirectos = itemActualizado.costos_indirectos 
-              ? (itemActualizado.costos_indirectos.transporte || 0) +
-                (itemActualizado.costos_indirectos.herramientas || 0) +
-                (itemActualizado.costos_indirectos.alquiler_espacio || 0) +
-                (itemActualizado.costos_indirectos.caja_chica || 0)
-              : 0;
-            
-            // Subtotal antes de gastos extras
-            const subtotalAntesExtras = costoMateriales + costoServicios + costosIndirectos;
-            
-            // Gastos extras (puede ser porcentaje o array)
-            let gastosExtrasValor = 0;
-            if (typeof itemActualizado.gastos_extras === 'number') {
-              gastosExtrasValor = subtotalAntesExtras * (itemActualizado.gastos_extras / 100);
-            } else if (Array.isArray(itemActualizado.gastos_extras)) {
-              gastosExtrasValor = itemActualizado.gastos_extras.reduce((sum, gasto) => sum + (gasto.monto || 0), 0);
-            }
-            
-            // IMPORTANTE: Los gastos extras NO se incluyen en el cálculo de utilidad
-            // Aplicar utilidad SOLO sobre el subtotal antes de gastos extras
-            const margenGanancia = itemActualizado.margen_ganancia || 30;
-            const margenGananciaValor = subtotalAntesExtras * (margenGanancia / 100);
-            
-            // Precio unitario final = subtotal + utilidad + gastos extras (sin utilidad sobre gastos extras)
-            const nuevoPrecioUnitario = Math.round((subtotalAntesExtras + margenGananciaValor + gastosExtrasValor) * 100) / 100;
+            const nuevoPrecioUnitario = calcularPrecioItemManual(itemActualizado);
             itemActualizado.precio_unitario = nuevoPrecioUnitario;
             itemActualizado.precio_total = nuevoPrecioUnitario * itemActualizado.cantidad;
           } else if (updates.cantidad !== undefined) {
