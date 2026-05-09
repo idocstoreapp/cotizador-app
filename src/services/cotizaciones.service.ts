@@ -451,11 +451,74 @@ export async function actualizarCotizacion(
   return cotizacionConUsuario;
 }
 
+function esErrorTablaOColumnaAusente(error: any): boolean {
+  const code = String(error?.code || '').toUpperCase();
+  const texto = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
+  return (
+    code === '42P01' ||
+    code === '42703' ||
+    code === 'PGRST106' ||
+    code === 'PGRST116' ||
+    code === 'PGRST204' ||
+    texto.includes('does not exist') ||
+    texto.includes('schema cache') ||
+    texto.includes('could not find')
+  );
+}
+
+async function eliminarRelacionPorCotizacion(tabla: string, cotizacionId: string): Promise<void> {
+  const { error } = await supabase
+    .from(tabla)
+    .delete()
+    .eq('cotizacion_id', cotizacionId);
+
+  if (error && !esErrorTablaOColumnaAusente(error)) throw error;
+}
+
 /**
- * Elimina una cotización
+ * Elimina una cotización y limpia sus datos dependientes para que no sigan
+ * apareciendo costos, pagos o materiales huérfanos en el dashboard.
  * @param id - ID de la cotización
  */
 export async function eliminarCotizacion(id: string): Promise<void> {
+  // En algunos ambientes las FK con ON DELETE CASCADE no existen o RLS impide que
+  // la cascada sea visible inmediatamente. Borramos explícitamente lo que alimenta
+  // dashboard/costos antes de eliminar la cotización.
+  const { data: facturas } = await supabase
+    .from('facturas')
+    .select('id')
+    .eq('cotizacion_id', id);
+
+  const facturaIds = (facturas || []).map((factura: any) => factura.id).filter(Boolean);
+  if (facturaIds.length > 0) {
+    const { error: errorFacturaItems } = await supabase
+      .from('factura_items')
+      .delete()
+      .in('factura_id', facturaIds);
+
+    if (errorFacturaItems && !esErrorTablaOColumnaAusente(errorFacturaItems)) throw errorFacturaItems;
+  }
+
+  await Promise.all([
+    eliminarRelacionPorCotizacion('cotizacion_pagos', id),
+    eliminarRelacionPorCotizacion('gastos_reales_materiales', id),
+    eliminarRelacionPorCotizacion('mano_obra_real', id),
+    eliminarRelacionPorCotizacion('gastos_hormiga', id),
+    eliminarRelacionPorCotizacion('transporte_real', id),
+    eliminarRelacionPorCotizacion('facturas', id),
+    eliminarRelacionPorCotizacion('cotizacion_trabajadores', id),
+    eliminarRelacionPorCotizacion('historial_modificaciones', id)
+  ]);
+
+  // Los trabajos tienen ON DELETE SET NULL en los scripts, pero lo hacemos explícito
+  // para evitar referencias colgantes si la FK no está aplicada en producción.
+  const { error: errorTrabajos } = await supabase
+    .from('trabajos')
+    .update({ cotizacion_id: null, updated_at: new Date().toISOString() })
+    .eq('cotizacion_id', id);
+
+  if (errorTrabajos && !esErrorTablaOColumnaAusente(errorTrabajos)) throw errorTrabajos;
+
   const { error } = await supabase
     .from('cotizaciones')
     .delete()

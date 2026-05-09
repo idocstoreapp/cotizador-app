@@ -145,17 +145,30 @@ export async function calcularKPIsFinancieros(
 
   const [cobrosRes, materialesRes, manoObraRes, hormigaRes, transporteRes, gastosFijosRes, personalRes] = await Promise.all([
     queryRange('cotizacion_pagos', 'cotizacion_id, monto, fecha_pago', 'fecha_pago'),
-    queryRange('gastos_reales_materiales', 'precio_unitario_real, cantidad_real, fecha_compra', 'fecha_compra'),
-    queryRange('mano_obra_real', 'total_pagado, fecha', 'fecha'),
-    queryRange('gastos_hormiga', 'monto, fecha', 'fecha'),
-    queryRange('transporte_real', 'costo, fecha', 'fecha'),
+    queryRange('gastos_reales_materiales', 'cotizacion_id, precio_unitario_real, cantidad_real, fecha_compra', 'fecha_compra'),
+    queryRange('mano_obra_real', 'cotizacion_id, total_pagado, fecha', 'fecha'),
+    queryRange('gastos_hormiga', 'cotizacion_id, monto, fecha', 'fecha'),
+    queryRange('transporte_real', 'cotizacion_id, costo, fecha', 'fecha'),
     ignorarFechas
       ? supabase.from('fixed_expenses').select('amount, date, created_at')
       : supabase.from('fixed_expenses').select('amount, date, created_at').gte('date', fechaInicioYMD).lte('date', fechaFinYMD),
     queryRange('liquidaciones', 'monto, fecha_liquidacion', 'fecha_liquidacion')
   ]);
 
-  const cobrosLista = (cobrosRes.data || []) as any[];
+  const cotizaciones = await obtenerCotizaciones();
+  const cotizacionIdsExistentes = new Set(cotizaciones.map(c => String(c.id)));
+  const perteneceACotizacionExistente = (registro: any) => {
+    const cotizacionId = String(registro?.cotizacion_id || '');
+    return !cotizacionId || cotizacionIdsExistentes.has(cotizacionId);
+  };
+
+  // Evitar que registros huérfanos de cotizaciones eliminadas sigan inflando el dashboard.
+  const cobrosLista = ((cobrosRes.data || []) as any[]).filter(perteneceACotizacionExistente);
+  const materialesLista = ((materialesRes.data || []) as any[]).filter(perteneceACotizacionExistente);
+  const manoObraLista = ((manoObraRes.data || []) as any[]).filter(perteneceACotizacionExistente);
+  const hormigaLista = ((hormigaRes.data || []) as any[]).filter(perteneceACotizacionExistente);
+  const transporteLista = ((transporteRes.data || []) as any[]).filter(perteneceACotizacionExistente);
+
   const cobrosTotalesPeriodo = cobrosLista.reduce((sum, p) => sum + (Number(p.monto) || 0), 0);
   const cobradoPorCotizacionPeriodo = new Map<string, number>();
   cobrosLista.forEach((p: any) => {
@@ -164,14 +177,13 @@ export async function calcularKPIsFinancieros(
     cobradoPorCotizacionPeriodo.set(id, (cobradoPorCotizacionPeriodo.get(id) || 0) + (Number(p.monto) || 0));
   });
 
-  const pagosMaterialesPeriodo = (materialesRes.data || []).reduce((sum: number, g: any) => sum + ((Number(g.precio_unitario_real) || 0) * (Number(g.cantidad_real) || 0)), 0);
-  const pagosManoObraPeriodo = (manoObraRes.data || []).reduce((sum: number, m: any) => sum + (Number(m.total_pagado) || 0), 0);
-  const pagosHormigaPeriodo = (hormigaRes.data || []).reduce((sum: number, g: any) => sum + (Number(g.monto) || 0), 0);
-  const pagosTransportePeriodo = (transporteRes.data || []).reduce((sum: number, t: any) => sum + (Number(t.costo) || 0), 0);
+  const pagosMaterialesPeriodo = materialesLista.reduce((sum: number, g: any) => sum + ((Number(g.precio_unitario_real) || 0) * (Number(g.cantidad_real) || 0)), 0);
+  const pagosManoObraPeriodo = manoObraLista.reduce((sum: number, m: any) => sum + (Number(m.total_pagado) || 0), 0);
+  const pagosHormigaPeriodo = hormigaLista.reduce((sum: number, g: any) => sum + (Number(g.monto) || 0), 0);
+  const pagosTransportePeriodo = transporteLista.reduce((sum: number, t: any) => sum + (Number(t.costo) || 0), 0);
   const pagosGastosFijosPeriodo = (gastosFijosRes.data || []).reduce((sum: number, g: any) => sum + (Number(g.amount ?? g.monto ?? g.valor) || 0), 0);
   const pagosPersonalPeriodo = (personalRes.data || []).reduce((sum: number, p: any) => sum + (Number(p.monto) || 0), 0);
 
-  const cotizaciones = await obtenerCotizaciones();
   const cotizacionesAceptadas = cotizaciones.filter(c => c.estado === 'aceptada');
   const ivaReservadoPeriodo = cotizacionesAceptadas.reduce((sum: number, c: any) => {
     const aplicaIVA = c.aplica_iva !== undefined ? Boolean(c.aplica_iva) : true;

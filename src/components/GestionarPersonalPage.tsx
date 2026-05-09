@@ -15,6 +15,7 @@ import {
   crearLiquidacion,
   obtenerLiquidacionesPorPersona,
   calcularBalancePersona,
+  actualizarLiquidacion,
   eliminarLiquidacion
 } from '../services/liquidaciones.service';
 import { obtenerSaldoDisponible } from '../services/saldo-disponible.service';
@@ -1007,6 +1008,7 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
   const [descripcion, setDescripcion] = useState('');
   const [esPagoSueldo, setEsPagoSueldo] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [pagoEditando, setPagoEditando] = useState<Liquidacion | null>(null);
   const [eliminandoPagoId, setEliminandoPagoId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [disponibleParaGastar, setDisponibleParaGastar] = useState<number | null>(null);
@@ -1026,7 +1028,7 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
 
   // Efecto para actualizar número de referencia cuando cambia la fecha
   useEffect(() => {
-    if (fechaPago) {
+    if (fechaPago && !pagoEditando) {
       const fecha = new Date(fechaPago + 'T12:00:00');
       const year = fecha.getFullYear();
       const month = String(fecha.getMonth() + 1).padStart(2, '0');
@@ -1037,7 +1039,7 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
       const seconds = String(now.getSeconds()).padStart(2, '0');
       setNumeroReferencia(`PAGO-${year}${month}${day}-${hours}${minutes}${seconds}`);
     }
-  }, [fechaPago]);
+  }, [fechaPago, pagoEditando]);
 
   // Efecto para completar datos cuando se selecciona pago de sueldo
   useEffect(() => {
@@ -1078,25 +1080,35 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
       // Crear fecha con hora actual si no se especifica
       const fechaCompleta = fechaPago ? new Date(fechaPago + 'T12:00:00').toISOString() : new Date().toISOString();
 
-      await crearLiquidacion({
-        persona_id: persona.id,
-        tipo_persona: persona.role as 'vendedor' | 'trabajador_taller',
-        monto: montoNum,
-        metodo_pago: metodoPago,
-        numero_referencia: numeroReferencia.trim() || undefined,
-        notas: descripcion.trim() || undefined
-      });
+      if (pagoEditando) {
+        await actualizarLiquidacion(pagoEditando.id, {
+          monto: montoNum,
+          metodo_pago: metodoPago,
+          numero_referencia: numeroReferencia.trim() || undefined,
+          notas: descripcion.trim() || undefined,
+          fecha_liquidacion: fechaCompleta
+        });
+      } else {
+        await crearLiquidacion({
+          persona_id: persona.id,
+          tipo_persona: persona.role as 'vendedor' | 'trabajador_taller',
+          monto: montoNum,
+          metodo_pago: metodoPago,
+          numero_referencia: numeroReferencia.trim() || undefined,
+          notas: descripcion.trim() || undefined
+        });
 
-      // Actualizar fecha_liquidacion manualmente si es diferente a hoy
-      if (fechaPago && fechaPago !== new Date().toISOString().split('T')[0]) {
-        // Obtener la última liquidación creada y actualizar su fecha
-        const liquidacionesActualizadas = await obtenerLiquidacionesPorPersona(persona.id);
-        const ultimaLiquidacion = liquidacionesActualizadas[0];
-        if (ultimaLiquidacion) {
-          await supabase
-            .from('liquidaciones')
-            .update({ fecha_liquidacion: fechaCompleta })
-            .eq('id', ultimaLiquidacion.id);
+        // Actualizar fecha_liquidacion manualmente si es diferente a hoy
+        if (fechaPago && fechaPago !== new Date().toISOString().split('T')[0]) {
+          // Obtener la última liquidación creada y actualizar su fecha
+          const liquidacionesActualizadas = await obtenerLiquidacionesPorPersona(persona.id);
+          const ultimaLiquidacion = liquidacionesActualizadas[0];
+          if (ultimaLiquidacion) {
+            await supabase
+              .from('liquidaciones')
+              .update({ fecha_liquidacion: fechaCompleta })
+              .eq('id', ultimaLiquidacion.id);
+          }
         }
       }
 
@@ -1107,12 +1119,36 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
       setNumeroReferencia(generarNumeroReferencia());
       setDescripcion('');
       setEsPagoSueldo(false);
+      setPagoEditando(null);
       setFechaPago(new Date().toISOString().split('T')[0]);
     } catch (err: any) {
-      setError(err.message || 'Error al registrar pago');
+      setError(err.message || (pagoEditando ? 'Error al actualizar pago' : 'Error al registrar pago'));
     } finally {
       setGuardando(false);
     }
+  };
+
+
+  const handleEditarPago = (liquidacion: Liquidacion) => {
+    setPagoEditando(liquidacion);
+    setMonto(String(liquidacion.monto || ''));
+    setFechaPago(new Date(liquidacion.fecha_liquidacion).toISOString().split('T')[0]);
+    setMetodoPago((liquidacion.metodo_pago || 'efectivo') as 'efectivo' | 'transferencia' | 'cheque' | 'otro');
+    setNumeroReferencia(liquidacion.numero_referencia || '');
+    setDescripcion(liquidacion.notas || '');
+    setEsPagoSueldo(false);
+    setError(null);
+  };
+
+  const handleCancelarEdicionPago = () => {
+    setPagoEditando(null);
+    setMonto('');
+    setFechaPago(new Date().toISOString().split('T')[0]);
+    setMetodoPago('efectivo');
+    setNumeroReferencia(generarNumeroReferencia());
+    setDescripcion('');
+    setEsPagoSueldo(false);
+    setError(null);
   };
 
   const handleEliminarPago = async (liquidacion: Liquidacion) => {
@@ -1139,7 +1175,7 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
       <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[95vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-bold text-gray-900">
-            Registrar Pago - {persona.nombre} {persona.apellido}
+            {pagoEditando ? 'Editar Pago' : 'Registrar Pago'} - {persona.nombre} {persona.apellido}
           </h2>
           <button
             onClick={onClose}
@@ -1236,6 +1272,19 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {pagoEditando && (
+              <div className="bg-indigo-50 border border-indigo-200 text-indigo-800 px-4 py-3 rounded-lg text-sm flex items-center justify-between gap-3">
+                <span>Editando el pago seleccionado. Guarda los cambios o cancela la edición.</span>
+                <button
+                  type="button"
+                  onClick={handleCancelarEdicionPago}
+                  disabled={guardando}
+                  className="shrink-0 text-indigo-700 hover:text-indigo-900 font-medium disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+              </div>
+            )}
             {/* Opción de pago de sueldo */}
             {persona.sueldo && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -1363,15 +1412,26 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
                             <p className="text-xs text-gray-500 mt-1">Ref: {liquidacion.numero_referencia}</p>
                           )}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleEliminarPago(liquidacion)}
-                          disabled={guardando || eliminandoPagoId === liquidacion.id}
-                          className="shrink-0 px-2 py-1 text-xs font-medium text-red-700 bg-red-100 rounded hover:bg-red-200 transition-colors disabled:opacity-50"
-                          title="Eliminar pago"
-                        >
-                          {eliminandoPagoId === liquidacion.id ? 'Eliminando...' : '🗑️ Eliminar'}
-                        </button>
+                        <div className="shrink-0 flex flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleEditarPago(liquidacion)}
+                            disabled={guardando || eliminandoPagoId === liquidacion.id}
+                            className="px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-100 rounded hover:bg-indigo-200 transition-colors disabled:opacity-50"
+                            title="Editar pago"
+                          >
+                            ✏️ Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleEliminarPago(liquidacion)}
+                            disabled={guardando || eliminandoPagoId === liquidacion.id}
+                            className="px-2 py-1 text-xs font-medium text-red-700 bg-red-100 rounded hover:bg-red-200 transition-colors disabled:opacity-50"
+                            title="Eliminar pago"
+                          >
+                            {eliminandoPagoId === liquidacion.id ? 'Eliminando...' : '🗑️ Eliminar'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1393,7 +1453,7 @@ function ModalPagoPersonal({ persona, balancePendiente, liquidaciones, balancePe
                 disabled={guardando}
                 className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50"
               >
-                {guardando ? 'Guardando...' : 'Registrar Pago'}
+                {guardando ? 'Guardando...' : (pagoEditando ? 'Guardar Cambios' : 'Registrar Pago')}
               </button>
             </div>
           </form>
