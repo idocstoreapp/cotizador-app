@@ -305,22 +305,38 @@ export const useCotizacionStore = create<CotizacionStore>()(
   // Limpiar cotización
   limpiarCotizacion: () => {
     console.log('🧹 Limpiando cotización...');
-    // Primero limpiar el localStorage explícitamente
-    try {
-      localStorage.removeItem('cotizacion-storage');
-      console.log('✅ localStorage limpiado');
-    } catch (error) {
-      console.error('❌ Error al limpiar localStorage:', error);
-    }
-    // Luego limpiar el estado
-    set({
+
+    const estadoLimpio = {
       items: [],
       subtotal: 0,
       descuento: 0,
       aplica_iva: true,
       iva: 0,
       total: 0
-    });
+    };
+
+    // Primero limpiar el estado; el middleware persist sincroniza este cambio.
+    set(estadoLimpio);
+
+    // Reforzar la limpieza persistida para que una recarga o redirección inmediata
+    // no pueda rehidratar items antiguos del carrito.
+    try {
+      localStorage.setItem(
+        'cotizacion-storage',
+        JSON.stringify({
+          state: {
+            items: [],
+            descuento: 0,
+            aplica_iva: true
+          },
+          version: 0
+        })
+      );
+      console.log('✅ localStorage sincronizado con carrito vacío');
+    } catch (error) {
+      console.error('❌ Error al limpiar localStorage:', error);
+    }
+
     console.log('✅ Estado del store limpiado');
   },
 

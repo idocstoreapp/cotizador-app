@@ -72,12 +72,22 @@ export default function CotizacionPage() {
         return;
       }
 
+      // Tomar una foto de los datos actuales antes de guardar.
+      // Así podemos limpiar el carrito apenas la cotización se cree, sin afectar el PDF.
+      const itemsCotizacion = [...items];
+      const subtotalCotizacion = subtotal;
+      const descuentoCotizacion = descuento;
+      const ivaCotizacion = iva;
+      const totalCotizacion = total;
+      const datosClienteCotizacion = { ...datosCliente };
+      const aplicaIvaCotizacion = aplica_iva;
+
       // Convertir items del store a formato CotizacionInput
       const cotizacionInput = convertirItemsACotizacionInput(
-        items,
-        datosCliente,
+        itemsCotizacion,
+        datosClienteCotizacion,
         30, // Margen de ganancia por defecto
-        aplica_iva
+        aplicaIvaCotizacion
       );
 
       // Guardar cotización en la base de datos (estado: pendiente)
@@ -85,23 +95,23 @@ export default function CotizacionPage() {
       // IMPORTANTE: Pasar los totales calculados desde items para que coincidan
       console.log('💾 Guardando cotización...', {
         usuarioId: usuario.id,
-        itemsCount: items.length,
-        clienteNombre: datosCliente.nombre,
+        itemsCount: itemsCotizacion.length,
+        clienteNombre: datosClienteCotizacion.nombre,
         materialesCount: cotizacionInput.materiales.length,
         serviciosCount: cotizacionInput.servicios.length,
-        subtotalDesdeItems: subtotal,
-        ivaDesdeItems: iva,
-        totalDesdeItems: total
+        subtotalDesdeItems: subtotalCotizacion,
+        ivaDesdeItems: ivaCotizacion,
+        totalDesdeItems: totalCotizacion
       });
       
       const cotizacionGuardada = await crearCotizacion(
         cotizacionInput, 
         usuario.id, 
-        items,
-        subtotal, // Subtotal calculado desde items
-        descuento, // Descuento
-        iva, // IVA calculado desde items
-        total, // Total calculado desde items
+        itemsCotizacion,
+        subtotalCotizacion, // Subtotal calculado desde items
+        descuentoCotizacion, // Descuento
+        ivaCotizacion, // IVA calculado desde items
+        totalCotizacion, // Total calculado desde items
         empresa, // Empresa seleccionada
         vendedorSeleccionado || undefined // Vendedor seleccionado
       );
@@ -111,6 +121,19 @@ export default function CotizacionPage() {
         numero: cotizacionGuardada.numero,
         total: cotizacionGuardada.total
       });
+
+      // Limpiar el carrito inmediatamente después de guardar exitosamente.
+      // El PDF se genera con los snapshots de arriba para evitar que queden items
+      // de la cotización anterior si el usuario vuelve a cotizar o si hay redirección.
+      console.log('🧹 Limpiando carrito después de guardar cotización...', {
+        itemsCount: itemsCotizacion.length,
+        subtotal: subtotalCotizacion,
+        total: totalCotizacion
+      });
+      useCotizacionStore.getState().limpiarCotizacion();
+      setDatosCliente({ nombre: '', telefono: '', email: '', direccion: '' });
+      setEmpresaSeleccionada(null);
+      setVendedorSeleccionado('');
 
       // Generar número de cotización
       const numero = cotizacionGuardada.numero;
@@ -126,14 +149,14 @@ export default function CotizacionPage() {
 
       // Convertir items al formato del PDF profesional
       const datosPDF = convertirItemsAPDF(
-        items,
-        datosCliente,
+        itemsCotizacion,
+        datosClienteCotizacion,
         numero,
         fecha,
-        subtotal,
-        descuento,
-        iva,
-        total,
+        subtotalCotizacion,
+        descuentoCotizacion,
+        ivaCotizacion,
+        totalCotizacion,
         empresaInfo.nombre,
         empresaInfo.logo,
         {
@@ -199,45 +222,6 @@ export default function CotizacionPage() {
         }
       }
 
-      // Limpiar el carrito después de guardar exitosamente
-      console.log('🧹 Limpiando carrito después de guardar cotización...');
-      console.log('📦 Estado antes de limpiar:', {
-        itemsCount: items.length,
-        subtotal,
-        total
-      });
-      
-      // Limpiar el store (esto también limpia el localStorage)
-      useCotizacionStore.getState().limpiarCotizacion();
-      
-      // Limpiar los datos del formulario
-      setDatosCliente({ nombre: '', telefono: '', email: '', direccion: '' });
-      setEmpresaSeleccionada(null);
-      setVendedorSeleccionado('');
-      
-      // Verificar que se limpió correctamente después de un breve delay
-      // Esto es necesario porque el middleware de persistencia puede restaurar el estado
-      setTimeout(() => {
-        const estadoActual = useCotizacionStore.getState();
-        console.log('✅ Estado después de limpiar:', {
-          itemsCount: estadoActual.items.length,
-          subtotal: estadoActual.subtotal,
-          total: estadoActual.total
-        });
-        
-        // Si aún hay items, forzar limpieza nuevamente
-        if (estadoActual.items.length > 0) {
-          console.warn('⚠️ El carrito no se limpió correctamente, forzando limpieza nuevamente...');
-          // Limpiar localStorage explícitamente
-          try {
-            localStorage.removeItem('cotizacion-storage');
-          } catch (e) {
-            console.error('Error al limpiar localStorage:', e);
-          }
-          // Limpiar el store nuevamente
-          useCotizacionStore.getState().limpiarCotizacion();
-        }
-      }, 300);
 
       // Redirigir al historial de cotizaciones
       console.log('🔀 Redirigiendo a /cotizaciones...');
