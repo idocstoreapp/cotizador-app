@@ -52,7 +52,7 @@ async function generarNumeroCotizacion(empresa: 'casablanca' | 'kubica'): Promis
 
 /**
  * Obtiene todas las cotizaciones
- * @param usuarioId - Si se proporciona, filtra por usuario
+ * @param usuarioId - Si se proporciona, filtra por cotizaciones creadas por el usuario o asignadas como vendedor
  * @returns Lista de cotizaciones
  */
 export async function obtenerCotizaciones(usuarioId?: string): Promise<Cotizacion[]> {
@@ -62,9 +62,10 @@ export async function obtenerCotizaciones(usuarioId?: string): Promise<Cotizacio
     .select('*')
     .order('created_at', { ascending: false });
 
-  // Si se proporciona usuarioId, filtrar por usuario
+  // Si se proporciona usuarioId, filtrar por cotizaciones creadas por el usuario
+  // o asignadas a él como vendedor.
   if (usuarioId) {
-    query = query.eq('usuario_id', usuarioId);
+    query = query.or(`usuario_id.eq.${usuarioId},vendedor_id.eq.${usuarioId}`);
   }
 
   const { data: cotizaciones, error } = await query;
