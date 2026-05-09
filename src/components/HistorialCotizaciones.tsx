@@ -47,10 +47,6 @@ export default function HistorialCotizaciones() {
     return esAdmin || cotizacion.usuario_id === usuario.id || cotizacion.vendedor_id === usuario.id;
   };
 
-  const puedeGestionarCostos = (cotizacion: Cotizacion) => {
-    return cotizacion.estado === 'aceptada' && puedeEditarCotizacion(cotizacion);
-  };
-
   // Cargar usuario directamente si no está en contexto
   useEffect(() => {
     const cargarUsuario = async () => {
