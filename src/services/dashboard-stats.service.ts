@@ -316,8 +316,8 @@ export async function obtenerEstadisticasDashboard(
 
   // Estadísticas de cotizaciones del período
   const totalCotizaciones = cotizacionesPeriodo.length;
-  let cotizacionesPendientesPeriodo = cotizacionesPeriodo.filter(c => c.estado === 'pendiente');
-  let cotizacionesRechazadasPeriodo = cotizacionesPeriodo.filter(c => c.estado === 'rechazada');
+  const cotizacionesPendientesPeriodo = cotizacionesPeriodo.filter(c => c.estado === 'pendiente');
+  const cotizacionesRechazadasPeriodo = cotizacionesPeriodo.filter(c => c.estado === 'rechazada');
 
   // Tolerancia para considerar una cotización como "completamente pagada" cuando hay
   // pequeñas diferencias de centavos (redondeos, ajustes, pagos parciales casi completos).
@@ -965,8 +965,6 @@ export async function obtenerEstadisticasDashboard(
     // Recalcular ventas/abonado/cotizaciones en base al conjunto final de cotizaciones con cobros en el período
     ventasTotalesPeriodo = cotizacionesConCobros.reduce((sum, c) => sum + calcularTotalDesdeItems(c), 0);
     totalAbonado = cotizacionesConCobros.reduce((sum, c) => sum + (Number(c.monto_pagado) || 0), 0);
-    cotizacionesPendientesPeriodo = cotizacionesConCobros.filter(c => c.estado === 'pendiente');
-    cotizacionesRechazadasPeriodo = cotizacionesConCobros.filter(c => c.estado === 'rechazada');
 
     const cobrosTotalesPeriodoRaw = Array.from(cobradoPorCotizacionPeriodo.values()).reduce((sum, v) => sum + v, 0);
 
