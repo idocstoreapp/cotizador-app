@@ -436,9 +436,9 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
       comentarios: comentariosCajaChica
     };
 
-    // Guardar el porcentaje que escribió el usuario. Si eligió precio manual,
-    // convertir la utilidad resultante a porcentaje sobre la misma base usada para calcularla
-    // para que editar el item tenga una referencia consistente.
+    // Guardar el porcentaje que escribió el usuario. Si eligió ajuste manual,
+    // convertirlo a porcentaje sobre la misma base usada para calcular la utilidad
+    // para que editar el item muestre y recalcule el mismo valor.
     const margenGanancia = tipoUtilidad === 'porcentaje'
       ? porcentajeUtilidad
       : calculos.subtotalAntesExtras > 0

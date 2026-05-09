@@ -160,12 +160,8 @@ export const useCotizacionStore = create<CotizacionStore>()(
 
   // Agregar item manual a la cotización
   agregarItemManual: (itemData) => {
-    const precioUnitario = typeof itemData.precio_unitario === 'number' && Number.isFinite(itemData.precio_unitario)
-      ? itemData.precio_unitario
-      : calcularPrecioItemManual(itemData);
-    const precioTotal = typeof itemData.precio_total === 'number' && Number.isFinite(itemData.precio_total)
-      ? itemData.precio_total
-      : precioUnitario * itemData.cantidad;
+    const precioUnitario = calcularPrecioItemManual(itemData);
+    const precioTotal = precioUnitario * itemData.cantidad;
 
     const nuevoItem: ItemManualCotizacion = {
       id: `manual-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
