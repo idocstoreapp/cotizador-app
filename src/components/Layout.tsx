@@ -392,7 +392,7 @@ export default function Layout({ children, currentPath }: LayoutProps) {
             <div className="flex items-center gap-3">
               <div className="w-16 h-16 sm:w-20 md:w-20 rounded-lg flex items-center justify-center">
                 <img 
-                  src={`images/${currentLogo}`} 
+                  src={`/images/${currentLogo}`}
                   alt="logo" 
                   className="w-full h-full object-contain transition-all duration-1000 ease-in-out transform hover:scale-105"
                 />
