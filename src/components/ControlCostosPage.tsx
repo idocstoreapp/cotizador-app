@@ -130,13 +130,20 @@ export default function ControlCostosPage({ cotizacionId }: ControlCostosPagePro
     );
   }
 
-  // Solo admins pueden gestionar costos
-  if (!esAdmin) {
+  const puedeGestionarCostos = !!usuario?.id && !!cotizacion && (
+    esAdmin || (
+      cotizacion.estado === 'aceptada' &&
+      (cotizacion.usuario_id === usuario.id || cotizacion.vendedor_id === usuario.id)
+    )
+  );
+
+  // Solo administradores o vendedores relacionados a una cotización aprobada pueden gestionar costos
+  if (!puedeGestionarCostos) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <p className="text-red-600 text-lg font-semibold">Acceso denegado</p>
-          <p className="text-gray-600 mt-2">Solo los administradores pueden gestionar costos reales</p>
+          <p className="text-gray-600 mt-2">Solo administradores o vendedores relacionados a una cotización aprobada pueden gestionar costos reales</p>
         </div>
       </div>
     );

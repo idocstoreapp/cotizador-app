@@ -42,6 +42,15 @@ export default function HistorialCotizaciones() {
   const usuario = contextoUsuario.usuario || usuarioLocal;
   const esAdmin = usuario?.role === 'admin' || false;
 
+  const puedeEditarCotizacion = (cotizacion: Cotizacion) => {
+    if (!usuario?.id) return false;
+    return esAdmin || cotizacion.usuario_id === usuario.id || cotizacion.vendedor_id === usuario.id;
+  };
+
+  const puedeGestionarCostos = (cotizacion: Cotizacion) => {
+    return cotizacion.estado === 'aceptada' && puedeEditarCotizacion(cotizacion);
+  };
+
   // Cargar usuario directamente si no está en contexto
   useEffect(() => {
     const cargarUsuario = async () => {
@@ -368,7 +377,7 @@ export default function HistorialCotizaciones() {
                       >
                         📥 Descargar PDF
                       </button>
-                      {cotizacion.estado === 'aceptada' && esAdmin && (
+                      {puedeGestionarCostos(cotizacion) && (
                         <a
                           href={`/cotizaciones/${cotizacion.id}/costos`}
                           className="block w-full text-left px-3 py-2 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
@@ -376,7 +385,7 @@ export default function HistorialCotizaciones() {
                           💰 Control de Costos
                         </a>
                       )}
-                      {esAdmin && (
+                      {puedeEditarCotizacion(cotizacion) && (
                         <button
                           onClick={() => {
                             setCotizacionEditando(cotizacion);
@@ -531,7 +540,7 @@ export default function HistorialCotizaciones() {
                         >
                           PDF
                         </button>
-                        {cotizacion.estado === 'aceptada' && esAdmin && (
+                        {puedeGestionarCostos(cotizacion) && (
                           <a
                             href={`/cotizaciones/${cotizacion.id}/costos`}
                             className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
@@ -540,7 +549,7 @@ export default function HistorialCotizaciones() {
                             💰
                           </a>
                         )}
-                        {esAdmin && (
+                        {puedeEditarCotizacion(cotizacion) && (
                           <button
                             onClick={() => {
                               setCotizacionEditando(cotizacion);
