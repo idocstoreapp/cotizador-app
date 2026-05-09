@@ -2,7 +2,7 @@
  * Modal para editar una cotización existente
  * Permite agregar/quitar items y guardar con historial de modificaciones
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useCotizacionStore } from '../store/cotizacionStore';
 import { actualizarCotizacionConHistorial } from '../services/cotizaciones.service';
 import { convertirItemsACotizacionInput } from '../utils/convertirCotizacionStore';
@@ -29,7 +29,24 @@ export default function EditarCotizacionModal({
   const [descripcionModificacion, setDescripcionModificacion] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [cargandoItems, setCargandoItems] = useState(true);
+  const [itemsInicialesSnapshot, setItemsInicialesSnapshot] = useState('[]');
   const [aplicaIVA, setAplicaIVALocal] = useState<boolean>(cotizacion.aplica_iva !== undefined ? cotizacion.aplica_iva : true);
+
+  const normalizarEstadoParaComparar = (itemsCotizacion: ItemCotizacion[], descuentoCotizacion: number, aplicaIVACotizacion: boolean) => JSON.stringify({
+    items: itemsCotizacion.map((item) => ({
+      ...item,
+      // El store genera IDs nuevos al cargar los items existentes; no deben impedir detectar cambios reales.
+      id: undefined
+    })),
+    descuento: descuentoCotizacion,
+    aplicaIVA: aplicaIVACotizacion
+  });
+
+  const estadoActualSnapshot = useMemo(
+    () => normalizarEstadoParaComparar(items, descuento, aplicaIVA),
+    [items, descuento, aplicaIVA]
+  );
+  const hayModificaciones = estadoActualSnapshot !== itemsInicialesSnapshot;
 
   // Cargar items de la cotización al abrir el modal
   useEffect(() => {
@@ -111,6 +128,9 @@ export default function EditarCotizacionModal({
         } else {
           console.log('⚠️ La cotización no tiene items o está vacía');
         }
+
+        const estadoStore = useCotizacionStore.getState();
+        setItemsInicialesSnapshot(normalizarEstadoParaComparar(estadoStore.items, estadoStore.descuento, cotizacion.aplica_iva !== undefined ? cotizacion.aplica_iva : true));
       } catch (error) {
         console.error('❌ Error al cargar items de la cotización:', error);
         alert('Error al cargar los items de la cotización. Por favor, intenta de nuevo.');
@@ -128,13 +148,13 @@ export default function EditarCotizacionModal({
   }, [aplicaIVA, setAplicaIVA]);
 
   const handleGuardar = async () => {
-    if (!descripcionModificacion.trim()) {
-      alert('Por favor, describe la razón de la modificación');
+    if (items.length === 0) {
+      alert('No puedes guardar una cotización sin items');
       return;
     }
 
-    if (items.length === 0) {
-      alert('No puedes guardar una cotización sin items');
+    if (!hayModificaciones) {
+      alert('No hay modificaciones para guardar');
       return;
     }
 
@@ -160,7 +180,7 @@ export default function EditarCotizacionModal({
         cotizacion.id,
         cotizacionInput,
         items,
-        descripcionModificacion,
+        descripcionModificacion.trim() || 'Modificación de items de la cotización',
         usuarioId,
         subtotal,
         descuento,
@@ -240,18 +260,17 @@ export default function EditarCotizacionModal({
           {/* Descripción de la modificación */}
           <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
             <label className="block text-sm font-semibold text-gray-900 mb-2">
-              📝 Descripción de la Modificación *
+              📝 Descripción de la Modificación
             </label>
             <textarea
               value={descripcionModificacion}
               onChange={(e) => setDescripcionModificacion(e.target.value)}
-              placeholder="Describe por qué se está modificando esta cotización (ej: 'Se agregó material adicional', 'Se ajustó el precio de mano de obra', etc.)"
+              placeholder="Opcional: describe por qué se está modificando esta cotización (ej: 'Se eliminó un item', 'Se ajustó el precio de mano de obra', etc.)"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
               rows={3}
-              required
             />
             <p className="text-xs text-gray-600 mt-2">
-              Esta descripción quedará registrada en el historial de modificaciones con fecha y hora.
+              Si la dejas vacía, se guardará una descripción automática en el historial de modificaciones.
             </p>
           </div>
 
@@ -280,7 +299,7 @@ export default function EditarCotizacionModal({
           <div className="flex gap-3 pt-4 border-t border-gray-200">
             <button
               onClick={handleGuardar}
-              disabled={guardando || !descripcionModificacion.trim() || items.length === 0}
+              disabled={guardando || cargandoItems || items.length === 0 || !hayModificaciones}
               className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-medium py-3 px-6 rounded-lg transition-colors"
             >
               {guardando ? 'Guardando...' : '💾 Guardar Modificaciones'}
