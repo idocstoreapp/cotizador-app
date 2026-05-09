@@ -82,7 +82,7 @@ export async function obtenerCotizaciones(usuarioId?: string): Promise<Cotizacio
   if (todosLosIds.length > 0) {
     const { data: perfilesData, error: perfilesError } = await supabase
       .from('perfiles')
-      .select('id, nombre, email, role')
+      .select('id, nombre, apellido, email, role')
       .in('id', todosLosIds);
     
     if (!perfilesError && perfilesData) {
@@ -129,7 +129,7 @@ export async function obtenerCotizacionPorId(id: string): Promise<Cotizacion | n
   if (data.usuario_id) {
     const { data: perfil, error: perfilError } = await supabase
       .from('perfiles')
-      .select('id, nombre, email, role')
+      .select('id, nombre, apellido, email, role')
       .eq('id', data.usuario_id)
       .maybeSingle();
     
@@ -142,7 +142,7 @@ export async function obtenerCotizacionPorId(id: string): Promise<Cotizacion | n
   if (data.vendedor_id) {
     const { data: vendedor, error: vendedorError } = await supabase
       .from('perfiles')
-      .select('id, nombre, email, role')
+      .select('id, nombre, apellido, email, role')
       .eq('id', data.vendedor_id)
       .maybeSingle();
     
@@ -438,7 +438,7 @@ export async function actualizarCotizacion(
   if (data.usuario_id) {
     const { data: perfil, error: perfilError } = await supabase
       .from('perfiles')
-      .select('id, nombre, email, role')
+      .select('id, nombre, apellido, email, role')
       .eq('id', data.usuario_id)
       .maybeSingle();
     
@@ -514,7 +514,7 @@ export async function obtenerCotizacionesPorCliente(
   if (todosLosIds.length > 0) {
     const { data: perfilesData } = await supabase
       .from('perfiles')
-      .select('id, nombre, email, role')
+      .select('id, nombre, apellido, email, role')
       .in('id', todosLosIds);
     if (perfilesData) perfiles = perfilesData;
   }
@@ -654,7 +654,7 @@ export async function cambiarEstadoCotizacion(
   if (data.usuario_id) {
     const { data: perfil, error: perfilError } = await supabase
       .from('perfiles')
-      .select('id, nombre, email, role')
+      .select('id, nombre, apellido, email, role')
       .eq('id', data.usuario_id)
       .maybeSingle();
     
