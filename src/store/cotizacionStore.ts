@@ -16,12 +16,14 @@ import type {
 } from '../types/muebles';
 import { calcularPrecioFinal } from '../utils/calcularPrecioMueble';
 
+type NuevoItemManualCotizacion = Omit<ItemManualCotizacion, 'id' | 'precio_unitario' | 'precio_total'> & Partial<Pick<ItemManualCotizacion, 'precio_unitario' | 'precio_total'>>;
+
 interface CotizacionStore extends EstadoCotizacion {
   // Acciones para muebles del catálogo
   agregarMueble: (mueble: Mueble, opciones: OpcionesMueble, cantidad: number) => void;
   
   // Acciones para items manuales
-  agregarItemManual: (item: Omit<ItemManualCotizacion, 'id' | 'precio_unitario' | 'precio_total'>) => void;
+  agregarItemManual: (item: NuevoItemManualCotizacion) => void;
   
   // Acciones generales
   eliminarItem: (id: string) => void;
