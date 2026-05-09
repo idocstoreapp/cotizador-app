@@ -232,6 +232,10 @@ export default function CotizacionPage() {
           useCotizacionStore.getState().limpiarCotizacion();
         }
       }, 300);
+
+      // Redirigir al historial de cotizaciones
+      console.log('🔀 Redirigiendo a /cotizaciones...');
+      window.location.href = '/cotizaciones';
     } catch (error: any) {
       console.error('❌ Error al guardar cotización:', error);
       console.error('Detalles del error:', {

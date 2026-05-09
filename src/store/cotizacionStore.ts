@@ -113,7 +113,7 @@ export const useCotizacionStore = create<CotizacionStore>()(
     const precioTotal = precioUnitario * cantidad;
 
     const nuevoItem: MuebleCotizacion = {
-      id: `catalogo-${mueble.id}-${Date.now()}`,
+      id: `catalogo-${mueble.id}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       tipo: 'catalogo',
       mueble_id: mueble.id,
       mueble,
@@ -151,7 +151,7 @@ export const useCotizacionStore = create<CotizacionStore>()(
     const precioTotal = precioUnitario * itemData.cantidad;
 
     const nuevoItem: ItemManualCotizacion = {
-      id: `manual-${Date.now()}`,
+      id: `manual-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       ...itemData,
       tipo: 'manual',
       precio_unitario: precioUnitario,
@@ -339,7 +339,8 @@ export const useCotizacionStore = create<CotizacionStore>()(
       const totales = calcularTotales(state.items, state.descuento, state.aplica_iva);
       return { ...totales };
     });
-  }
+  },
+
     }),
     {
       name: 'cotizacion-storage', // Nombre de la clave en localStorage

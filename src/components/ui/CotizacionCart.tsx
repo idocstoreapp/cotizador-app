@@ -12,7 +12,7 @@ interface CotizacionCartProps {
 }
 
 export default function CotizacionCart({ onGenerarPDF, cotizacionId }: CotizacionCartProps) {
-  const { items, subtotal, descuento, aplica_iva, iva, total, eliminarItem, actualizarCantidad, setDescuento, setAplicaIVA } = useCotizacionStore();
+  const { items, subtotal, descuento, aplica_iva, iva, total, eliminarItem, actualizarCantidad, setDescuento, setAplicaIVA, calcularTotales } = useCotizacionStore();
   const [descuentoInput, setDescuentoInput] = useState(descuento.toString());
   const [itemEditando, setItemEditando] = useState<string | null>(null);
 
@@ -415,7 +415,6 @@ export default function CotizacionCart({ onGenerarPDF, cotizacionId }: Cotizacio
       {/* Modal de editar item */}
       {itemEditando && (() => {
         const item = items.find(i => i.id === itemEditando);
-        const { calcularTotales } = useCotizacionStore();
         if (!item) {
           setItemEditando(null);
           return null;

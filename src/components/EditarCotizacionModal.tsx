@@ -75,8 +75,9 @@ export default function EditarCotizacionModal({
             return item as ItemCotizacion;
           });
 
+          // Cargar items en el store usando las acciones del store
+          // (agregarMueble/agregarItemManual ahora generan IDs únicos con Math.random())
           const store = useCotizacionStore.getState();
-          
           itemsParaStore.forEach((item: ItemCotizacion) => {
             try {
               if (item.tipo === 'catalogo' && item.mueble) {
@@ -168,8 +169,15 @@ export default function EditarCotizacionModal({
       );
 
       alert('✅ Cotización actualizada exitosamente');
+
+      // Limpiar el store para evitar datos stale
+      useCotizacionStore.getState().limpiarCotizacion();
+
       onSuccess();
       onClose();
+
+      // Redirigir al historial para refrescar la página completamente
+      window.location.href = '/cotizaciones';
     } catch (error: any) {
       console.error('Error al actualizar cotización:', error);
       alert('Error al actualizar cotización: ' + (error.message || 'Error desconocido'));
