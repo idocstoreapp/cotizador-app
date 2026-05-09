@@ -373,7 +373,7 @@ export default function HistorialCotizaciones() {
                       >
                         📥 Descargar PDF
                       </button>
-                      {cotizacion.estado === 'aceptada' && esAdmin && (
+                      {puedeGestionarCostos(cotizacion) && (
                         <a
                           href={`/cotizaciones/${cotizacion.id}/costos`}
                           className="block w-full text-left px-3 py-2 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
@@ -536,7 +536,7 @@ export default function HistorialCotizaciones() {
                         >
                           PDF
                         </button>
-                        {cotizacion.estado === 'aceptada' && esAdmin && (
+                        {puedeGestionarCostos(cotizacion) && (
                           <a
                             href={`/cotizaciones/${cotizacion.id}/costos`}
                             className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
