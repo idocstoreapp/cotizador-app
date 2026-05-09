@@ -42,6 +42,11 @@ export default function HistorialCotizaciones() {
   const usuario = contextoUsuario.usuario || usuarioLocal;
   const esAdmin = usuario?.role === 'admin' || false;
 
+  const puedeEditarCotizacion = (cotizacion: Cotizacion) => {
+    if (!usuario?.id) return false;
+    return esAdmin || cotizacion.usuario_id === usuario.id || cotizacion.vendedor_id === usuario.id;
+  };
+
   // Cargar usuario directamente si no está en contexto
   useEffect(() => {
     const cargarUsuario = async () => {
@@ -376,7 +381,7 @@ export default function HistorialCotizaciones() {
                           💰 Control de Costos
                         </a>
                       )}
-                      {esAdmin && (
+                      {puedeEditarCotizacion(cotizacion) && (
                         <button
                           onClick={() => {
                             setCotizacionEditando(cotizacion);
@@ -540,7 +545,7 @@ export default function HistorialCotizaciones() {
                             💰
                           </a>
                         )}
-                        {esAdmin && (
+                        {puedeEditarCotizacion(cotizacion) && (
                           <button
                             onClick={() => {
                               setCotizacionEditando(cotizacion);
