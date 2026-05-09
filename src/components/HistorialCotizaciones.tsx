@@ -47,6 +47,15 @@ export default function HistorialCotizaciones() {
     return esAdmin || cotizacion.usuario_id === usuario.id || cotizacion.vendedor_id === usuario.id;
   };
 
+  const puedeGestionarCostos = (cotizacion: Cotizacion) => {
+    if (!usuario?.id) return false;
+
+    return esAdmin || (
+      cotizacion.estado === 'aceptada' &&
+      (cotizacion.usuario_id === usuario.id || cotizacion.vendedor_id === usuario.id)
+    );
+  };
+
   // Cargar usuario directamente si no está en contexto
   useEffect(() => {
     const cargarUsuario = async () => {
