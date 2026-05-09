@@ -93,8 +93,10 @@ export interface ItemManualCotizacion {
     servicio_nombre?: string;
     horas: number;
     precio_por_hora: number;
+    monto_manual?: number; // Monto fijo cuando el servicio no se calcula por horas
+    tipo_calculo?: 'horas' | 'monto';
   }>;
-  gastos_extras?: Array<{
+  gastos_extras?: number | Array<{
     concepto: string;
     monto: number;
   }>;
@@ -105,6 +107,7 @@ export interface ItemManualCotizacion {
     herramientas?: number;
     alquiler_espacio?: number;
     caja_chica?: number;
+    comentarios?: string;
   };
   descuento?: number; // Porcentaje de descuento
   dias_fabricacion?: number;
