@@ -203,18 +203,19 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
       gastosExtrasValor = gastosExtrasMonto;
     }
 
-    // IMPORTANTE: La utilidad se aplica SOLO sobre materiales + costos indirectos
-    // NO se aplica sobre: mano de obra, pintura, porcentaje de mano de obra, ni gastos extras
-    let utilidad = 0;
-    if (tipoUtilidad === 'porcentaje') {
-      utilidad = subtotalAntesExtras * (porcentajeUtilidad / 100);
-    } else {
-      utilidad = ajusteManual;
-    }
+    const costosSinUtilidad = subtotalAntesExtras + costoManoObraTotal + porcentajeManoObraValor + gastosExtrasValor;
 
-    // Precio unitario final = subtotal (materiales + costos indirectos) + utilidad + mano de obra completa + gastos extras
-    // Orden: materiales + costos indirectos → aplicar utilidad → sumar mano de obra (base + pintura + porcentaje) → sumar gastos extras
-    const precioUnitario = Math.round((subtotalAntesExtras + utilidad + costoManoObraTotal + porcentajeManoObraValor + gastosExtrasValor) * 100) / 100;
+    // IMPORTANTE: En modo porcentaje la utilidad se aplica SOLO sobre materiales + costos indirectos.
+    // En modo manual, el valor digitado es el PRECIO FINAL unitario, no un incremento.
+    const utilidad = tipoUtilidad === 'porcentaje'
+      ? subtotalAntesExtras * (porcentajeUtilidad / 100)
+      : ajusteManual - costosSinUtilidad;
+
+    // Precio unitario final. Si el usuario eligió ajuste manual, se respeta exactamente
+    // el precio final digitado aunque no existan costos/materiales cargados todavía.
+    const precioUnitario = tipoUtilidad === 'manual'
+      ? Math.round(ajusteManual * 100) / 100
+      : Math.round((costosSinUtilidad + utilidad) * 100) / 100;
 
     // Precio total (unitario × cantidad)
     const precioTotal = precioUnitario * cantidad;
@@ -233,6 +234,7 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
       // Este es el total de costos antes de aplicar la utilidad
       subtotal: costoMateriales + costosIndirectos + costoManoObra + gastosExtrasValor,
       utilidad,
+      costosSinUtilidad,
       precioUnitario,
       precioTotal
     };
@@ -251,6 +253,8 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
     alquilerEspacio,
     cajaChica,
     gastosExtrasPorcentaje,
+    gastosExtrasMonto,
+    tipoGastoExtra,
     tipoUtilidad,
     porcentajeUtilidad,
     ajusteManual,
@@ -411,44 +415,35 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
       }
     }
 
-    // Convertir costos indirectos a gastos extras
-    const gastosExtras = [];
-    if (transporte > 0) {
-      gastosExtras.push({ concepto: 'Transporte', monto: transporte });
-    }
-    if (herramientas > 0) {
-      gastosExtras.push({ concepto: 'Herramientas (desgaste)', monto: herramientas });
-    }
-    if (alquilerEspacio > 0) {
-      gastosExtras.push({ concepto: 'Alquiler de espacio', monto: alquilerEspacio });
-    }
-    if (cajaChica > 0) {
-      const concepto = comentariosCajaChica 
-        ? `Caja chica: ${comentariosCajaChica}`
-        : 'Caja chica';
-      gastosExtras.push({ concepto, monto: cajaChica });
-    }
-    // Agregar gastos extras (porcentaje o monto fijo)
-    // NOTA: Los gastos extras de costos indirectos siempre van en el array
-    // Los gastos extras siempre se guardan como array
-    let gastosExtrasFinal: Array<{ concepto: string; monto: number }> | undefined;
-    
-    if (tipoGastoExtra === 'monto' && gastosExtrasMonto > 0) {
-      // Agregar al array de gastos extras existente
-      gastosExtras.push({ 
+    // Construir gastos extras independientes de los costos indirectos.
+    // Los costos indirectos se guardan en su propio campo para no perderlos al editar
+    // y para evitar que se dupliquen en el cálculo del precio.
+    let gastosExtrasFinal: number | Array<{ concepto: string; monto: number }> | undefined;
+    if (tipoGastoExtra === 'porcentaje' && gastosExtrasPorcentaje > 0) {
+      gastosExtrasFinal = gastosExtrasPorcentaje;
+    } else if (tipoGastoExtra === 'monto' && gastosExtrasMonto > 0) {
+      gastosExtrasFinal = [{
         concepto: 'Gastos Extras (Monto fijo)', 
         monto: gastosExtrasMonto 
-      });
-      gastosExtrasFinal = gastosExtras.length > 0 ? gastosExtras : undefined;
-    } else {
-      // Si hay gastos extras de costos indirectos, usar el array
-      // Nota: Los gastos extras por porcentaje se calculan en tiempo real y no se guardan
-      gastosExtrasFinal = gastosExtras.length > 0 ? gastosExtras : undefined;
+      }];
     }
 
-    // Calcular margen de ganancia basado en utilidad
-    const subtotal = calculos.subtotal;
-    const margenGanancia = subtotal > 0 ? (calculos.utilidad / subtotal) * 100 : 0;
+    const costosIndirectos = {
+      transporte,
+      herramientas,
+      alquiler_espacio: alquilerEspacio,
+      caja_chica: cajaChica,
+      comentarios: comentariosCajaChica
+    };
+
+    // Guardar el porcentaje que escribió el usuario. Si eligió precio manual,
+    // convertir la utilidad resultante a porcentaje sobre la misma base usada para calcularla
+    // para que editar el item tenga una referencia consistente.
+    const margenGanancia = tipoUtilidad === 'porcentaje'
+      ? porcentajeUtilidad
+      : calculos.subtotalAntesExtras > 0
+        ? (ajusteManual / calculos.subtotalAntesExtras) * 100
+        : 0;
 
     agregarItemManual({
       tipo: 'manual',
@@ -458,10 +453,13 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
       materiales: materialesSeleccionados,
       servicios: servicios.length > 0 ? servicios : undefined,
       gastos_extras: gastosExtrasFinal,
+      costos_indirectos: costosIndirectos,
       dias_fabricacion: diasArmado || undefined,
       porcentaje_mano_obra: porcentajeManoObra > 0 ? porcentajeManoObra : undefined,
       margen_ganancia: margenGanancia,
       cantidad,
+      precio_unitario: calculos.precioUnitario,
+      precio_total: calculos.precioTotal,
       sin_datos_costos: {
         materiales: sinDatosCostosMateriales,
         mano_obra: sinDatosCostosManoObra,
@@ -1299,7 +1297,7 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
                   </>
                 ) : (
                   <div>
-                    <label className="block text-xs text-gray-600 mb-1">Ajuste manual del precio final</label>
+                    <label className="block text-xs text-gray-600 mb-1">Precio final unitario manual</label>
                     <div className="flex items-center gap-2">
                       <span className="text-sm">$</span>
                       <input
@@ -1313,7 +1311,7 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
                       />
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      Ajuste positivo o negativo al precio final calculado
+                      Este valor será el precio unitario final del item y se guardará aunque no hayas cargado costos todavía.
                     </p>
                   </div>
                 )}
@@ -1348,14 +1346,14 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">
-                    Utilidad ({tipoUtilidad === 'porcentaje' ? `${porcentajeUtilidad}%` : 'Manual'}):
+                    Utilidad ({tipoUtilidad === 'porcentaje' ? `${porcentajeUtilidad}%` : 'Precio manual'}):
                   </span>
                   <span className="font-medium text-green-600">
                     ${calculos.utilidad.toLocaleString('es-CO', { minimumFractionDigits: 0 })}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Ajuste manual:</span>
+                  <span className="text-gray-600">Precio manual unitario:</span>
                   <span className="font-medium">${tipoUtilidad === 'manual' ? ajusteManual.toLocaleString('es-CO', { minimumFractionDigits: 0 }) : '-'}</span>
                 </div>
                 <div className="flex justify-between pt-2 border-t-2 border-indigo-300 font-bold text-base bg-indigo-50 px-2 py-1 rounded">
@@ -1421,7 +1419,7 @@ function AgregarItemManualContent({ onClose }: AgregarItemManualProps) {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">
-                    Utilidad ({tipoUtilidad === 'porcentaje' ? `${porcentajeUtilidad}%` : 'Manual'}):
+                    Utilidad ({tipoUtilidad === 'porcentaje' ? `${porcentajeUtilidad}%` : 'Precio manual'}):
                   </span>
                   <span className="font-medium text-green-600">
                     +${calculos.utilidad.toLocaleString('es-CO', { minimumFractionDigits: 0 })}
